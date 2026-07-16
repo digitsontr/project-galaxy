@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, globalShortcut, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, globalShortcut, dialog, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
@@ -175,7 +175,7 @@ function scanProjects() {
   return {
     universes: data.universes.map(u => ({ id: u.id, name: u.name, subtitle: u.subtitle || '' })),
     projects,
-    agents: (data.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff' })),
+    agents: (data.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff', presets: a.presets || [] })),
     alerts: buildAlerts(projects),
     ignored: (data.ignored || []).map(id => ({ id, name: (data.projects[id] && data.projects[id].name) || id.split('/').pop() }))
   };
@@ -494,6 +494,180 @@ ipcMain.handle('galaxy:openFile', (e, p) => {
     if (p === root || p.startsWith(root + path.sep)) { shell.openPath(p); return true; }
   }
   return false;
+});
+
+// ---------- ajan yönetimi ----------
+ipcMain.handle('galaxy:agentsFull', () => loadData().agents || []);
+
+ipcMain.handle('galaxy:agentSave', (e, agent) => {
+  if (!agent || !agent.name) return { ok: false, error: 'Ad gerekli' };
+  const data = loadData();
+  data.agents = data.agents || [];
+  if (!agent.id) {
+    agent.id = slugify(agent.name);
+    while (data.agents.find(a => a.id === agent.id)) agent.id += '2';
+  }
+  const idx = data.agents.findIndex(a => a.id === agent.id);
+  const clean = {
+    id: agent.id, name: agent.name, role: agent.role || 'AJAN', color: agent.color || '#61dcff',
+    prompt: agent.prompt || '', write: !!agent.write,
+    presets: Array.isArray(agent.presets) ? agent.presets.filter(p => p && p.label && p.ask).slice(0, 8) : []
+  };
+  if (idx >= 0) data.agents[idx] = clean; else data.agents.push(clean);
+  saveData(data);
+  return { ok: true, id: agent.id };
+});
+
+ipcMain.handle('galaxy:agentDelete', (e, id) => {
+  const data = loadData();
+  if ((data.agents || []).length <= 1) return { ok: false, error: 'Son ajan silinemez' };
+  data.agents = (data.agents || []).filter(a => a.id !== id);
+  saveData(data);
+  return { ok: true };
+});
+
+// ---------- veritabanı görüntüleyici ----------
+function encPass(p) {
+  try {
+    return safeStorage.isEncryptionAvailable()
+      ? safeStorage.encryptString(p).toString('base64')
+      : Buffer.from(p, 'utf8').toString('base64');
+  } catch (e) { return Buffer.from(p, 'utf8').toString('base64'); }
+}
+function decPass(s) {
+  try {
+    const b = Buffer.from(s, 'base64');
+    return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(b) : b.toString('utf8');
+  } catch (e) {
+    try { return Buffer.from(s, 'base64').toString('utf8'); } catch (e2) { return ''; }
+  }
+}
+
+async function dbConnect(cfg) {
+  if (cfg.type === 'sqlite') {
+    const initSqlJs = require('sql.js');
+    const SQL = await initSqlJs({
+      locateFile: f => path.join(APP_DIR, 'node_modules', 'sql.js', 'dist', f)
+    });
+    const buf = fs.readFileSync(cfg.file.replace(/^~/, os.homedir()));
+    const db = new SQL.Database(buf);
+    return {
+      query: async sql => {
+        const res = db.exec(sql);
+        if (!res.length) return { rows: [], fields: [] };
+        const { columns, values } = res[0];
+        return { fields: columns, rows: values.map(v => Object.fromEntries(columns.map((c, i) => [c, v[i]]))) };
+      },
+      end: () => { try { db.close(); } catch (e) {} }
+    };
+  }
+  const base = { host: cfg.host, port: +cfg.port, user: cfg.user, password: cfg.password, database: cfg.database };
+  if (cfg.type === 'mysql') {
+    const mysql = require('mysql2/promise');
+    const conn = await mysql.createConnection({ ...base, connectTimeout: 6000 });
+    return {
+      query: async sql => { const [rows, fields] = await conn.query(sql); return { rows, fields: (fields || []).map(f => f.name) }; },
+      end: () => conn.end().catch(() => {})
+    };
+  }
+  const { Client } = require('pg');
+  const client = new Client({ ...base, connectionTimeoutMillis: 6000 });
+  await client.connect();
+  return {
+    query: async sql => { const r = await client.query(sql); return { rows: r.rows, fields: (r.fields || []).map(f => f.name) }; },
+    end: () => client.end().catch(() => {})
+  };
+}
+
+function getDbCfg(id) {
+  const data = loadData();
+  const db = (data.dbs || []).find(d => d.id === id);
+  if (!db) return null;
+  return { ...db, password: decPass(db.password) };
+}
+
+ipcMain.handle('galaxy:dbList', () => (loadData().dbs || []).map(({ password, ...rest }) => rest));
+
+ipcMain.handle('galaxy:dbSave', (e, db) => {
+  const isSqlite = db.type === 'sqlite';
+  if (!db.name || (isSqlite ? !db.file : (!db.host || !db.database || !db.user))) {
+    return { ok: false, error: isSqlite ? 'Ad ve dosya yolu gerekli' : 'Ad, sunucu, veritabanı ve kullanıcı gerekli' };
+  }
+  const data = loadData();
+  data.dbs = data.dbs || [];
+  if (!db.id) db.id = String(Date.now());
+  const idx = data.dbs.findIndex(d => d.id === db.id);
+  const existing = idx >= 0 ? data.dbs[idx] : null;
+  const clean = isSqlite
+    ? { id: db.id, name: db.name, type: 'sqlite', file: db.file, host: '', port: 0, database: path.basename(db.file), user: '', password: encPass('') }
+    : {
+      id: db.id, name: db.name, type: db.type === 'mysql' ? 'mysql' : 'postgres',
+      host: db.host, port: +db.port || (db.type === 'mysql' ? 3306 : 5432),
+      database: db.database, user: db.user,
+      password: db.password ? encPass(db.password) : (existing ? existing.password : encPass(''))
+    };
+  if (idx >= 0) data.dbs[idx] = clean; else data.dbs.push(clean);
+  saveData(data);
+  return { ok: true, id: db.id };
+});
+
+ipcMain.handle('galaxy:dbDelete', (e, id) => {
+  const data = loadData();
+  data.dbs = (data.dbs || []).filter(d => d.id !== id);
+  saveData(data);
+  return { ok: true };
+});
+
+ipcMain.handle('galaxy:dbTest', async (e, cfgRaw) => {
+  try {
+    const cfg = cfgRaw.id && !cfgRaw.password ? getDbCfg(cfgRaw.id) : cfgRaw;
+    const c = await dbConnect(cfg);
+    await c.query('SELECT 1');
+    c.end();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.code === 'MODULE_NOT_FOUND' ? 'Sürücü eksik — ProjectGalaxy klasöründe: npm install' : err.message };
+  }
+});
+
+ipcMain.handle('galaxy:dbTables', async (e, id) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  try {
+    const c = await dbConnect(cfg);
+    const sql = cfg.type === 'sqlite'
+      ? `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY 1`
+      : cfg.type === 'mysql'
+        ? 'SHOW TABLES'
+        : `SELECT schemaname || '.' || tablename AS t FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY 1`;
+    const r = await c.query(sql);
+    c.end();
+    const tables = r.rows.map(row => Object.values(row)[0]);
+    return { ok: true, tables };
+  } catch (err) {
+    return { ok: false, error: err.code === 'MODULE_NOT_FOUND' ? 'Sürücü eksik — ProjectGalaxy klasöründe: npm install' : err.message };
+  }
+});
+
+ipcMain.handle('galaxy:dbQuery', async (e, { id, table, sql }) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  let finalSql;
+  if (table) {
+    if (!/^[\w.$]+$/.test(table)) return { ok: false, error: 'Geçersiz tablo adı' };
+    finalSql = cfg.type === 'mysql' ? `SELECT * FROM \`${table}\` LIMIT 100` : `SELECT * FROM ${table.includes('.') ? table : '"' + table + '"'} LIMIT 100`;
+  } else {
+    if (!/^\s*select\b/i.test(sql || '')) return { ok: false, error: 'Yalnızca SELECT sorgularına izin var' };
+    finalSql = sql;
+  }
+  try {
+    const c = await dbConnect(cfg);
+    const r = await c.query(finalSql);
+    c.end();
+    return { ok: true, fields: r.fields, rows: r.rows.slice(0, 200) };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 // ---------- git detayları ----------

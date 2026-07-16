@@ -32,5 +32,14 @@ contextBridge.exposeInMainWorld('galaxy', {
   syncReadme: (projectId) => ipcRenderer.invoke('galaxy:syncReadme', projectId),
   projectDelete: (projectId) => ipcRenderer.invoke('galaxy:projectDelete', projectId),
   projectUnhide: (projectId) => ipcRenderer.invoke('galaxy:projectUnhide', projectId),
-  gitLog: (projectId) => ipcRenderer.invoke('galaxy:gitLog', projectId)
+  gitLog: (projectId) => ipcRenderer.invoke('galaxy:gitLog', projectId),
+  agentsFull: () => ipcRenderer.invoke('galaxy:agentsFull'),
+  agentSave: (agent) => ipcRenderer.invoke('galaxy:agentSave', agent),
+  agentDelete: (id) => ipcRenderer.invoke('galaxy:agentDelete', id),
+  dbList: () => ipcRenderer.invoke('galaxy:dbList'),
+  dbSave: (db) => ipcRenderer.invoke('galaxy:dbSave', db),
+  dbDelete: (id) => ipcRenderer.invoke('galaxy:dbDelete', id),
+  dbTest: (cfg) => ipcRenderer.invoke('galaxy:dbTest', cfg),
+  dbTables: (id) => ipcRenderer.invoke('galaxy:dbTables', id),
+  dbQuery: (opts) => ipcRenderer.invoke('galaxy:dbQuery', opts)
 });

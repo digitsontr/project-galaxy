@@ -14,9 +14,11 @@ fi
 echo "▸ Bağımlılıklar kuruluyor (ilk seferde birkaç dakika sürebilir)…"
 npm install
 
-echo "▸ Uygulama paketleniyor…"
+ARCH=$(uname -m)
+[ "$ARCH" = "x86_64" ] && ARCH="x64"
+echo "▸ Uygulama paketleniyor (mimari: $ARCH)…"
 npx electron-packager . "Project Galaxy" \
-  --platform=darwin --arch=arm64 \
+  --platform=darwin --arch=$ARCH \
   --icon=build/galaxy.icns \
   --out=dist --overwrite --prune \
   --app-bundle-id=com.furkan.projectgalaxy \
@@ -24,7 +26,7 @@ npx electron-packager . "Project Galaxy" \
 
 echo "▸ PAPILON klasörüne yerleştiriliyor…"
 rm -rf "$DIR/../Project Galaxy.app"
-mv "$DIR/dist/Project Galaxy-darwin-arm64/Project Galaxy.app" "$DIR/.."
+mv "$DIR/dist/Project Galaxy-darwin-$ARCH/Project Galaxy.app" "$DIR/.."
 xattr -dr com.apple.quarantine "$DIR/../Project Galaxy.app" 2>/dev/null || true
 rm -rf "$DIR/dist"
 
