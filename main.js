@@ -776,6 +776,30 @@ function applyAttachments(prompt, args, attachments) {
   return prompt;
 }
 
+// Pano görüntüsünü (ekran görüntüsü) dosyaya kaydet
+const { clipboard } = require('electron');
+function attachmentsDir() {
+  const d = path.join(DATA_DIR, 'attachments');
+  fs.mkdirSync(d, { recursive: true });
+  return d;
+}
+ipcMain.handle('galaxy:pasteImage', () => {
+  const img = clipboard.readImage();
+  if (!img || img.isEmpty()) return null;
+  const file = path.join(attachmentsDir(), `pano-${Date.now()}.png`);
+  fs.writeFileSync(file, img.toPNG());
+  return file;
+});
+
+// Yolu olmayan (ör. tarayıcıdan sürüklenen) dosyayı kaydet
+ipcMain.handle('galaxy:saveAttachment', (e, { name, dataBase64 }) => {
+  if (!name || !dataBase64) return null;
+  const safe = String(name).replace(/[^\w. çğıöşüÇĞİÖŞÜ-]/g, '_').slice(0, 80) || 'ek';
+  const file = path.join(attachmentsDir(), `${Date.now()}-${safe}`);
+  fs.writeFileSync(file, Buffer.from(dataBase64, 'base64'));
+  return file;
+});
+
 ipcMain.handle('galaxy:pickFiles', async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {

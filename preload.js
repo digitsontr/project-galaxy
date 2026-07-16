@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('galaxy', {
   load: () => ipcRenderer.invoke('galaxy:load'),
@@ -52,5 +52,8 @@ contextBridge.exposeInMainWorld('galaxy', {
   shellInput: (opts) => ipcRenderer.invoke('galaxy:shellInput', opts),
   shellStop: (shellId) => ipcRenderer.invoke('galaxy:shellStop', shellId),
   onShell: (cb) => ipcRenderer.on('shell:out', (e, msg) => cb(msg)),
-  pickFiles: () => ipcRenderer.invoke('galaxy:pickFiles')
+  pickFiles: () => ipcRenderer.invoke('galaxy:pickFiles'),
+  pasteImage: () => ipcRenderer.invoke('galaxy:pasteImage'),
+  saveAttachment: (opts) => ipcRenderer.invoke('galaxy:saveAttachment', opts),
+  getPathForFile: (file) => { try { return webUtils.getPathForFile(file); } catch (e) { return file.path || null; } }
 });
