@@ -1,122 +1,140 @@
-# Project Galaxy
+<p align="center">
+  <img src="docs/banner.png" alt="Project Galaxy" width="900">
+</p>
 
-Projelerini bir evren olarak gezdiğin, yapay zekâ ajanlarıyla yönettiğin macOS masaüstü uygulaması. PAPILON (iş) ve FY (kişisel) klasörlerindeki her alt klasör otomatik olarak bir "gezegen" olur; durumunu, planını, git geçmişini ve dokümanlarını uygulamanın içinden yönetirsin.
-
-> Electron + React + TypeScript + Canvas 2D. Claude Code CLI ile ajan ve konsol entegrasyonu.
+<h1 align="center">Project Galaxy</h1>
+<p align="center"><b>Bilgisayarındaki projeleri bir evren olarak gez, yapay zekâ ajanlarınla yönet.</b><br>
+macOS · Electron · React · Claude</p>
 
 ---
 
-## Hızlı Başlangıç
+## Bu uygulama ne işe yarar?
 
+Diyelim ki diskinde onlarca proje klasörü var: kimi yarım, kimi bitmiş, kiminde ne kaldığını hatırlamıyorsun bile. Project Galaxy bu klasörleri **yaşayan bir evrene** çevirir:
+
+- Her klasör bir **gezegen** olur — rengi durumunu (aktif/beklemede/bitti), halkası ilerlemesini, parlaklığı git aktivitesini gösterir. İhmal ettiklerin sarı ünlemle sana bakar.
+- Gezegene "inersin": dosyaların yörüngede döner, README'si yanında, planın solunda, altta Claude'a ve bash'e komut verdiğin konsol.
+- **5 kişisel AI ajanın** (CTO, PM, Dokümantasyoncu, Kod Denetçisi, Koç) projelerinin gerçek durumunu görerek rapor verir, README yazar, hesap sorar.
+- Notların, todo'ların, günlüğün — hepsi projelere bağlanır ve README dosyalarına **senin onayınla** işlenir.
+
+**Kazanımın:** dağınık klasörler yerine tek bakışta durum; unutulan işlerin bitmesi; dokümantasyonun kendini yazması; ve her şeyin git + yedeklerle güvende olması. Verilerin hiçbir sunucuya gitmez — her şey diskinde.
+
+---
+
+## Kurulum (hiç bilmeyenler için)
+
+**Gerekenler:** macOS ve 10 dakika.
+
+**Adım 1 — Node.js kur** (uygulamanın motoru):
+[nodejs.org](https://nodejs.org) adresinden "LTS" düğmesiyle indir, kurulum sihirbazını tamamla.
+
+**Adım 2 — Claude Code kur** (ajanların beyni):
+Terminal'i aç (⌘+Boşluk → "Terminal") ve şunu yapıştır:
 ```bash
-# Gereksinimler: Node.js (nodejs.org) ve Claude Code (ajanlar için)
 npm install -g @anthropic-ai/claude-code
-
-# Gerçek .app paketini üret (bir kez; main.js her değiştiğinde tekrar):
-#   ProjectGalaxy/"Gerçek App Oluştur.command" dosyasına çift tıkla
-# Sonrasında PAPILON içindeki "Project Galaxy.app" ile aç — Dock'a sabitlenebilir.
-
-# Alternatif (geliştirme modu):
-npm install && npm start
+claude   # ilk çalıştırmada hesabınla giriş yapmanı ister
 ```
 
-Arayüz (`index.html`) uygulama paketinin **dışından**, bu klasörden yüklenir — yani UI güncellemeleri için yeniden paketlemek gerekmez; yalnızca `main.js` değişirse paketleme gerekir.
+**Adım 3 — Uygulamayı paketle** (tek seferlik):
+`ProjectGalaxy` klasöründeki **`Gerçek App Oluştur.command`** dosyasına çift tıkla.
+macOS "tanımlanamayan geliştirici" derse: dosyaya **sağ tık → Aç → Aç**.
+Script birkaç dakikada bağımlılıkları indirir ve bir üst klasöre **Project Galaxy.app** üretir.
+
+**Adım 4 — Aç ve kullan:**
+`Project Galaxy.app`'e çift tıkla (ilk sefer yine sağ tık → Aç gerekebilir). Dock'ta sağ tık → Seçenekler → **Dock'ta Tut** ile sabitle.
+
+> Güncellemelerde: yalnızca arayüz değiştiyse uygulamayı kapat-aç yeterli; `main.js` değiştiyse Adım 3'ü bir kez tekrarla.
 
 ---
 
-## Özellikler
+## İlk 10 dakika — rehberli tur
 
-### Evrenler
-- Açılışta evren seçim ekranı: **İş Evreni (PAPILON)** ve **Kişisel Evren (FY)**.
-- Evren ekle / düzenle / sil (✎ ve ✕, + Yeni Evren): herhangi bir klasörü evren yap; alt klasörleri gezegen olur.
-- Klasör değişiklikleri canlı yansır (pencere odaklanınca + 60 sn'de bir tarama).
+<p align="center"><img src="docs/uzay-modu.png" alt="Uzay modu" width="900"></p>
 
-### Uzay Görünümü
-- Gezegenler durum rengiyle çizilir: mavi aktif · sarı beklemede · yeşil tamam · gri arşiv · mor keşfedilmemiş.
-- İlerleme halkası, git aktivitesine göre parlaklık/nabız, 21+ gün hareketsiz aktif projelerde **!** rozeti.
-- Bağlantılı projeler arasında takımyıldız çizgileri (Genel sekmesinden bağlanır).
-- Sol kenarda tıklanabilir proje listesi, README'si olmayanlar ve gizlenenler bölümleri.
-- Minimap (Sektör Haritası), +/−/⌂ zoom, arama (Enter ile git), WASD/ok tuşları.
-- Tek tık → bilgi kartı; çift tık veya "Gezegene İn" → gezegen modu.
+1. **Evrenini seç.** Açılışta İş / Kişisel kartları çıkar. ✎ ile ad/klasör değiştir, **+** ile bilgisayarındaki herhangi bir klasörü yeni evren yap — içindeki her alt klasör otomatik gezegen olur.
+2. **Gezin.** Fareyle sürükle, tekerlekle yaklaş. Soldaki listeden tek tık = projeye uç, çift tık = gezegene in. Sağ alttaki Sektör Haritası'na tıkla = ışınlan.
+3. **Renkleri oku.** 🔵 aktif · 🟡 beklemede · 🟢 tamam · ⚪ arşiv · 🟣 keşfedilmemiş (yeni klasör). Sarı **!** = 21+ gündür dokunulmamış aktif proje. Gezegenler arası akan çizgiler = bağladığın ilişkili projeler.
+4. **Bilgi kartı.** Gezegene tek tıkla: aşama, ilerleme, git satırı (`⎇ dal · son commit · ▸ GEÇMİŞ`). "Gezegene İn ▸" ile içeri gir.
+5. **?'ye bas.** Üst bardaki soru işareti 10 slaytlık görselli rehberi açar — bu turun uygulama içi hali.
 
-### Gezegen Modu (proje içi)
-- Dosyalar yörüngede döner: klasörler halkalı, dosyalar türe göre renkli; isimler hep görünür.
-- Tıkla → uygulama içi görüntüleyici (kod, markdown, resim, PDF, video, ses). Klasöre tıkla → içine dal; sağ tık/Backspace → üst klasör; üstte breadcrumb.
-- **Sol panel**: KAYIT (durum, ilerleme, plan CRUD — çift tıkla düzenle, notlar, bağlantılar, odak modu, onaylı proje kaldırma) · AĞAÇ (tam dosya ağacı) · **⎇ GİT** (dal, commit akışı, bekleyen değişiklikler).
-- **Sağ panel**: README render'lı olarak hep açık.
-- **Alt şerit**: Claude konsolu — komut yaz, Enter; Claude'un dokunduğu dosyalar yörüngede amber yanar, iş sonunda "dokunulan dosyalar" özeti düşer. DEVAM ile oturum sürdürme, TERMİNAL ile gerçek terminal.
+### Gezegenin içi
 
-### Ajanlar (sağ üst istasyon)
-| Ajan | Rol | Görev |
-|------|-----|-------|
-| ATLAS | CTO | Evren geneli durum/risk raporu, haftalık odak |
-| NAVIGATOR | PM | Standup, ihmal edilmiş projeler, taahhüt takibi; uyarı rozeti |
-| DOCUMENTOR | Doküman | README açığı tespiti ve **README yazma** (tek yazma yetkili ajan) |
-| FORGE | Kod Kalite | Teknik borç raporu, hızlı kazanımlar (salt okur) |
-| MENTOR | Koç | FY öğrenme projeleri için haftalık plan ve ilerleme |
+<p align="center"><img src="docs/gezegen-modu.png" alt="Gezegen modu" width="900"></p>
 
-- Üzerine gel → görev kartı; tıkla → görev istasyonu (hazır komutlar + serbest soru).
-- **Bağlam duyarlı**: uzaydayken tüm evrene, gezegen modundayken sadece o projeye bakarlar (panelde BAĞLAM çipi).
-- Kişilikler `galaxy-data.json > agents` içinde düzenlenebilir.
+- **Orta:** dosyaların yörüngede. Klasör = halkalı uydu (tıkla → içine dal), dosya = türüne göre renkli (kod mavi, doküman sarı, görsel pembe). Tıklayınca **uygulama içinde** açılır: kod, markdown, resim, PDF, video. Üstte "belgede ara…" kutusu vurgulu arama yapar.
+- **Sol panel:** KAYIT (durum, ilerleme, plan checklist'i — çift tıkla düzenle, notlar, odak kronometresi, onaylı proje kaldırma) · AĞAÇ (tam dosya ağacı) · **⎇ GİT** (dallar, commit'lenmemiş değişiklikler, commit zaman çizgisi).
+- **Sağ panel:** README her zaman açık, render'lı.
+- **Alt konsol, iki sekme:**
+  - **⌁ CLAUDE** — "şu bug'ı düzelt" yaz, Enter. Claude'un dokunduğu dosyalar yörüngede amber yanar; ekran görüntüsü **yapıştır** (⌘V) veya dosya **sürükle**, görerek analiz eder.
+  - **▮ BASH** — gömülü terminal. `cd`, ortam değişkenleri oturum boyunca korunur; ↑↓ komut geçmişi; ⟲ sıfırla; ⇗ Terminal.app'te aç.
 
-### Günlük & Görev Akışı
-- **✎ GÜNLÜK**: not yaz → Claude ilgili projeyi bulur → klasör yolu gösterilerek **onayın istenir** → yapılan iş README `## Günlük`e, yapılacak iş `## Yapılacaklar`a (`- [ ]`) ve plana işlenir. Genel TODO listesi de burada.
-- **▦ PANO**: Trello tarzı 3 kolon (Bekliyor / Devam / Tamam) — genel todo'lar + tüm plan maddeleri. Karttan ▸ GİT ile gezegene in, ⌁ ile Claude terminali aç.
-- **README ↔ plan senkronu**: README'deki `- [ ]` maddeleri gezegene girince plana aktarılır; planda işaretlenen README'de de işaretlenir.
-- **Odak modu**: kronometre; bitirince süre README günlüğüne işlenir.
-- **⌘⇧G**: uygulama kapalıyken bile menü çubuğundan hızlı not.
+### Ajanların
 
-### Güvenlik & Veri
-- Veri tek dosyada: `galaxy-data.json` (projeler, ajanlar, todo, günlük, gizlenenler).
-- **Günlük yedek**: `backups/` (14 gün) + her değişiklikte **otomatik git commit** (30 sn debounce).
-- Proje kaldırma iki aşamalı onaylıdır: "Evrenden Gizle" (diske dokunmaz) veya "Çöp Kutusuna Taşı" (geri alınabilir). Kalıcı silme yok.
-- Zamanlanmış raporlar (Claude uygulaması üzerinden): sabah raporu (duraklatıldı, istenirse açılır) ve Pazartesi 09:00 haftalık retro → `reports/`.
+<p align="center"><img src="docs/ajan-akisi.png" alt="Ajan akışı" width="900"></p>
 
-### Yardım
-Üst bardaki **?** düğmesi tüm bu özellikleri görselli 10 slaytta anlatır.
+Sağ üstteki istasyonda dururlar; üzerine gel → görev kartı, tıkla → konuşma paneli. **Uzaydayken tüm evrene, gezegen modundayken sadece o projeye** bakarlar (panelde BAĞLAM çipi).
+
+| Ajan | Rolü | Ona ne dersin |
+|------|------|----------------|
+| 🔵 **ATLAS** | CTO | "İş evreninin durum raporunu ver", "Risk analizi yap" |
+| 🟡 **NAVIGATOR** | PM | "Standup", "İhmal ettiklerim neler?" — rozetinde uyarı sayısı birikir |
+| 🟢 **DOCUMENTOR** | Dokümantasyon | "Bu projeye README yaz" — dosya yazabilen tek ajan |
+| 🩷 **FORGE** | Kod kalitesi | "Teknik borcu tara" — okur ama asla değiştirmez |
+| 🟣 **MENTOR** | Kişisel koç | "Bu hafta için çalışma planı öner" |
+
+⚙ düğmesiyle adlarını, renklerini, görev tanımlarını ve hazır komut düğmelerini düzenler, yeni ajan eklersin.
+
+### Günlük iş akışın
+
+- **✎ GÜNLÜK:** "login ekranını bitirdim" yaz → uygulama hangi projeyle ilgili olduğunu bulur → **klasör yolunu göstererek onayını ister** → yapılan iş README `## Günlük`e, yapılacak iş `## Yapılacaklar`a ve plana işlenir. README'deki `- [ ]` maddeleri de gezegene girince plana aktarılır — çift yönlü senkron.
+- **▦ PANO:** tüm todo'lar Trello tarzı üç kolonda (Bekliyor / Devam / Tamam). Karttan ▸ GİT ile gezegene in, ⌁ ile Claude aç.
+- **⏱ ZAMANLAYICI:** "her sabah 09:00'da ATLAS durum raporu hazırlasın" gibi görevler; çıktılar rapor arşivine düşer, ekranda bildirim çıkar.
+- **⌘⇧G:** uygulama kapalıyken bile menü çubuğundan hızlı not.
+- **⛁ DB:** veritabanı sunucularını ekle (parolalar Anahtar Zinciri'yle şifreli) → sunucudaki tüm veritabanları → tablolar → satırlar; **ŞEMA** düğmesi tablo ilişkilerini (foreign key) kart diyagramı olarak çizer. Yalnızca okuma — veri bozamazsın.
 
 ---
 
-## Klasör Yapısı
+## Verilerim güvende mi?
+
+- Her şey diskinde: tek veri dosyası `galaxy-data.json`. Hiçbir bulut yok.
+- Her gün otomatik yedek (`backups/`, 14 gün) + her değişiklikte sessiz **git commit** — `git log` ile zaman yolculuğu.
+- Proje silme iki aşamalı onaylıdır ve en kötü ihtimalle macOS Çöp Kutusu'na gider; kalıcı silme yoktur.
+- DB parolaları macOS `safeStorage` ile şifrelenir; DB tarafında yalnızca `SELECT` çalışır.
+
+## Sık sorulanlar
+
+**Uygulama açılmıyor.** İlk açılışta sağ tık → Aç (Gatekeeper). Hâlâ olmuyorsa Node.js kurulu mu kontrol et: Terminal'de `node -v`.
+
+**Ajanlar "claude bulunamadı" diyor.** Adım 2'yi yap; sonra `claude` yazıp giriş yaptığından emin ol.
+
+**Yeni eklediğim klasör görünmüyor.** 60 saniye bekle ya da pencereye tıkla (odaklanınca tarar). Uzay modundayken görünür.
+
+**Bir şeyi yanlışlıkla değiştirdim.** `backups/` klasöründen dünkü `galaxy-data-*.json`'u geri kopyala veya `git checkout <hash> -- galaxy-data.json`.
+
+**vim/top gömülü terminalde çalışmıyor.** Doğru — o bir komut yürütücü, tam ekran programlar için ⇗ ile gerçek Terminal'i aç.
+
+## Klasör yapısı & mimari (meraklısına)
 
 ```
 ProjectGalaxy/
-├── main.js                 # Electron ana süreç: tarama, git, ajanlar, günlük, IPC (30 kanal)
-├── preload.js              # Renderer köprüsü (window.galaxy.*)
-├── index.html              # Derlenmiş arayüz (React bundle — elle düzenleme!)
-├── galaxy-data.json        # TÜM verin (tek kaynak)
-├── galaxy-data.js          # Tarayıcı modu için senkron kopya (otomatik üretilir)
-├── backups/                # Günlük veri yedekleri (14 gün)
-├── reports/                # Ajan raporları (sabah/retro)
-├── build/                  # galaxy.icns (app ikonu), tray.png (menü çubuğu)
-├── Gerçek App Oluştur.command  # .app paketleyici (electron-packager, arm64)
-├── Başlat.command          # Geliştirme modu başlatıcı
-└── index.v2.backup.html    # Önceki (React öncesi) arayüz yedeği
+├── main.js              # Electron ana süreç — tarama, git, ajanlar, DB, zamanlayıcı (50+ IPC)
+├── preload.js           # Güvenli köprü (window.galaxy.*)
+├── index.html           # Derlenmiş React arayüzü (kaynaktan üretilir, elle düzenleme)
+├── galaxy-data.json     # TÜM verin — tek kaynak
+├── docs/                # Bu README'nin görselleri
+├── backups/  reports/  attachments/  build/
+└── Gerçek App Oluştur.command   # paketleyici (mimarini otomatik algılar)
 ```
 
-## Mimari Notlar
-
-- **Arayüz kaynağı**: React + TS + Tailwind projesi olarak geliştirilir, `web-artifacts-builder` ile tek `index.html`'e paketlenir. `index.html` üretilmiş dosyadır; değişiklikler kaynaktan derlenir (Claude'a "arayüzü güncelle" demen yeterli).
-- **Canvas motoru**: uzay + gezegen sahneleri tek rAF döngüsü. Performans: gradyanlar offscreen sprite önbelleğinde, yıldızlar katman başına tek path, DPR ≤ 1.5, minimap 8 karede bir.
-- **Ajan çalıştırma**: `claude -p --output-format stream-json` alt süreci; proje bağlamında `cwd` proje klasörüdür, FY'ye `--add-dir` ile erişilir. DOCUMENTOR `--permission-mode acceptEdits` ile yazabilir.
-- **Git okuma**: liste görünümü için `.git/HEAD` ve `.git/logs/HEAD` doğrudan okunur (süreç yok); detay sekmesi `git log/status/branch` çalıştırır.
-- **Veri güvenliği**: `galaxy:save` → günlük snapshot + `git add -A && commit` (sessiz).
+Teknik notlar: Canvas 2D sahne (sprite önbelleği + katman-başına-tek-path yıldızlar sayesinde 60fps), ajanlar `claude -p --output-format stream-json` alt süreci olarak akar, git bilgisi süreç başlatmadan `.git` dosyalarından okunur, DB sürücüleri saf JS (pg/mysql2/sql.js). Ürünleştirme yol haritası için `PRODUCTIZATION.md`.
 
 ## Kısayollar
 
-| Tuş | İşlev |
-|-----|-------|
-| ESC | Katman katman geri (popup → panel → üst klasör → uzay) |
-| ⌘⇧G | Hızlı not (global) |
-| Enter | Aramada ilk sonuca git · konsolda çalıştır |
-| ⌘/Ctrl+Enter | Ajan/Günlük metin kutularında gönder |
-| WASD / Oklar | Uzayda gezinme · +/− zoom |
-| Çift tık | Gezegene in · plan maddesi düzenle |
-| Backspace / sağ tık | Gezegen modunda üst klasör |
-
-## Sorun Giderme
-
-- **App açılmıyor**: İlk açılışta sağ tık → Aç (Gatekeeper). Node yoksa nodejs.org'dan kur.
-- **Ajanlar "claude bulunamadı" diyor**: `npm install -g @anthropic-ai/claude-code`.
-- **UI eski görünüyor**: uygulamayı kapat-aç (arayüz bu klasörden yüklenir). `main.js` değiştiyse paketleyiciyi bir kez çalıştır.
-- **Veriyi geri almak**: `backups/` içinden kopyala veya `git log` → `git checkout <hash> -- galaxy-data.json`.
+| | |
+|---|---|
+| **ESC** | katman katman geri | 
+| **Enter** | gönder/çalıştır (her konsol ve ajan kutusunda) · **Shift+Enter** yeni satır |
+| **⌘⇧G** | her yerden hızlı not |
+| **Çift tık** | gezegene in · plan maddesi düzenle |
+| **↑↓** | bash komut geçmişi · **⌫** üst klasör |
+| **WASD/oklar, +/−, ⌂** | uzayda gezinme |

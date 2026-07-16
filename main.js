@@ -571,7 +571,7 @@ async function dbConnect(cfg) {
     };
   }
   const { Client } = require('pg');
-  const client = new Client({ ...base, connectionTimeoutMillis: 6000 });
+  const client = new Client({ ...base, database: base.database || 'postgres', connectionTimeoutMillis: 6000 });
   await client.connect();
   return {
     query: async sql => { const r = await client.query(sql); return { rows: r.rows, fields: (r.fields || []).map(f => f.name) }; },
@@ -590,8 +590,8 @@ ipcMain.handle('galaxy:dbList', () => (loadData().dbs || []).map(({ password, ..
 
 ipcMain.handle('galaxy:dbSave', (e, db) => {
   const isSqlite = db.type === 'sqlite';
-  if (!db.name || (isSqlite ? !db.file : (!db.host || !db.database || !db.user))) {
-    return { ok: false, error: isSqlite ? 'Ad ve dosya yolu gerekli' : 'Ad, sunucu, veritabanı ve kullanıcı gerekli' };
+  if (!db.name || (isSqlite ? !db.file : (!db.host || !db.user))) {
+    return { ok: false, error: isSqlite ? 'Ad ve dosya yolu gerekli' : 'Ad, sunucu ve kullanıcı gerekli' };
   }
   const data = loadData();
   data.dbs = data.dbs || [];
@@ -603,7 +603,7 @@ ipcMain.handle('galaxy:dbSave', (e, db) => {
     : {
       id: db.id, name: db.name, type: db.type === 'mysql' ? 'mysql' : 'postgres',
       host: db.host, port: +db.port || (db.type === 'mysql' ? 3306 : 5432),
-      database: db.database, user: db.user,
+      database: db.database || '', user: db.user,
       password: db.password ? encPass(db.password) : (existing ? existing.password : encPass(''))
     };
   if (idx >= 0) data.dbs[idx] = clean; else data.dbs.push(clean);
@@ -630,11 +630,33 @@ ipcMain.handle('galaxy:dbTest', async (e, cfgRaw) => {
   }
 });
 
-ipcMain.handle('galaxy:dbTables', async (e, id) => {
+function dbErr(err) {
+  return err.code === 'MODULE_NOT_FOUND' ? 'Sürücü eksik — ProjectGalaxy klasöründe: npm install' : err.message;
+}
+
+// Sunucudaki TÜM veritabanlarını listele
+ipcMain.handle('galaxy:dbDatabases', async (e, id) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (cfg.type === 'sqlite') return { ok: true, databases: [path.basename(cfg.file || 'sqlite')] };
+  try {
+    const c = await dbConnect({ ...cfg, database: cfg.type === 'postgres' ? (cfg.database || 'postgres') : (cfg.database || undefined) });
+    const sql = cfg.type === 'mysql'
+      ? 'SHOW DATABASES'
+      : `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY 1`;
+    const r = await c.query(sql);
+    c.end();
+    const skip = new Set(['information_schema', 'performance_schema', 'mysql', 'sys']);
+    const databases = r.rows.map(row => Object.values(row)[0]).filter(d => !skip.has(d));
+    return { ok: true, databases };
+  } catch (err) { return { ok: false, error: dbErr(err) }; }
+});
+
+ipcMain.handle('galaxy:dbTables', async (e, { id, database }) => {
   const cfg = getDbCfg(id);
   if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
   try {
-    const c = await dbConnect(cfg);
+    const c = await dbConnect(cfg.type === 'sqlite' ? cfg : { ...cfg, database: database || cfg.database });
     const sql = cfg.type === 'sqlite'
       ? `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY 1`
       : cfg.type === 'mysql'
@@ -644,14 +666,57 @@ ipcMain.handle('galaxy:dbTables', async (e, id) => {
     c.end();
     const tables = r.rows.map(row => Object.values(row)[0]);
     return { ok: true, tables };
-  } catch (err) {
-    return { ok: false, error: err.code === 'MODULE_NOT_FOUND' ? 'Sürücü eksik — ProjectGalaxy klasöründe: npm install' : err.message };
-  }
+  } catch (err) { return { ok: false, error: dbErr(err) }; }
 });
 
-ipcMain.handle('galaxy:dbQuery', async (e, { id, table, sql }) => {
+// Şema: tablolar + kolonlar + foreign key ilişkileri
+ipcMain.handle('galaxy:dbSchema', async (e, { id, database }) => {
   const cfg = getDbCfg(id);
   if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  try {
+    const c = await dbConnect(cfg.type === 'sqlite' ? cfg : { ...cfg, database: database || cfg.database });
+    const tables = []; const fks = [];
+
+    if (cfg.type === 'sqlite') {
+      const tr = await c.query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY 1`);
+      for (const row of tr.rows.slice(0, 60)) {
+        const t = Object.values(row)[0];
+        const cols = await c.query(`PRAGMA table_info("${t}")`);
+        tables.push({ name: t, columns: cols.rows.map(cl => ({ name: cl.name, type: cl.type, pk: !!cl.pk })) });
+        const fkr = await c.query(`PRAGMA foreign_key_list("${t}")`);
+        for (const fk of fkr.rows) fks.push({ from: t, fromCol: fk.from, to: fk.table, toCol: fk.to });
+      }
+    } else if (cfg.type === 'mysql') {
+      const db = database || cfg.database;
+      const cr = await c.query(`SELECT TABLE_NAME t, COLUMN_NAME c, COLUMN_TYPE ty, COLUMN_KEY k FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${db.replace(/'/g, "''")}' ORDER BY TABLE_NAME, ORDINAL_POSITION`);
+      const byT = {};
+      for (const r2 of cr.rows) (byT[r2.t] ||= []).push({ name: r2.c, type: r2.ty, pk: r2.k === 'PRI' });
+      for (const [name, columns] of Object.entries(byT)) tables.push({ name, columns });
+      const fr = await c.query(`SELECT TABLE_NAME f, COLUMN_NAME fc, REFERENCED_TABLE_NAME rt, REFERENCED_COLUMN_NAME rc FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='${db.replace(/'/g, "''")}' AND REFERENCED_TABLE_NAME IS NOT NULL`);
+      for (const r2 of fr.rows) fks.push({ from: r2.f, fromCol: r2.fc, to: r2.rt, toCol: r2.rc });
+    } else {
+      const cr = await c.query(`SELECT table_schema||'.'||table_name t, column_name c, data_type ty FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name, ordinal_position`);
+      const pkr = await c.query(`SELECT tc.table_schema||'.'||tc.table_name t, kcu.column_name c FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema WHERE tc.constraint_type='PRIMARY KEY'`);
+      const pkSet = new Set(pkr.rows.map(r2 => r2.t + '|' + r2.c));
+      const byT = {};
+      for (const r2 of cr.rows) (byT[r2.t] ||= []).push({ name: r2.c, type: r2.ty, pk: pkSet.has(r2.t + '|' + r2.c) });
+      for (const [name, columns] of Object.entries(byT)) tables.push({ name, columns });
+      const fr = await c.query(`SELECT tc.table_schema||'.'||tc.table_name f, kcu.column_name fc, ccu.table_schema||'.'||ccu.table_name rt, ccu.column_name rc
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name=tc.constraint_name AND ccu.table_schema=tc.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY'`);
+      for (const r2 of fr.rows) fks.push({ from: r2.f, fromCol: r2.fc, to: r2.rt, toCol: r2.rc });
+    }
+    c.end();
+    return { ok: true, tables: tables.slice(0, 80), fks };
+  } catch (err) { return { ok: false, error: dbErr(err) }; }
+});
+
+ipcMain.handle('galaxy:dbQuery', async (e, { id, table, sql, database }) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (database && cfg.type !== 'sqlite') cfg.database = database;
   let finalSql;
   if (table) {
     if (!/^[\w.$]+$/.test(table)) return { ok: false, error: 'Geçersiz tablo adı' };
