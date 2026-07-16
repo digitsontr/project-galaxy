@@ -47,5 +47,9 @@ contextBridge.exposeInMainWorld('galaxy', {
   scheduleSave: (s) => ipcRenderer.invoke('galaxy:scheduleSave', s),
   scheduleDelete: (id) => ipcRenderer.invoke('galaxy:scheduleDelete', id),
   scheduleRun: (id) => ipcRenderer.invoke('galaxy:scheduleRun', id),
-  onScheduleDone: (cb) => ipcRenderer.on('schedule:done', (e, msg) => cb(msg))
+  onScheduleDone: (cb) => ipcRenderer.on('schedule:done', (e, msg) => cb(msg)),
+  shellStart: (opts) => ipcRenderer.invoke('galaxy:shellStart', opts),
+  shellInput: (opts) => ipcRenderer.invoke('galaxy:shellInput', opts),
+  shellStop: (shellId) => ipcRenderer.invoke('galaxy:shellStop', shellId),
+  onShell: (cb) => ipcRenderer.on('shell:out', (e, msg) => cb(msg))
 });

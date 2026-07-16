@@ -932,6 +932,77 @@ ipcMain.handle('galaxy:claudeStop', (e, runId) => {
   return true;
 });
 
+// ---------- gömülü bash terminali ----------
+// Proje başına kalıcı bash süreci: cd/env durumu korunur, çıktı canlı akar.
+const shells = new Map(); // shellId -> { child, cwd }
+const SHELL_SENTINEL = '\x03GALAXY_DONE ';
+
+function broadcastShell(msg) {
+  for (const w of BrowserWindow.getAllWindows()) {
+    try { w.webContents.send('shell:out', msg); } catch (e) {}
+  }
+}
+
+function ensureShell(shellId, cwd) {
+  const existing = shells.get(shellId);
+  if (existing && !existing.child.killed && existing.child.exitCode === null) return existing;
+  const child = spawn('/bin/bash', ['--noprofile', '--norc'], { cwd, env: { ...ENV, PS1: '', TERM: 'dumb' } });
+  let buf = '';
+  child.stdout.on('data', chunk => {
+    buf += chunk.toString();
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i);
+      buf = buf.slice(i + 1);
+      if (line.startsWith(SHELL_SENTINEL)) {
+        broadcastShell({ id: shellId, kind: 'done', code: +line.slice(SHELL_SENTINEL.length) || 0 });
+      } else {
+        broadcastShell({ id: shellId, kind: 'out', text: line });
+      }
+    }
+  });
+  child.stderr.on('data', chunk => {
+    for (const line of chunk.toString().split('\n')) {
+      if (line) broadcastShell({ id: shellId, kind: 'err', text: line });
+    }
+  });
+  child.on('close', () => {
+    broadcastShell({ id: shellId, kind: 'exit' });
+    shells.delete(shellId);
+  });
+  const rec = { child, cwd };
+  shells.set(shellId, rec);
+  return rec;
+}
+
+ipcMain.handle('galaxy:shellStart', (e, { shellId, cwd }) => {
+  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
+  try {
+    ensureShell(shellId, cwd);
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+ipcMain.handle('galaxy:shellInput', (e, { shellId, cwd, cmd }) => {
+  if (!cmd || !cmd.trim()) return { ok: false };
+  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
+  const rec = ensureShell(shellId, cwd);
+  try {
+    rec.child.stdin.write(cmd + '\n' + `printf '\\003GALAXY_DONE %s\\n' "$?"` + '\n');
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+ipcMain.handle('galaxy:shellStop', (e, shellId) => {
+  const rec = shells.get(shellId);
+  if (rec) { try { rec.child.kill('SIGKILL'); } catch (err) {} shells.delete(shellId); }
+  return true;
+});
+
+app.on('before-quit', () => {
+  for (const rec of shells.values()) { try { rec.child.kill('SIGKILL'); } catch (e) {} }
+});
+
 // Proje konumunda düz bash terminali aç
 ipcMain.handle('galaxy:openTerminal', (e, p) => {
   if (!p || !knownPaths.has(p)) return false;
