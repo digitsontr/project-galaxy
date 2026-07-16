@@ -133,7 +133,8 @@ window.GALAXY_DATA = {
         },
         {
           "text": "PoC ölçeklenebilirlik testleri",
-          "done": false
+          "done": true,
+          "status": "done"
         }
       ],
       "notes": "WAPIS/CHAD AFIS kabul test planı da bu klasörde.",
