@@ -533,5 +533,8 @@ window.GALAXY_DATA = {
       "projectId": "PAP/CodeReviewEngine",
       "applied": true
     }
+  ],
+  "ignored": [
+    "PAP/SunExpress"
   ]
 };
