@@ -765,15 +765,41 @@ function streamClaude({ win, channel, runId, cwd, args }) {
   return { ok: true };
 }
 
-ipcMain.handle('galaxy:claudeRun', (e, { runId, cwd, prompt, continueSession }) => {
+// Ek dosyaları prompt'a ve erişim izinlerine bağlar
+function applyAttachments(prompt, args, attachments) {
+  if (!attachments || !attachments.length) return prompt;
+  const list = attachments.slice(0, 10);
+  prompt += `\n\n=== EKLENEN DOSYALAR ===\nKullanıcı şu dosyaları ekledi. Read aracıyla incele — görselleri ve PDF'leri doğrudan görebilirsin. .docx/.pptx/.xlsx gibi Office dosyaları için önce şu komutla metne çevir: textutil -convert txt -stdout "<dosya>" (veya gerekiyorsa unzip ile içeriğine bak):\n` +
+    list.map(f => `- ${f}`).join('\n');
+  const dirs = new Set(list.map(f => path.dirname(f)));
+  for (const d of dirs) args.push('--add-dir', d);
+  return prompt;
+}
+
+ipcMain.handle('galaxy:pickFiles', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: 'Dosya ekle',
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'Desteklenenler', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'docx', 'doc', 'pptx', 'xlsx', 'csv', 'txt', 'md', 'json'] },
+      { name: 'Tümü', extensions: ['*'] }
+    ]
+  });
+  return canceled ? [] : filePaths;
+});
+
+ipcMain.handle('galaxy:claudeRun', (e, { runId, cwd, prompt, continueSession, attachments }) => {
   if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
-  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'];
+  const args = ['--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'];
+  prompt = applyAttachments(prompt, args, attachments);
+  args.unshift('-p', prompt);
   if (continueSession) args.push('--continue');
   return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'claude:out', runId, cwd, args });
 });
 
 // ---------- ajan (CTO vb.) çalıştırma ----------
-ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId }) => {
+ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attachments }) => {
   const data = loadData();
   const agent = (data.agents || []).find(a => a.id === agentId);
   if (!agent) return { ok: false, error: 'Ajan bulunamadı' };
@@ -802,7 +828,9 @@ ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId }) => 
     full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nKullanıcının isteği: ${prompt || 'Genel durum raporu ver.'}\nYanıtını Türkçe ver. Dosyaları incelemen gerekirse bulunduğun klasördeki proje klasörlerini okuyabilirsin.`;
     cwd = path.resolve(DATA_DIR, '..'); // PAPILON kökü
   }
-  const args = ['-p', full, '--output-format', 'stream-json', '--verbose'];
+  const args = ['--output-format', 'stream-json', '--verbose'];
+  full = applyAttachments(full, args, attachments);
+  args.unshift('-p', full);
   // Diğer evren kökleri (ör. FY) mutlak yol olarak erişime açılır
   for (const u of data.universes || []) {
     if (path.isAbsolute(u.root)) args.push('--add-dir', u.root);
