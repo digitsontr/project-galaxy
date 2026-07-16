@@ -932,6 +932,118 @@ ipcMain.handle('galaxy:claudeStop', (e, runId) => {
   return true;
 });
 
+// Proje konumunda düz bash terminali aç
+ipcMain.handle('galaxy:openTerminal', (e, p) => {
+  if (!p || !knownPaths.has(p)) return false;
+  const cmd = `cd ${JSON.stringify(p)}`;
+  const script = `tell application "Terminal"
+    activate
+    do script "${cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
+  end tell`;
+  execFile('osascript', ['-e', script]);
+  return true;
+});
+
+// ---------- uygulama içi zamanlayıcı ----------
+function runClaudeText(prompt, cwd) {
+  return new Promise(resolve => {
+    let child;
+    try {
+      child = spawn('claude', ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
+    } catch (err) { return resolve({ error: err.message }); }
+    let out = '';
+    const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 240000);
+    child.stdout.on('data', c => { out += c.toString(); });
+    child.on('error', err => { clearTimeout(timer); resolve({ error: err.code === 'ENOENT' ? 'claude bulunamadı' : err.message }); });
+    child.on('close', () => {
+      clearTimeout(timer);
+      try { resolve({ text: (JSON.parse(out).result || '').trim() }); }
+      catch (err) { resolve({ error: 'yanıt çözümlenemedi' }); }
+    });
+  });
+}
+
+const scheduleRunning = new Set();
+
+async function runSchedule(s, notifyWin) {
+  if (scheduleRunning.has(s.id)) return { ok: false, error: 'zaten çalışıyor' };
+  scheduleRunning.add(s.id);
+  try {
+    const data = loadData();
+    const agent = (data.agents || []).find(a => a.id === s.agentId) || (data.agents || [])[0];
+    if (!agent) return { ok: false, error: 'ajan yok' };
+    const digest = buildDigest();
+    const full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nZamanlanmış görev: ${s.prompt}\nYanıtını Türkçe, markdown formatında ver.`;
+    const res = await runClaudeText(full, path.resolve(DATA_DIR, '..'));
+    const date = new Date().toISOString().slice(0, 10);
+    const rdir = path.join(DATA_DIR, 'reports');
+    fs.mkdirSync(rdir, { recursive: true });
+    const fname = `${date}-${s.id}.md`;
+    const content = res.error
+      ? `# ${s.name} — HATA\n\n${res.error}\n`
+      : `# ${s.name} · ${date}\n\n_${agent.name} (${agent.role}) tarafından üretildi._\n\n${res.text}\n`;
+    fs.writeFileSync(path.join(rdir, fname), content, 'utf8');
+    // lastRun güncelle
+    const d2 = loadData();
+    const s2 = (d2.schedules || []).find(x => x.id === s.id);
+    if (s2) { s2.lastRun = new Date().toISOString(); saveData(d2); }
+    for (const w of BrowserWindow.getAllWindows()) {
+      try { w.webContents.send('schedule:done', { name: s.name, file: fname, error: res.error || null }); } catch (e) {}
+    }
+    return { ok: !res.error, error: res.error, file: fname };
+  } finally {
+    scheduleRunning.delete(s.id);
+  }
+}
+
+setInterval(() => {
+  const data = loadData();
+  const now = new Date();
+  for (const s of data.schedules || []) {
+    if (!s.enabled) continue;
+    if (now.getHours() !== +s.hour || now.getMinutes() !== +s.minute) continue;
+    if (s.type === 'weekly' && now.getDay() !== +s.weekday) continue;
+    const today = now.toISOString().slice(0, 10);
+    if (s.lastRun && s.lastRun.slice(0, 10) === today) continue;
+    runSchedule(s);
+  }
+}, 60000);
+
+ipcMain.handle('galaxy:scheduleList', () => loadData().schedules || []);
+
+ipcMain.handle('galaxy:scheduleSave', (e, s) => {
+  if (!s.name || !s.prompt) return { ok: false, error: 'Ad ve görev metni gerekli' };
+  const data = loadData();
+  data.schedules = data.schedules || [];
+  if (!s.id) s.id = slugify(s.name) + '-' + String(Date.now()).slice(-4);
+  const clean = {
+    id: s.id, name: s.name, agentId: s.agentId || 'cto', prompt: s.prompt,
+    type: s.type === 'weekly' ? 'weekly' : 'daily',
+    hour: Math.min(23, Math.max(0, +s.hour || 9)),
+    minute: Math.min(59, Math.max(0, +s.minute || 0)),
+    weekday: +s.weekday || 1,
+    enabled: s.enabled !== false,
+    lastRun: (data.schedules.find(x => x.id === s.id) || {}).lastRun || null
+  };
+  const idx = data.schedules.findIndex(x => x.id === s.id);
+  if (idx >= 0) data.schedules[idx] = clean; else data.schedules.push(clean);
+  saveData(data);
+  return { ok: true, id: s.id };
+});
+
+ipcMain.handle('galaxy:scheduleDelete', (e, id) => {
+  const data = loadData();
+  data.schedules = (data.schedules || []).filter(x => x.id !== id);
+  saveData(data);
+  return { ok: true };
+});
+
+ipcMain.handle('galaxy:scheduleRun', async (e, id) => {
+  const s = (loadData().schedules || []).find(x => x.id === id);
+  if (!s) return { ok: false, error: 'görev bulunamadı' };
+  return runSchedule(s);
+});
+
 // Terminal'de Claude aç (alternatif)
 ipcMain.handle('galaxy:openClaude', (e, p) => {
   if (!p || !knownPaths.has(p)) return false;

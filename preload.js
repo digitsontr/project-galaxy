@@ -41,5 +41,11 @@ contextBridge.exposeInMainWorld('galaxy', {
   dbDelete: (id) => ipcRenderer.invoke('galaxy:dbDelete', id),
   dbTest: (cfg) => ipcRenderer.invoke('galaxy:dbTest', cfg),
   dbTables: (id) => ipcRenderer.invoke('galaxy:dbTables', id),
-  dbQuery: (opts) => ipcRenderer.invoke('galaxy:dbQuery', opts)
+  dbQuery: (opts) => ipcRenderer.invoke('galaxy:dbQuery', opts),
+  openTerminal: (p) => ipcRenderer.invoke('galaxy:openTerminal', p),
+  scheduleList: () => ipcRenderer.invoke('galaxy:scheduleList'),
+  scheduleSave: (s) => ipcRenderer.invoke('galaxy:scheduleSave', s),
+  scheduleDelete: (id) => ipcRenderer.invoke('galaxy:scheduleDelete', id),
+  scheduleRun: (id) => ipcRenderer.invoke('galaxy:scheduleRun', id),
+  onScheduleDone: (cb) => ipcRenderer.on('schedule:done', (e, msg) => cb(msg))
 });
