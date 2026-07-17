@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('galaxy', {
   shellStart: (opts) => ipcRenderer.invoke('galaxy:shellStart', opts),
   shellInput: (opts) => ipcRenderer.invoke('galaxy:shellInput', opts),
   shellStop: (shellId) => ipcRenderer.invoke('galaxy:shellStop', shellId),
+  shellComplete: (opts) => ipcRenderer.invoke('galaxy:shellComplete', opts),
   onShell: (cb) => ipcRenderer.on('shell:out', (e, msg) => cb(msg)),
   pickFiles: () => ipcRenderer.invoke('galaxy:pickFiles'),
   pasteImage: () => ipcRenderer.invoke('galaxy:pasteImage'),

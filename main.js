@@ -1072,7 +1072,12 @@ function ensureShell(shellId, cwd) {
       const line = buf.slice(0, i);
       buf = buf.slice(i + 1);
       if (line.startsWith(SHELL_SENTINEL)) {
-        broadcastShell({ id: shellId, kind: 'done', code: +line.slice(SHELL_SENTINEL.length) || 0 });
+        const rest = line.slice(SHELL_SENTINEL.length);
+        const sp = rest.indexOf(' ');
+        const code = +(sp >= 0 ? rest.slice(0, sp) : rest) || 0;
+        const cwd = sp >= 0 ? rest.slice(sp + 1) : '';
+        if (cwd) { const rec2 = shells.get(shellId); if (rec2) rec2.cwd = cwd; }
+        broadcastShell({ id: shellId, kind: 'done', code, cwd });
       } else {
         broadcastShell({ id: shellId, kind: 'out', text: line });
       }
@@ -1105,9 +1110,28 @@ ipcMain.handle('galaxy:shellInput', (e, { shellId, cwd, cmd }) => {
   if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
   const rec = ensureShell(shellId, cwd);
   try {
-    rec.child.stdin.write(cmd + '\n' + `printf '\\003GALAXY_DONE %s\\n' "$?"` + '\n');
+    rec.child.stdin.write(cmd + '\n' + `printf '\\003GALAXY_DONE %s %s\\n' "$?" "$PWD"` + '\n');
     return { ok: true };
   } catch (err) { return { ok: false, error: err.message }; }
+});
+
+// Tab tamamlama: bulunduğu klasöre göre dosya/klasör adı önerileri
+ipcMain.handle('galaxy:shellComplete', (e, { shellId, cwd, token }) => {
+  try {
+    const rec = shells.get(shellId);
+    let base = (rec && rec.cwd) || cwd || os.homedir();
+    let dirPart = '', namePart = token || '';
+    const slash = (token || '').lastIndexOf('/');
+    if (slash >= 0) { dirPart = token.slice(0, slash + 1); namePart = token.slice(slash + 1); }
+    let dir = dirPart
+      ? (dirPart.startsWith('/') ? dirPart : path.resolve(base, dirPart.replace(/^~/, os.homedir())))
+      : base;
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+      .filter(d => d.name.startsWith(namePart) && (namePart.startsWith('.') || !d.name.startsWith('.')))
+      .slice(0, 60)
+      .map(d => ({ name: d.name + (d.isDirectory() ? '/' : ''), dir: d.isDirectory() }));
+    return { ok: true, dirPart, matches: entries.map(x => x.name) };
+  } catch (err) { return { ok: false, matches: [] }; }
 });
 
 ipcMain.handle('galaxy:shellStop', (e, shellId) => {
