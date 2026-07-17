@@ -36,12 +36,14 @@ claude   # ilk çalıştırmada hesabınla giriş yapmanı ister
 ```
 
 **Adım 3 — Uygulamayı paketle** (tek seferlik):
-`ProjectGalaxy` klasöründeki **`Gerçek App Oluştur.command`** dosyasına çift tıkla.
+`ProjectGalaxy` klasöründeki **`create_app.command`** dosyasına çift tıkla.
 macOS "tanımlanamayan geliştirici" derse: dosyaya **sağ tık → Aç → Aç**.
 Script birkaç dakikada bağımlılıkları indirir ve bir üst klasöre **Project Galaxy.app** üretir.
 
-**Adım 4 — Aç ve kullan:**
-`Project Galaxy.app`'e çift tıkla (ilk sefer yine sağ tık → Aç gerekebilir). Dock'ta sağ tık → Seçenekler → **Dock'ta Tut** ile sabitle.
+> Paketlemeden hızlıca denemek istersen: **`Başlat.command`** dosyasına çift tıkla — uygulamayı doğrudan kaynak koddan açar.
+
+**Adım 4 — Aç ve tanış:**
+`Project Galaxy.app`'e çift tıkla (ilk sefer yine sağ tık → Aç gerekebilir). İlk açılışta uygulama seni **bir defalığına tanır**: dilini seçersin (TR/EN), adını söylersin (ajanlar sana ismiyle hitap eder), proje klasörlerini seçersin (her biri bir evren olur) ve 5 ajanının adlarını/rollerini istersen kişiselleştirirsin. Bu ekran bir daha çıkmaz — hepsi sonradan uygulama içinden değiştirilebilir. Dock'ta sağ tık → Seçenekler → **Dock'ta Tut** ile sabitle.
 
 > Güncellemelerde: yalnızca arayüz değiştiyse uygulamayı kapat-aç yeterli; `main.js` değiştiyse Adım 3'ü bir kez tekrarla.
 
@@ -51,11 +53,12 @@ Script birkaç dakikada bağımlılıkları indirir ve bir üst klasöre **Proje
 
 <p align="center"><img src="docs/uzay-modu.png" alt="Uzay modu" width="900"></p>
 
-1. **Evrenini seç.** Açılışta İş / Kişisel kartları çıkar. ✎ ile ad/klasör değiştir, **+** ile bilgisayarındaki herhangi bir klasörü yeni evren yap — içindeki her alt klasör otomatik gezegen olur.
+1. **Evrenini seç.** Açılışta onboarding'de seçtiğin evrenlerin kartları çıkar. ✎ ile ad/klasör değiştir, **+** ile bilgisayarındaki herhangi bir klasörü yeni evren yap. Hiyerarşi gerçek uzay gibidir ve otomatik kurulur: **evren = galaksi**, kendi başına proje olan klasör (git'i/kodu olan) = **gezegen**, projeleri barındıran çatı klasör (ör. `Projects/`, `Forsico/`) = **yıldız sistemi** — kendisi gezegen olmaz, içindeki her proje o sistemin gezegeni olur ve sistem adı grup/sektör etiketi olarak görünür.
 2. **Gezin.** Fareyle sürükle, tekerlekle yaklaş. Soldaki listeden tek tık = projeye uç, çift tık = gezegene in. Sağ alttaki Sektör Haritası'na tıkla = ışınlan.
 3. **Renkleri oku.** 🔵 aktif · 🟡 beklemede · 🟢 tamam · ⚪ arşiv · 🟣 keşfedilmemiş (yeni klasör). Sarı **!** = 21+ gündür dokunulmamış aktif proje. Gezegenler arası akan çizgiler = bağladığın ilişkili projeler.
 4. **Bilgi kartı.** Gezegene tek tıkla: aşama, ilerleme, git satırı (`⎇ dal · son commit · ▸ GEÇMİŞ`). "Gezegene İn ▸" ile içeri gir.
 5. **?'ye bas.** Üst bardaki soru işareti 10 slaytlık görselli rehberi açar — bu turun uygulama içi hali.
+6. **GALAXY HUD.** Ekranın alt ortasındaki 🚀 **HUD** sekmesine tıkla: yukarı ok panelı açar, aşağı ok kapatır (ESC de kapatır). Üç kişisel kart çıkar — **En Aktif Yıldız** (son 30 günde en çok commit alan projen, gezegen görseliyle; KLASÖR ve GEÇMİŞ düğmeleri), **Son Yapılanlar** (günlüğe işlenen son işler + RAPORLAR arşivi), **Notlarım** (hızlı notların; alttaki kutudan Enter'la yenisini ekle). Arka plandaki nebula ve galaksiler de bu katmandan gelir.
 
 ### Gezegenin içi
 
@@ -96,8 +99,8 @@ Sağ üstteki istasyonda dururlar; üzerine gel → görev kartı, tıkla → ko
 
 ## Verilerim güvende mi?
 
-- Her şey diskinde: tek veri dosyası `galaxy-data.json`. Hiçbir bulut yok.
-- Her gün otomatik yedek (`backups/`, 14 gün) + her değişiklikte sessiz **git commit** — `git log` ile zaman yolculuğu.
+- Her şey diskinde: tek veri dosyası `galaxy-data.json`, konumu `~/Library/Application Support/ProjectGalaxy/`. Hiçbir bulut yok. (Eski sürümden geliyorsan verin ilk açılışta otomatik oraya taşınır.)
+- Her gün otomatik yedek (aynı klasördeki `backups/`, 14 gün) + her değişiklikte sessiz **git commit** — `git log` ile zaman yolculuğu.
 - Proje silme iki aşamalı onaylıdır ve en kötü ihtimalle macOS Çöp Kutusu'na gider; kalıcı silme yoktur.
 - DB parolaları macOS `safeStorage` ile şifrelenir; DB tarafında yalnızca `SELECT` çalışır.
 
@@ -109,24 +112,34 @@ Sağ üstteki istasyonda dururlar; üzerine gel → görev kartı, tıkla → ko
 
 **Yeni eklediğim klasör görünmüyor.** 60 saniye bekle ya da pencereye tıkla (odaklanınca tarar). Uzay modundayken görünür.
 
-**Bir şeyi yanlışlıkla değiştirdim.** `backups/` klasöründen dünkü `galaxy-data-*.json`'u geri kopyala veya `git checkout <hash> -- galaxy-data.json`.
+**Bir şeyi yanlışlıkla değiştirdim.** `~/Library/Application Support/ProjectGalaxy/backups/` klasöründen dünkü `galaxy-data-*.json`'u geri kopyala veya aynı klasörde `git checkout <hash> -- galaxy-data.json`.
 
 **vim/top gömülü terminalde çalışmıyor.** Doğru — o bir komut yürütücü, tam ekran programlar için ⇗ ile gerçek Terminal'i aç.
+
+**Onboarding'i tekrar görmek istiyorum.** `~/Library/Application Support/ProjectGalaxy/galaxy-data.json` içindeki `"profile"` bölümünü sil, uygulamayı yeniden aç.
+
+**App Store sürümüyle DMG sürümü arasındaki fark ne?** App Store sürümü Apple'ın sandbox kuralları içinde çalışır: ajanlar, ⌁ CLAUDE konsolu ve ▮ BASH orada devre dışıdır; evren haritası, gezegen modu, git panelleri, todo/pano ve DB görüntüleyici tam çalışır. Tüm özellikler için doğrudan indirilen (DMG) sürümü kullan. Ayrıntı: `docs/RELEASE.md`.
 
 ## Klasör yapısı & mimari (meraklısına)
 
 ```
-ProjectGalaxy/
-├── main.js              # Electron ana süreç — tarama, git, ajanlar, DB, zamanlayıcı (50+ IPC)
-├── preload.js           # Güvenli köprü (window.galaxy.*)
-├── index.html           # Derlenmiş React arayüzü (kaynaktan üretilir, elle düzenleme)
-├── galaxy-data.json     # TÜM verin — tek kaynak
-├── docs/                # Bu README'nin görselleri
-├── backups/  reports/  attachments/  build/
-└── Gerçek App Oluştur.command   # paketleyici (mimarini otomatik algılar)
+ProjectGalaxy/                       (kod)
+├── main.js                          # Electron ana süreç — tarama, git, ajanlar, DB, zamanlayıcı (55+ IPC)
+├── preload.js                       # Güvenli köprü (window.galaxy.*)
+├── index.html                       # Derlenmiş React arayüzü (kaynaktan üretilir; sondaki HUD satırına dokunma)
+├── galaxy-hud.js                    # HUD katmanı: nebula/galaksi arka planı + alt kişisel kartlar
+├── onboarding.html                  # İlk açılış: kullanıcıyı tanıma ekranı
+├── docs/                            # Görseller + RELEASE.md (imzalama/App Store rehberi)
+├── build/                           # ikon, tray, entitlements (DMG + MAS)
+├── Başlat.command                   # paketlemeden çalıştır (npm start)
+└── create_app.command               # kişisel paketleyici (mimarini otomatik algılar)
+
+~/Library/Application Support/ProjectGalaxy/   (veri — koddan ayrı yaşar)
+├── galaxy-data.json                 # TÜM verin — tek kaynak (galaxy-data.js: arayüz tohumu)
+└── backups/  reports/  attachments/
 ```
 
-Teknik notlar: Canvas 2D sahne (sprite önbelleği + katman-başına-tek-path yıldızlar sayesinde 60fps), ajanlar `claude -p --output-format stream-json` alt süreci olarak akar, git bilgisi süreç başlatmadan `.git` dosyalarından okunur, DB sürücüleri saf JS (pg/mysql2/sql.js). Ürünleştirme yol haritası için `PRODUCTIZATION.md`.
+Teknik notlar: Canvas 2D sahne (sprite önbelleği + katman-başına-tek-path yıldızlar sayesinde 60fps), ajanlar `claude -p --output-format stream-json` alt süreci olarak akar, git bilgisi süreç başlatmadan `.git` dosyalarından okunur, DB sürücüleri saf JS (pg/mysql2/sql.js). App Store sürümü sandbox içinde security-scoped bookmark'larla klasör erişimi kurar. Ürünleştirme yol haritası: `PRODUCTIZATION.md` · dağıtım/imzalama: `docs/RELEASE.md`.
 
 ## Kısayollar
 

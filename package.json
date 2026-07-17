@@ -1,14 +1,16 @@
 {
   "name": "project-galaxy",
   "productName": "Project Galaxy",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Projelerini bir evren olarak gezdiğin, AI ajanlarıyla yönettiğin masaüstü uygulaması",
   "main": "main.js",
   "author": "Furkan Yıldız",
   "scripts": {
     "start": "electron .",
     "make-app": "electron-packager . \"Project Galaxy\" --platform=darwin --arch=arm64 --icon=build/galaxy.icns --out=dist --overwrite --prune --app-bundle-id=com.furkan.projectgalaxy --ignore=\"^/dist\" --ignore=\"\\.command$\" --ignore=\"backup\" --ignore=\"^/build/icon_preview\"",
-    "dist": "electron-builder --mac dmg"
+    "dist": "electron-builder --mac dmg",
+    "dist:mas": "electron-builder --mac mas",
+    "dist:all": "electron-builder --mac dmg mas"
   },
   "build": {
     "appId": "com.furkan.projectgalaxy",
@@ -17,16 +19,26 @@
       "category": "public.app-category.developer-tools",
       "icon": "build/galaxy.icns",
       "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
-      "identity": null,
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.plist",
-      "entitlementsInherit": "build/entitlements.plist"
+      "entitlementsInherit": "build/entitlements.plist",
+      "notarize": true
+    },
+    "mas": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/galaxy.icns",
+      "hardenedRuntime": false,
+      "entitlements": "build/entitlements.mas.plist",
+      "entitlementsInherit": "build/entitlements.mas.inherit.plist",
+      "provisioningProfile": "build/embedded.provisionprofile"
     },
     "dmg": { "title": "Project Galaxy" },
     "files": [
       "main.js",
       "preload.js",
       "index.html",
+      "onboarding.html",
+      "galaxy-hud.js",
       "galaxy-data.js",
       "build/tray.png",
       "!dist",

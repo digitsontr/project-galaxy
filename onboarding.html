@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Project Galaxy</title>
+<style>
+  :root {
+    --bg: #04060c;
+    --panel: rgba(14, 20, 40, .55);
+    --line: rgba(120, 160, 255, .22);
+    --ink: #e6ebff;
+    --dim: #8b93b8;
+    --faint: #4d5677;
+    --cy: #61dcff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink); overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  canvas#stars { position: fixed; inset: 0; z-index: 0; }
+  #nebula {
+    position: fixed; inset: -12%; z-index: 0; pointer-events: none; opacity: .8;
+    background:
+      radial-gradient(38% 30% at 78% 18%, rgba(96, 60, 220, .16), transparent 70%),
+      radial-gradient(30% 26% at 12% 68%, rgba(30, 110, 230, .13), transparent 70%),
+      radial-gradient(24% 20% at 60% 82%, rgba(200, 50, 140, .10), transparent 70%),
+      radial-gradient(20% 16% at 30% 22%, rgba(40, 190, 220, .10), transparent 70%),
+      radial-gradient(12% 9% at 84% 62%, rgba(255, 170, 80, .07), transparent 70%);
+    filter: blur(28px);
+    animation: nebDrift 90s ease-in-out infinite alternate;
+  }
+  @keyframes nebDrift { from { transform: translate(0, 0) scale(1); } to { transform: translate(-2.5%, -2%) scale(1.06); } }
+  .drag { position: fixed; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; z-index: 5; }
+  .wrap {
+    position: relative; z-index: 1; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 48px 64px 40px;
+  }
+  .mono { font-family: Menlo, "JetBrains Mono", monospace; }
+  .hud { font-size: 10px; letter-spacing: .3em; color: var(--cy); text-transform: uppercase; }
+  .title { font-size: 24px; font-weight: 300; letter-spacing: .35em; margin: 10px 0 4px; }
+  .sub { color: var(--dim); font-size: 13px; margin-bottom: 26px; text-align: center; max-width: 520px; line-height: 1.55; }
+  .card {
+    width: 640px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 26px 28px; backdrop-filter: blur(8px);
+    max-height: 380px; overflow-y: auto;
+  }
+  .row { display: flex; gap: 12px; }
+  .grow { flex: 1; }
+  input[type=text] {
+    width: 100%; background: rgba(20, 26, 60, .6); border: 1px solid rgba(120, 140, 255, .3);
+    color: var(--ink); padding: 11px 14px; font-size: 14px; outline: none; border-radius: 6px;
+    font-family: inherit; -webkit-user-select: text; user-select: text;
+  }
+  input[type=text]:focus { border-color: var(--cy); }
+  .btn {
+    display: inline-block; border: 1px solid var(--line); color: var(--ink); background: transparent;
+    padding: 10px 22px; font-size: 12px; letter-spacing: .18em; cursor: pointer; border-radius: 6px;
+    font-family: Menlo, monospace; transition: all .15s;
+  }
+  .btn:hover { border-color: var(--cy); color: var(--cy); }
+  .btn.solid { background: var(--cy); color: #04121c; border-color: var(--cy); font-weight: 600; }
+  .btn.solid:hover { filter: brightness(1.15); color: #04121c; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .nav { display: flex; justify-content: space-between; align-items: center; width: 640px; margin-top: 22px; }
+  .dots { display: flex; gap: 8px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); transition: background .2s; }
+  .dot.on { background: var(--cy); }
+  .langCards { display: flex; gap: 18px; justify-content: center; }
+  .langCard {
+    width: 200px; padding: 26px 20px; text-align: center; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; transition: all .15s;
+  }
+  .langCard:hover, .langCard.sel { border-color: var(--cy); box-shadow: 0 0 24px rgba(97, 220, 255, .12); }
+  .langCard .flag { font-size: 30px; margin-bottom: 10px; }
+  .langCard .name { font-size: 15px; letter-spacing: .12em; }
+  .uniRow {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 7px; margin-bottom: 10px; background: rgba(10, 14, 30, .5);
+  }
+  .uniRow .path { color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .uniRow input { padding: 7px 10px; font-size: 13px; }
+  .x { color: var(--faint); cursor: pointer; font-size: 15px; padding: 4px 7px; }
+  .x:hover { color: #ff8b8b; }
+  .agentRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .agentDot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .agentRow input.nm { width: 170px; }
+  .hint { color: var(--faint); font-size: 11px; margin-top: 12px; line-height: 1.5; }
+  .err { color: #ff8b8b; font-size: 12px; margin-top: 10px; min-height: 16px; }
+  .fade { animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .sumLine { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(120,160,255,.08); font-size: 13px; }
+  .sumLine .k { color: var(--faint); width: 130px; flex: none; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding-top: 2px; }
+</style>
+</head>
+<body>
+<div id="nebula"></div>
+<canvas id="stars"></canvas>
+<div class="drag"></div>
+<div class="wrap">
+  <div class="hud mono" id="hudLabel">İLK KALKIŞ</div>
+  <div class="title">PROJECT GALAXY</div>
+  <div class="sub" id="stepSub"></div>
+  <div id="stepBody"></div>
+  <div class="nav">
+    <button class="btn" id="backBtn">◂ <span></span></button>
+    <div class="dots" id="dots"></div>
+    <button class="btn solid" id="nextBtn"></button>
+  </div>
+  <div class="err mono" id="err"></div>
+</div>
+
+<script>
+// ---- yıldız arka planı ----
+(() => {
+  const c = document.getElementById('stars'), x = c.getContext('2d');
+  let stars = [];
+  function size() {
+    c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio;
+    stars = Array.from({ length: 160 }, () => ({
+      x: Math.random() * c.width, y: Math.random() * c.height,
+      r: Math.random() * 1.4 + .2, p: Math.random() * Math.PI * 2, s: Math.random() * .015 + .004
+    }));
+  }
+  size(); addEventListener('resize', size);
+  (function tick() {
+    x.clearRect(0, 0, c.width, c.height);
+    for (const st of stars) {
+      st.p += st.s;
+      x.globalAlpha = .25 + Math.abs(Math.sin(st.p)) * .6;
+      x.fillStyle = '#cfe4ff';
+      x.beginPath(); x.arc(st.x, st.y, st.r * devicePixelRatio, 0, 7); x.fill();
+    }
+    requestAnimationFrame(tick);
+  })();
+})();
+
+// ---- i18n ----
+const STR = {
+  tr: {
+    hud: 'İLK KALKIŞ', back: 'GERİ', next: 'SONRAKİ ▸', start: 'KALKIŞ ▸', pick: '+ KLASÖR SEÇ',
+    s0: 'Hoş geldin. Kalkıştan önce birkaç soruyla seni tanıyalım — bu ekranı bir daha görmeyeceksin.',
+    s0b: 'Dil seçimi ajanların ve rehberin dilini belirler.',
+    s1: 'Sana nasıl hitap edelim? Ajanların sana ismiyle seslenecek.',
+    s1ph: 'Adın…',
+    s2: 'Evrenini kur: içinde proje klasörlerin bulunan bir veya birkaç klasör seç. Her alt klasör bir gezegen olur.',
+    s2none: 'Henüz klasör seçilmedi.',
+    s2name: 'Evren adı',
+    s3: 'Mürettebatın: 5 yapay zekâ ajanın. Adlarını ve rollerini istersen şimdi değiştir — sonra ⚙ ile her zaman düzenleyebilirsin.',
+    s4: 'Hazırız. Özet aşağıda — KALKIŞ ile evrenine geç.',
+    kName: 'Kaptan', kLang: 'Dil', kUni: 'Evrenler', kAgents: 'Ajanlar',
+    anon: '(isimsiz)', errFolder: 'En az bir klasör seçmelisin.',
+    langNote: ''
+  },
+  en: {
+    hud: 'FIRST LAUNCH', back: 'BACK', next: 'NEXT ▸', start: 'LAUNCH ▸', pick: '+ PICK FOLDER',
+    s0: 'Welcome. A few questions before launch — you will only see this screen once.',
+    s0b: 'Language selection sets the language of your agents and the guide.',
+    s1: 'What should we call you? Your agents will address you by name.',
+    s1ph: 'Your name…',
+    s2: 'Build your universe: pick one or more folders that contain your project folders. Every subfolder becomes a planet.',
+    s2none: 'No folder selected yet.',
+    s2name: 'Universe name',
+    s3: 'Your crew: 5 AI agents. Rename them or tweak their roles now — you can always edit later via ⚙.',
+    s4: 'Ready. Summary below — hit LAUNCH to enter your universe.',
+    kName: 'Captain', kLang: 'Language', kUni: 'Universes', kAgents: 'Agents',
+    anon: '(anonymous)', errFolder: 'Pick at least one folder.',
+    langNote: ''
+  }
+};
+
+// ---- durum ----
+const state = { step: 0, lang: 'tr', name: '', universes: [], agents: [], isMas: false };
+const $ = id => document.getElementById(id);
+const T = () => STR[state.lang];
+
+async function init() {
+  try {
+    const st = await window.galaxy.onboardStatus();
+    state.lang = (st.profile && st.profile.lang) || 'tr';
+    state.name = (st.profile && st.profile.name) || '';
+    state.universes = (st.universes || []).map(u => ({ name: u.name, root: u.root, bookmark: null }));
+    state.agents = st.agents || [];
+    state.isMas = !!st.isMas;
+  } catch (e) {}
+  render();
+}
+
+function render() {
+  const t = T();
+  $('hudLabel').textContent = t.hud + ' · ' + (state.step + 1) + '/5';
+  $('backBtn').style.visibility = state.step === 0 ? 'hidden' : 'visible';
+  $('backBtn').innerHTML = '◂ ' + t.back;
+  $('nextBtn').textContent = state.step === 4 ? t.start : t.next;
+  $('dots').innerHTML = [0, 1, 2, 3, 4].map(i => `<div class="dot ${i === state.step ? 'on' : ''}"></div>`).join('');
+  $('err').textContent = '';
+  const body = $('stepBody');
+  body.className = 'fade';
+
+  if (state.step === 0) {
+    $('stepSub').textContent = t.s0 + ' ' + t.s0b;
+    body.innerHTML = `<div class="langCards">
+      <div class="langCard ${state.lang === 'tr' ? 'sel' : ''}" onclick="setLang('tr')">
+        <div class="flag">🇹🇷</div><div class="name">TÜRKÇE</div></div>
+      <div class="langCard ${state.lang === 'en' ? 'sel' : ''}" onclick="setLang('en')">
+        <div class="flag">🇬🇧</div><div class="name">ENGLISH</div></div>
+    </div>`;
+  } else if (state.step === 1) {
+    $('stepSub').textContent = t.s1;
+    body.innerHTML = `<div class="card" style="max-height:none">
+      <input type="text" id="nameInp" placeholder="${t.s1ph}" value="${esc(state.name)}" maxlength="60">
+    </div>`;
+    const inp = $('nameInp');
+    inp.focus();
+    inp.addEventListener('input', () => { state.name = inp.value; });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') next(); });
+  } else if (state.step === 2) {
+    $('stepSub').textContent = t.s2;
+    body.innerHTML = `<div class="card" id="uniList"></div>
+      <div style="width:640px;margin-top:12px"><button class="btn" id="pickBtn">${t.pick}</button></div>`;
+    renderUniverses();
+    $('pickBtn').addEventListener('click', pickFolder);
+  } else if (state.step === 3) {
+    $('stepSub').textContent = t.s3;
+    body.innerHTML = `<div class="card" id="agentList"></div>`;
+    renderAgents();
+  } else {
+    $('stepSub').textContent = t.s4;
+    body.innerHTML = `<div class="card" style="max-height:none">
+      <div class="sumLine"><div class="k mono">${t.kName}</div><div>${esc(state.name) || t.anon}</div></div>
+      <div class="sumLine"><div class="k mono">${t.kLang}</div><div>${state.lang === 'en' ? 'English' : 'Türkçe'}</div></div>
+      <div class="sumLine"><div class="k mono">${t.kUni}</div><div>${state.universes.map(u => esc(u.name)).join(' · ') || '—'}</div></div>
+      <div class="sumLine" style="border:none"><div class="k mono">${t.kAgents}</div><div>${state.agents.map(a => esc(a.name)).join(' · ')}</div></div>
+    </div>`;
+  }
+}
+
+function renderUniverses() {
+  const t = T();
+  const el = $('uniList');
+  if (!state.universes.length) { el.innerHTML = `<div style="color:var(--faint);font-size:13px">${t.s2none}</div>`; return; }
+  el.innerHTML = state.universes.map((u, i) => `
+    <div class="uniRow">
+      <input type="text" class="grow" data-i="${i}" value="${esc(u.name)}" placeholder="${t.s2name}" maxlength="60">
+      <div class="path mono grow" title="${esc(u.root)}">${esc(u.root)}</div>
+      <div class="x" data-x="${i}">✕</div>
+    </div>`).join('');
+  el.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+    state.universes[+inp.dataset.i].name = inp.value;
+  }));
+  el.querySelectorAll('.x').forEach(x => x.addEventListener('click', () => {
+    state.universes.splice(+x.dataset.x, 1); renderUniverses();
+  }));
+}
+
+function renderAgents() {
+  const el = $('agentList');
+  el.innerHTML = state.agents.map((a, i) => `
+    <div class="agentRow">
+      <div class="agentDot" style="background:${esc(a.color || '#61dcff')}"></div>
+      <input type="text" class="nm mono" data-i="${i}" data-f="name" value="${esc(a.name)}" maxlength="30">
+      <input type="text" class="grow" data-i="${i}" data-f="role" value="${esc(a.role)}" maxlength="40">
+    </div>`).join('');
+  el.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+    state.agents[+inp.dataset.i][inp.dataset.f] = inp.value;
+  }));
+}
+
+async function pickFolder() {
+  try {
+    const r = await window.galaxy.pickFolder();
+    if (!r || !r.path) return;
+    if (state.universes.some(u => u.root === r.path)) return;
+    const base = r.path.split('/').pop();
+    state.universes.push({ name: base, root: r.path, bookmark: r.bookmark || null });
+    renderUniverses();
+  } catch (e) {}
+}
+
+// Dil değişince, kullanıcı dokunmadıysa ajan rol etiketlerini de çevir
+const ROLE_DEFAULTS = {
+  tr: { doc: 'Dokümantasyon', forge: 'Kod Denetçisi', mentor: 'Koç' },
+  en: { doc: 'Documentation', forge: 'Code Review', mentor: 'Coach' }
+};
+function setLang(l) {
+  const prev = state.lang === 'en' ? 'en' : 'tr';
+  state.lang = l;
+  for (const a of state.agents) {
+    const from = ROLE_DEFAULTS[prev][a.id], to = ROLE_DEFAULTS[l][a.id];
+    if (from && to && a.role === from) a.role = to;
+  }
+  render();
+}
+
+function next() {
+  const t = T();
+  if (state.step === 2 && !state.universes.length) { $('err').textContent = t.errFolder; return; }
+  if (state.step < 4) { state.step++; render(); return; }
+  finish();
+}
+
+async function finish() {
+  const t = T();
+  $('nextBtn').disabled = true;
+  try {
+    const r = await window.galaxy.onboardComplete({
+      name: state.name, lang: state.lang,
+      universes: state.universes,
+      agents: state.agents.map(a => ({ id: a.id, name: a.name, role: a.role }))
+    });
+    if (!r || !r.ok) { $('err').textContent = (r && r.error) || t.errFolder; $('nextBtn').disabled = false; }
+    // ok ise ana süreç bu pencereyi kapatır
+  } catch (e) { $('nextBtn').disabled = false; }
+}
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+$('nextBtn').addEventListener('click', next);
+$('backBtn').addEventListener('click', () => { if (state.step > 0) { state.step--; render(); } });
+window.setLang = setLang;
+init();
+</script>
+</body>
+</html>

@@ -460,26 +460,85 @@ window.GALAXY_DATA = {
       "desc": "",
       "plan": [],
       "notes": ""
+    },
+    "Projects/hacı_takip_sistemi": {
+      "name": "hacı_takip_sistemi",
+      "group": "Keşfedilmemiş",
+      "status": "unknown",
+      "stage": "",
+      "progress": 0,
+      "plan": [],
+      "notes": "",
+      "desc": "",
+      "links": []
+    },
+    "FY/Projects/Persona-FY": {
+      "name": "Persona-FY",
+      "group": "Projects",
+      "status": "unknown",
+      "stage": "",
+      "progress": 0,
+      "plan": [
+        {
+          "text": "**Aşama 1 — Mimari & Veritabanı Tasarımı** (ortak temel)",
+          "done": true
+        },
+        {
+          "text": "**Aşama 2 — Backend (FastAPI):** auth, bilgi deposu, rutin/sağlık, finans",
+          "done": true
+        },
+        {
+          "text": "**Aşama 3 — Web Arayüzü (ReactJS):** dashboard, bilgi deposu, rutin, finans",
+          "done": true
+        },
+        {
+          "text": "**Aşama 4 — Mobil (iOS / SwiftUI)** → sonraya bırakıldı",
+          "done": false
+        }
+      ],
+      "notes": "",
+      "desc": "",
+      "links": []
+    },
+    "Projects/AI-Assistants/CodeReviewEngine": {
+      "name": "CodeReviewEngine",
+      "group": "AI-Assistants",
+      "status": "unknown",
+      "stage": "",
+      "progress": 0,
+      "plan": [],
+      "notes": "",
+      "desc": "",
+      "links": []
     }
   },
   "universes": [
-    {
-      "id": "is",
-      "name": "İş Evreni",
-      "subtitle": "PAPILON",
-      "root": "..",
-      "prefix": "",
-      "expandDirs": [
-        "PAP"
-      ]
-    },
     {
       "id": "kisisel",
       "name": "Kişisel Evren",
       "subtitle": "FY",
       "root": "/Users/furkanyildiz/Desktop/FY",
       "prefix": "FY",
-      "expandDirs": []
+      "expandDirs": [
+        "Forsico",
+        "LinguMonster",
+        "Projects",
+        "english"
+      ]
+    },
+    {
+      "id": "projects",
+      "name": "PAPILON",
+      "subtitle": "Projects",
+      "root": "/Users/furkanyildiz/Desktop/PAPILON/Projects",
+      "prefix": "Projects",
+      "expandDirs": [
+        "AI-Assistants",
+        "BLE",
+        "Extras",
+        "TurkTrust",
+        "fingerprint"
+      ]
     }
   ],
   "agents": [
@@ -545,5 +604,37 @@ window.GALAXY_DATA = {
   ],
   "ignored": [
     "PAP/SunExpress"
+  ],
+  "profile": {
+    "name": "FY",
+    "lang": "tr",
+    "onboarded": true,
+    "ts": "2026-07-17T12:40:35.256Z"
+  },
+  "dbAutoAdded": {
+    "3306": true,
+    "5432": true
+  },
+  "dbs": [
+    {
+      "id": "local-5432",
+      "name": "Bu Mac — PostgreSQL",
+      "type": "postgres",
+      "host": "localhost",
+      "port": 5432,
+      "database": "postgres",
+      "user": "furkanyildiz",
+      "password": "djEwk93i0e3LBmhiSklNh891rA=="
+    },
+    {
+      "id": "local-3306",
+      "name": "Bu Mac — MySQL",
+      "type": "mysql",
+      "host": "localhost",
+      "port": 3306,
+      "database": "",
+      "user": "root",
+      "password": ""
+    }
   ]
 };

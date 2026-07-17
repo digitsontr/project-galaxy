@@ -1,6 +1,6 @@
 #!/bin/bash
 # Project Galaxy'yi gerçek, Dock'a tutturulabilir bir .app olarak paketler.
-# Bir kere çalıştırman yeterli — sonrasında PAPILON içindeki "Project Galaxy.app"i kullan.
+# Bir kere çalıştırman yeterli — sonrasında bir üst klasördeki "Project Galaxy.app"i kullan.
 set -e
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -24,7 +24,7 @@ npx electron-packager . "Project Galaxy" \
   --app-bundle-id=com.furkan.projectgalaxy \
   --ignore="^/dist" --ignore="\.command$" --ignore="backup" --ignore="^/build/icon_preview"
 
-echo "▸ PAPILON klasörüne yerleştiriliyor…"
+echo "▸ Bir üst klasöre yerleştiriliyor…"
 rm -rf "$DIR/../Project Galaxy.app"
 mv "$DIR/dist/Project Galaxy-darwin-$ARCH/Project Galaxy.app" "$DIR/.."
 xattr -dr com.apple.quarantine "$DIR/../Project Galaxy.app" 2>/dev/null || true
@@ -32,4 +32,4 @@ rm -rf "$DIR/dist"
 
 osascript -e 'display notification "Project Galaxy.app hazır — Dock için sağ tık > Seçenekler > Dock'"'"'ta Tut" with title "Project Galaxy"'
 open -R "$DIR/../Project Galaxy.app"
-echo "✓ Tamam. PAPILON klasöründeki Project Galaxy.app artık gerçek bir uygulama."
+echo "✓ Tamam. Bir üst klasördeki Project Galaxy.app artık gerçek bir uygulama."

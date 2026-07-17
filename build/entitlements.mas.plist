@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Mac App Store: App Sandbox zorunlu -->
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <!-- Electron/V8 için JIT -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+  <!-- Uzak veritabanı bağlantıları (⛁ DB özelliği) -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <!-- Kullanıcının seçtiği klasörlere kalıcı erişim (evrenler) -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <key>com.apple.security.files.bookmarks.app-scope</key>
+  <true/>
+  <!-- TEAM_ID yerine Apple Developer Team ID'ni yaz (docs/RELEASE.md) -->
+  <key>com.apple.security.application-groups</key>
+  <array>
+    <string>TEAM_ID.com.furkan.projectgalaxy</string>
+  </array>
+</dict>
+</plist>

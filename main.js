@@ -4,36 +4,120 @@ const path = require('path');
 const { spawn, execFile } = require('child_process');
 
 const APP_DIR = __dirname;
-// Veri dosyası: paketlenmiş app'te bundle dışında (PAPILON/ProjectGalaxy) aranır
 const os = require('os');
-const DATA_DIR = [
-  process.env.GALAXY_DATA_DIR,
-  path.join(os.homedir(), 'Desktop', 'PAPILON', 'ProjectGalaxy'),
-  APP_DIR,
-].find(d => { try { return d && fs.existsSync(path.join(d, 'galaxy-data.json')); } catch (e) { return false; } }) || APP_DIR;
+const IS_MAS = !!process.mas; // Mac App Store (sandbox) sürümü
+
+// ---------- veri dizini ----------
+// Kalıcı veri ~/Library/Application Support/ProjectGalaxy altında yaşar
+// (MAS sürümünde otomatik olarak uygulamanın sandbox konteynerine düşer).
+// GALAXY_DATA_DIR ortam değişkeni test/geliştirme için önceliklidir.
+const DEFAULT_DATA_DIR = path.join(app.getPath('appData'), 'ProjectGalaxy');
+const DATA_DIR = (process.env.GALAXY_DATA_DIR && process.env.GALAXY_DATA_DIR.trim()) || DEFAULT_DATA_DIR;
 const DATA_FILE = path.join(DATA_DIR, 'galaxy-data.json');
+
+// Eski sürümlerin veri konumları — ilk açılışta tek seferlik yeni konuma taşınır
+const LEGACY_DATA_DIRS = [
+  APP_DIR,
+  path.join(os.homedir(), 'Desktop', 'FY', 'Projects', 'ProjectGalaxy'),
+  path.join(os.homedir(), 'Desktop', 'PAPILON', 'ProjectGalaxy'),
+];
+
+function migrateLegacyData() {
+  try {
+    if (fs.existsSync(DATA_FILE)) return; // yeni konumda veri zaten var
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const legacy = LEGACY_DATA_DIRS.find(d => {
+      try { return d && path.resolve(d) !== path.resolve(DATA_DIR) && fs.existsSync(path.join(d, 'galaxy-data.json')); } catch (e) { return false; }
+    });
+    if (!legacy) return; // temiz kurulum — evrenleri onboarding ekleyecek
+    // Göreli evren kökleri (ör. "..") eski konuma göre mutlaklaştırılır
+    const d = JSON.parse(fs.readFileSync(path.join(legacy, 'galaxy-data.json'), 'utf8'));
+    for (const u of d.universes || []) {
+      if (u.root && !path.isAbsolute(u.root)) u.root = path.resolve(legacy, u.root);
+    }
+    fs.writeFileSync(DATA_FILE, JSON.stringify(d, null, 2), 'utf8');
+    for (const sub of ['backups', 'reports', 'attachments']) {
+      const src = path.join(legacy, sub);
+      try { if (fs.existsSync(src)) fs.cpSync(src, path.join(DATA_DIR, sub), { recursive: true, force: false }); } catch (e) {}
+    }
+  } catch (e) { /* migrasyon başarısız olsa da uygulama açılır */ }
+  // Veri dizininde git versiyonlama (git kuruluysa) başlat
+  try {
+    if (!fs.existsSync(path.join(DATA_DIR, '.git'))) {
+      if (!fs.existsSync(path.join(DATA_DIR, '.gitignore'))) fs.writeFileSync(path.join(DATA_DIR, '.gitignore'), 'attachments/\n', 'utf8');
+      require('child_process').exec('git init -q', { cwd: DATA_DIR, env: ENV }, () => {});
+    }
+  } catch (e) {}
+}
 
 // GUI'den açılınca PATH kısıtlı olur; node/claude için genişlet
 const ENV = { ...process.env, PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin:${process.env.HOME}/.local/bin` };
 
+// App Store (sandbox) sürümünde dış süreç başlatan özellikler devre dışıdır
+const MAS_BLOCKED = 'Bu özellik App Store sürümünde kullanılamıyor (sandbox, dış komut çalıştırmaya izin vermez). Ajanlar ve konsollar için uygulamanın doğrudan indirilen (DMG) sürümünü kullan.';
+
+// ---------- MAS: security-scoped bookmark erişimi ----------
+// Sandbox'ta kullanıcının seçtiği klasörlere kalıcı erişim bookmark'larla sağlanır.
+const bookmarkStops = [];
+function startBookmarkAccess(bookmark) {
+  if (!IS_MAS || !bookmark) return;
+  try { bookmarkStops.push(app.startAccessingSecurityScopedResource(bookmark)); } catch (e) {}
+}
+function restoreBookmarks() {
+  if (!IS_MAS) return;
+  const data = loadData();
+  for (const u of data.universes || []) startBookmarkAccess(u.bookmark);
+}
+app.on('will-quit', () => { for (const stop of bookmarkStops) { try { stop(); } catch (e) {} } });
+
+// Varsayılan 5 ajan — onboarding'de adları/rolleri kişiselleştirilir
+function defaultAgents(lang) {
+  const en = lang === 'en';
+  return [
+    {
+      id: 'cto', name: 'ATLAS', role: 'CTO', color: '#61dcff', write: false, presets: [],
+      prompt: en
+        ? 'You are ATLAS — the user\'s personal CTO. You watch over all of their software projects. Your job: report status clearly, honestly, with an executive eye. Format: (1) Executive summary in 2-3 sentences, (2) Projects needing attention and why, (3) Risks / blockers, (4) Concrete next steps (max 5, by priority). No empty praise; state problems plainly. Be concise.'
+        : 'Sen ATLAS\'sın — kullanıcının kişisel CTO\'su. Onun tüm yazılım projelerini izliyorsun. Görevin: durumu net, dürüst ve yönetici bakışıyla raporlamak. Rapor formatın: (1) Yönetici özeti 2-3 cümle, (2) Dikkat gerektiren projeler ve nedenleri, (3) Riskler / tıkanıklıklar, (4) Somut sonraki adımlar (en fazla 5 madde, öncelik sırasıyla). Gereksiz övgü yapma, sorunları açıkça söyle. Kısa ve öz yaz.'
+    },
+    {
+      id: 'pm', name: 'NAVIGATOR', role: 'PM', color: '#ffd166', write: false, presets: [],
+      prompt: en
+        ? 'You are NAVIGATOR — the user\'s project manager. You track progress, plans and neglect. Your job: run standups, surface neglected projects and stuck plan items, and hold the user accountable in a constructive tone. Be specific: name projects, counts and dates. Be concise.'
+        : 'Sen NAVIGATOR\'sın — kullanıcının proje yöneticisi. İlerlemeyi, planları ve ihmalleri takip ediyorsun. Görevin: standup yapmak, ihmal edilen projeleri ve tıkanan plan maddelerini öne çıkarmak, yapıcı bir tonda hesap sormak. Somut ol: proje adı, sayı ve tarih ver. Kısa yaz.'
+    },
+    {
+      id: 'doc', name: 'DOCUMENTOR', role: en ? 'Documentation' : 'Dokümantasyon', color: '#7bd88f', write: true, presets: [],
+      prompt: en
+        ? 'You are DOCUMENTOR — the user\'s documentation agent. You can read project files and WRITE documentation (README.md etc.) when asked. Write clear, structured, honest docs that reflect the actual state of the code. Never invent features that do not exist.'
+        : 'Sen DOCUMENTOR\'sın — kullanıcının dokümantasyon ajanı. Proje dosyalarını okuyabilir ve istendiğinde dokümantasyon (README.md vb.) YAZABİLİRSİN. Kodun gerçek durumunu yansıtan, net ve yapılandırılmış dokümanlar yaz. Var olmayan özellik uydurma.'
+    },
+    {
+      id: 'forge', name: 'FORGE', role: en ? 'Code Review' : 'Kod Denetçisi', color: '#ff7bd8', write: false, presets: [],
+      prompt: en
+        ? 'You are FORGE — the user\'s code quality inspector. You READ code but never modify it. Your job: scan for technical debt, risky patterns, missing tests and security smells; report findings ranked by severity with file references. Be blunt but constructive.'
+        : 'Sen FORGE\'sun — kullanıcının kod kalite denetçisi. Kodu OKURSUN ama asla değiştirmezsin. Görevin: teknik borcu, riskli kalıpları, eksik testleri ve güvenlik kokularını taramak; bulguları önem sırasına göre dosya referanslarıyla raporlamak. Açık sözlü ama yapıcı ol.'
+    },
+    {
+      id: 'mentor', name: 'MENTOR', role: en ? 'Coach' : 'Koç', color: '#b78bff', write: false, presets: [],
+      prompt: en
+        ? 'You are MENTOR — the user\'s personal coach. You look at their projects as a whole and help with focus, motivation and planning. Suggest realistic weekly plans, celebrate real progress, and gently point out overcommitment. Warm but honest.'
+        : 'Sen MENTOR\'sun — kullanıcının kişisel koçu. Projelerin bütününe bakar; odak, motivasyon ve planlama konusunda yardım edersin. Gerçekçi haftalık planlar öner, gerçek ilerlemeyi takdir et, fazla iş yüklenmeyi nazikçe söyle. Sıcak ama dürüst ol.'
+    }
+  ];
+}
+
 function loadData() {
   try {
     const d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    if (!d.universes) {
-      d.universes = [{ id: 'is', name: 'İş Evreni', subtitle: 'PAPILON', root: '..', prefix: '', expandDirs: d.expandDirs || [] }];
-    }
+    if (!d.universes) d.universes = [];
     d.projects = d.projects || {};
-    if (!d.agents) {
-      d.agents = [{
-        id: 'cto',
-        name: 'ATLAS',
-        role: 'CTO',
-        prompt: 'Sen ATLAS\'sın — Furkan\'ın kişisel CTO\'su. Onun tüm yazılım projelerini izliyorsun. Görevin: durumu net, dürüst ve yönetici bakışıyla raporlamak. Rapor formatın: (1) Yönetici özeti 2-3 cümle, (2) Dikkat gerektiren projeler ve nedenleri, (3) Riskler / tıkanıklıklar, (4) Somut sonraki adımlar (en fazla 5 madde, öncelik sırasıyla). Gereksiz övgü yapma, sorunları açıkça söyle. Kısa ve öz yaz.'
-      }];
+    if (!d.agents || !d.agents.length) {
+      d.agents = defaultAgents((d.profile && d.profile.lang) || 'tr');
     }
     return d;
   } catch (e) {
-    return { universes: [], projects: {} };
+    return { universes: [], projects: {}, agents: defaultAgents('tr') };
   }
 }
 
@@ -52,8 +136,12 @@ function saveData(data) {
   } catch (e) {}
 
   const json = JSON.stringify(data, null, 2);
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
   fs.writeFileSync(DATA_FILE, json, 'utf8');
+  // Arayüzün açılış tohumu (window.GALAXY_DATA) — geliştirmede uygulama
+  // klasörüne de yazılır; paketli app'te o konum salt-okunur olduğundan sessizce atlanır
   try { fs.writeFileSync(path.join(DATA_DIR, 'galaxy-data.js'), 'window.GALAXY_DATA = ' + json + ';', 'utf8'); } catch (e) {}
+  try { if (path.resolve(APP_DIR) !== path.resolve(DATA_DIR)) fs.writeFileSync(path.join(APP_DIR, 'galaxy-data.js'), 'window.GALAXY_DATA = ' + json + ';', 'utf8'); } catch (e) {}
   scheduleAutoCommit();
 }
 
@@ -79,7 +167,7 @@ function autoCommit() {
     { cwd: DATA_DIR, env: ENV }, () => { /* değişiklik yoksa sessizce geçer */ });
 }
 
-const IGNORE = new Set(['ProjectGalaxy', 'node_modules', '.git', '.DS_Store', 'build', 'dist', '.venv', 'venv', 'myenv', '__pycache__', '.gradle', 'DerivedData', 'Pods']);
+const IGNORE = new Set(['node_modules', '.git', '.DS_Store', 'build', 'dist', '.venv', 'venv', 'myenv', '__pycache__', '.gradle', 'DerivedData', 'Pods']);
 
 function listDirs(dir) {
   try {
@@ -90,6 +178,41 @@ function listDirs(dir) {
 }
 
 const knownPaths = new Set();
+
+// ---------- hiyerarşi algılama: proje mi, çatı (sistem) klasörü mü? ----------
+// Gerçek uzay konsepti: evren kökündeki bir klasör kendi başına projeyse GEZEGEN,
+// projeleri barındıran bir çatıysa YILDIZ SİSTEMİ olur — içindeki her proje
+// o sistemin gezegeni olarak ayrı ayrı haritaya girer (grup = sistem adı).
+const PROJECT_MARKERS = [
+  'package.json', 'pubspec.yaml', 'go.mod', 'Cargo.toml', 'requirements.txt',
+  'pyproject.toml', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'composer.json',
+  'Gemfile', 'Makefile', 'CMakeLists.txt', 'Package.swift', 'index.html', 'src'
+];
+const CODE_EXT_RE = /\.(swift|kt|kts|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|c|cpp|h|m|mm|dart|vue|svelte|sql|ipynb)$/i;
+
+function looksLikeProject(dir) {
+  try {
+    const names = fs.readdirSync(dir).map(n => n.normalize('NFC'));
+    const set = new Set(names);
+    if (set.has('.git')) return true;
+    if (names.some(n => n.endsWith('.xcodeproj') || n.endsWith('.xcworkspace'))) return true;
+    for (const m of PROJECT_MARKERS) if (set.has(m)) return true;
+    if (names.some(n => CODE_EXT_RE.test(n))) return true;
+    return false;
+  } catch (e) { return false; }
+}
+
+function looksLikeContainer(dir) {
+  if (looksLikeProject(dir)) return false;   // kendisi projeyse gezegen kalır
+  const subs = listDirs(dir);
+  if (!subs.length) return false;
+  let projLike = 0;
+  for (const s of subs.slice(0, 30)) {
+    if (looksLikeProject(path.join(dir, s))) projLike++;
+    if (projLike) return true;               // içinde en az bir proje varsa çatıdır
+  }
+  return false;
+}
 
 // Git bilgisi — spawn olmadan, .git dosyalarını doğrudan okuyarak (hızlı)
 function gitInfo(dir) {
@@ -119,20 +242,52 @@ function gitInfo(dir) {
 }
 
 function resolveRoot(root) {
-  // Göreli kökler (".." = PAPILON) veri dosyasının konumuna göre çözülür
+  // Eski sürümlerden kalan göreli kökler veri dizinine göre çözülür;
+  // yeni evrenler her zaman mutlak yolla kaydedilir (migrasyon da mutlaklaştırır)
   return path.isAbsolute(root) ? root : path.resolve(DATA_DIR, root);
+}
+
+// Uzay modunda ajanların çalışma dizini: ilk evrenin kökü (yoksa ev dizini)
+function universeCwd(data) {
+  for (const u of (data && data.universes) || []) {
+    try {
+      const r = resolveRoot(u.root);
+      if (fs.existsSync(r)) return r;
+    } catch (e) {}
+  }
+  return os.homedir();
+}
+
+// Kullanıcı profili → ajan prompt'larına eklenen kişisel bağlam
+function profileContext(data) {
+  const p = (data && data.profile) || {};
+  const en = p.lang === 'en';
+  const parts = [];
+  if (p.name) parts.push(en ? `The user's name is ${p.name} — address them by name.` : `Kullanıcının adı ${p.name} — ona ismiyle hitap et.`);
+  parts.push(en ? 'Respond in English.' : 'Yanıtlarını Türkçe ver.');
+  return parts.join(' ');
 }
 
 function scanProjects() {
   const data = loadData();
   knownPaths.clear();
   const projects = [];
+  let hierarchyChanged = false;
 
   for (const u of data.universes) {
     const root = resolveRoot(u.root);
+    u.expandDirs = u.expandDirs || [];
+    // Otomatik hiyerarşi: çatı klasörler yıldız sistemi olarak işaretlenir (kalıcı)
+    for (const name of listDirs(root)) {
+      if (u.expandDirs.includes(name)) continue;
+      if (looksLikeContainer(path.join(root, name))) {
+        u.expandDirs.push(name);
+        hierarchyChanged = true;
+      }
+    }
     const found = [];
     for (const name of listDirs(root)) {
-      if ((u.expandDirs || []).includes(name)) {
+      if (u.expandDirs.includes(name)) {
         for (const sub of listDirs(path.join(root, name))) {
           found.push({ rel: `${name}/${sub}`, full: path.join(root, name, sub) });
         }
@@ -172,6 +327,7 @@ function scanProjects() {
       });
     }
   }
+  if (hierarchyChanged) { try { saveData(data); } catch (e) {} } // sistem işaretleri kalıcı olsun
   return {
     universes: data.universes.map(u => ({ id: u.id, name: u.name, subtitle: u.subtitle || '' })),
     projects,
@@ -273,7 +429,7 @@ function slugify(s) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'evren';
 }
 
-ipcMain.handle('galaxy:universeAdd', (e, { name, root }) => {
+ipcMain.handle('galaxy:universeAdd', (e, { name, root, bookmark }) => {
   if (!name || !root) return { ok: false, error: 'Ad ve klasör yolu gerekli' };
   root = root.replace(/^~/, os.homedir()).trim();
   try {
@@ -284,9 +440,22 @@ ipcMain.handle('galaxy:universeAdd', (e, { name, root }) => {
   while (data.universes.find(u => u.id === id)) id += '2';
   const prefix = path.basename(root).normalize('NFC');
   if (data.universes.find(u => u.prefix === prefix)) return { ok: false, error: 'Aynı klasör adına sahip bir evren zaten var' };
-  data.universes.push({ id, name, subtitle: prefix, root, prefix, expandDirs: [] });
+  data.universes.push({ id, name, subtitle: prefix, root, prefix, bookmark: bookmark || undefined, expandDirs: [] });
   saveData(data);
+  startBookmarkAccess(bookmark);
   return { ok: true, id };
+});
+
+// Klasör seçici — MAS sürümünde kalıcı erişim için security-scoped bookmark üretir
+ipcMain.handle('galaxy:pickFolder', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const r = await dialog.showOpenDialog(win, {
+    title: 'Klasör seç',
+    properties: ['openDirectory', 'createDirectory'],
+    securityScopedBookmarks: true
+  });
+  if (r.canceled || !r.filePaths.length) return null;
+  return { path: r.filePaths[0], bookmark: (r.bookmarks && r.bookmarks[0]) || null };
 });
 
 ipcMain.handle('galaxy:universeUpdate', (e, { id, name, root }) => {
@@ -586,6 +755,53 @@ function getDbCfg(id) {
   return { ...db, password: decPass(db.password) };
 }
 
+// ---------- yerel veritabanı sunucularını otomatik algıla ----------
+// Kullanıcının kendi bilgisayarında çalışan PostgreSQL/MySQL sunucuları
+// açılışta bulunur ve "Bu Mac — …" bağlantısı olarak otomatik eklenir.
+// Her port için yalnızca bir kez eklenir: kullanıcı silerse yeniden eklenmez;
+// sunucu o an kapalıysa sonraki açılışlarda tekrar denenir.
+function probePort(port, timeoutMs) {
+  return new Promise(resolve => {
+    const net = require('net');
+    const s = new net.Socket();
+    let done = false;
+    const fin = ok => { if (!done) { done = true; try { s.destroy(); } catch (e) {} resolve(ok); } };
+    s.setTimeout(timeoutMs || 800);
+    s.once('connect', () => fin(true));
+    s.once('timeout', () => fin(false));
+    s.once('error', () => fin(false));
+    try { s.connect(port, '127.0.0.1'); } catch (e) { fin(false); }
+  });
+}
+
+const LOCAL_DB_CANDIDATES = [
+  { port: 5432, type: 'postgres', name: 'Bu Mac — PostgreSQL', user: 'postgres', database: 'postgres' },
+  { port: 3306, type: 'mysql', name: 'Bu Mac — MySQL', user: 'root', database: '' }
+];
+
+async function autoDetectLocalDbs() {
+  try {
+    const data = loadData();
+    data.dbAutoAdded = data.dbAutoAdded || {};
+    let changed = false;
+    for (const c of LOCAL_DB_CANDIDATES) {
+      if (data.dbAutoAdded[c.port]) continue; // daha önce otomatik eklendi (silindiyse saygı duy)
+      const exists = (data.dbs || []).some(d => (d.host === 'localhost' || d.host === '127.0.0.1') && +d.port === c.port);
+      if (exists) { data.dbAutoAdded[c.port] = true; changed = true; continue; }
+      if (!(await probePort(c.port))) continue; // bu portta sunucu çalışmıyor — sonraki açılışta yine bak
+      data.dbs = data.dbs || [];
+      data.dbs.push({
+        id: 'local-' + c.port, name: c.name, type: c.type,
+        host: 'localhost', port: c.port, database: c.database,
+        user: c.user, password: encPass('')
+      });
+      data.dbAutoAdded[c.port] = true;
+      changed = true;
+    }
+    if (changed) saveData(data);
+  } catch (e) { /* algılama başarısız olsa da uygulama etkilenmez */ }
+}
+
 ipcMain.handle('galaxy:dbList', () => (loadData().dbs || []).map(({ password, ...rest }) => rest));
 
 ipcMain.handle('galaxy:dbSave', (e, db) => {
@@ -781,6 +997,7 @@ ipcMain.handle('galaxy:readme', (e, p) => {
 const runs = new Map(); // runId -> child
 
 function streamClaude({ win, channel, runId, cwd, args }) {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
   const send = (kind, text) => { if (!win.isDestroyed()) win.webContents.send(channel, { runId, kind, text }); };
   let child;
   try {
@@ -910,12 +1127,12 @@ ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attac
       proj.notes ? `Notlar: ${proj.notes}` : '',
       `Kök klasörler: ${files}`
     ].filter(Boolean).join('\n');
-    full = `${agent.prompt}\n\n=== ODAK: TEK PROJE ===\n${pdigest}\n=== SON ===\n\nŞu an bu projenin klasöründesin, dosyalarını okuyabilirsin. Yanıtını SADECE bu proje özelinde ver.\n\nKullanıcının isteği: ${prompt || 'Bu proje için durum değerlendirmesi yap.'}\nTürkçe yanıtla.`;
+    full = `${agent.prompt}\n\n=== ODAK: TEK PROJE ===\n${pdigest}\n=== SON ===\n\nŞu an bu projenin klasöründesin, dosyalarını okuyabilirsin. Yanıtını SADECE bu proje özelinde ver.\n\nKullanıcının isteği: ${prompt || 'Bu proje için durum değerlendirmesi yap.'}\n${profileContext(data)}`;
     cwd = proj.path;
   } else {
     const digest = buildDigest();
-    full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nKullanıcının isteği: ${prompt || 'Genel durum raporu ver.'}\nYanıtını Türkçe ver. Dosyaları incelemen gerekirse bulunduğun klasördeki proje klasörlerini okuyabilirsin.`;
-    cwd = path.resolve(DATA_DIR, '..'); // PAPILON kökü
+    full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nKullanıcının isteği: ${prompt || 'Genel durum raporu ver.'}\n${profileContext(data)} Dosyaları incelemen gerekirse bulunduğun klasördeki proje klasörlerini okuyabilirsin.`;
+    cwd = universeCwd(data);
   }
   const args = ['--output-format', 'stream-json', '--verbose'];
   full = applyAttachments(full, args, attachments);
@@ -931,6 +1148,7 @@ ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attac
 // ---------- günlük (captain's log) ----------
 function runClaudeJson(prompt, cwd) {
   return new Promise(resolve => {
+    if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
       child = spawn('claude', ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
@@ -956,7 +1174,7 @@ ipcMain.handle('galaxy:logDetect', async (e, text) => {
   const scan = scanProjects();
   const list = scan.projects.map(p => `${p.id} | ${p.name} | ${(p.desc || '').slice(0, 90)}`).join('\n');
   const prompt = `Aşağıda proje listesi var (id | ad | açıklama):\n${list}\n\nKullanıcının günlük notu: "${text}"\n\nBu not en çok hangi projeyle ilgili ve tipi ne? "done" = yapılmış bir işin kaydı, "todo" = yapılacak iş/plan. SADECE şu JSON'u döndür, başka hiçbir şey yazma:\n{"projectId": "<listeden bir id veya none>", "confidence": <0-1 arası sayı>, "type": "<done veya todo>", "reason": "<tek cümle Türkçe gerekçe>", "entry": "<notu kısa ve düzgün tek cümleye çevir>"}`;
-  const res = await runClaudeJson(prompt, path.resolve(DATA_DIR, '..'));
+  const res = await runClaudeJson(prompt, universeCwd(loadData()));
   if (res.error) return { ok: false, error: res.error };
   const d = res.data || {};
   const proj = scan.projects.find(p => p.id === d.projectId);
@@ -1098,6 +1316,7 @@ function ensureShell(shellId, cwd) {
 }
 
 ipcMain.handle('galaxy:shellStart', (e, { shellId, cwd }) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
   if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
   try {
     ensureShell(shellId, cwd);
@@ -1106,6 +1325,7 @@ ipcMain.handle('galaxy:shellStart', (e, { shellId, cwd }) => {
 });
 
 ipcMain.handle('galaxy:shellInput', (e, { shellId, cwd, cmd }) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
   if (!cmd || !cmd.trim()) return { ok: false };
   if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
   const rec = ensureShell(shellId, cwd);
@@ -1146,6 +1366,7 @@ app.on('before-quit', () => {
 
 // Proje konumunda düz bash terminali aç
 ipcMain.handle('galaxy:openTerminal', (e, p) => {
+  if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
   if (!p || !knownPaths.has(p)) return false;
   const cmd = `cd ${JSON.stringify(p)}`;
   const script = `tell application "Terminal"
@@ -1159,6 +1380,7 @@ ipcMain.handle('galaxy:openTerminal', (e, p) => {
 // ---------- uygulama içi zamanlayıcı ----------
 function runClaudeText(prompt, cwd) {
   return new Promise(resolve => {
+    if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
       child = spawn('claude', ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
@@ -1185,8 +1407,8 @@ async function runSchedule(s, notifyWin) {
     const agent = (data.agents || []).find(a => a.id === s.agentId) || (data.agents || [])[0];
     if (!agent) return { ok: false, error: 'ajan yok' };
     const digest = buildDigest();
-    const full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nZamanlanmış görev: ${s.prompt}\nYanıtını Türkçe, markdown formatında ver.`;
-    const res = await runClaudeText(full, path.resolve(DATA_DIR, '..'));
+    const full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nZamanlanmış görev: ${s.prompt}\n${profileContext(data)} Yanıtını markdown formatında ver.`;
+    const res = await runClaudeText(full, universeCwd(data));
     const date = new Date().toISOString().slice(0, 10);
     const rdir = path.join(DATA_DIR, 'reports');
     fs.mkdirSync(rdir, { recursive: true });
@@ -1258,6 +1480,7 @@ ipcMain.handle('galaxy:scheduleRun', async (e, id) => {
 
 // Terminal'de Claude aç (alternatif)
 ipcMain.handle('galaxy:openClaude', (e, p) => {
+  if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
   if (!p || !knownPaths.has(p)) return false;
   const cmd = `cd ${JSON.stringify(p)} && claude`;
   const script = `tell application "Terminal"
@@ -1277,11 +1500,95 @@ function createWindow() {
       contextIsolation: true
     }
   });
-  // Arayüzü öncelikle ProjectGalaxy klasöründen yükle — UI güncellemeleri
-  // için uygulamayı yeniden paketlemek gerekmesin
+  // Arayüzü öncelikle veri dizininden yükle — UI güncellemeleri için
+  // uygulamayı yeniden paketlemek gerekmesin (index.html oraya kopyalanabilir)
   const external = path.join(DATA_DIR, 'index.html');
   win.loadFile(fs.existsSync(external) ? external : path.join(APP_DIR, 'index.html'));
 }
+
+// ---------- ilk açılış: uygulama kullanıcısını bir defalığına tanır ----------
+let onboardWin = null;
+
+function needsOnboarding() {
+  const d = loadData();
+  return !(d.profile && d.profile.onboarded);
+}
+
+function createOnboardingWindow() {
+  if (onboardWin && !onboardWin.isDestroyed()) { onboardWin.focus(); return; }
+  onboardWin = new BrowserWindow({
+    width: 820, height: 680, resizable: false, fullscreenable: false,
+    backgroundColor: '#04060c',
+    titleBarStyle: 'hiddenInset',
+    webPreferences: { preload: path.join(APP_DIR, 'preload.js'), contextIsolation: true }
+  });
+  onboardWin.loadFile(path.join(APP_DIR, 'onboarding.html'));
+  onboardWin.on('closed', () => { onboardWin = null; });
+}
+
+ipcMain.handle('galaxy:onboardStatus', () => {
+  const d = loadData();
+  const lang = (d.profile && d.profile.lang) || 'tr';
+  return {
+    needed: !(d.profile && d.profile.onboarded),
+    profile: { name: (d.profile && d.profile.name) || '', lang },
+    universes: (d.universes || []).map(u => ({ id: u.id, name: u.name, root: resolveRoot(u.root) })),
+    agents: (d.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff' })),
+    isMas: IS_MAS
+  };
+});
+
+ipcMain.handle('galaxy:onboardComplete', (e, payload) => {
+  const p = payload || {};
+  const data = loadData();
+  data.profile = {
+    name: String(p.name || '').trim().slice(0, 60),
+    lang: p.lang === 'en' ? 'en' : 'tr',
+    onboarded: true,
+    ts: new Date().toISOString()
+  };
+  // Ajanlar dil seçimine göre (henüz özelleştirilmemişse) yeniden üretilir
+  if (!fs.existsSync(DATA_FILE)) data.agents = defaultAgents(data.profile.lang);
+  // Evrenler: onboarding'de seçilen klasörler eklenir/güncellenir
+  if (Array.isArray(p.universes)) {
+    for (const u of p.universes) {
+      if (!u || !u.root) continue;
+      const root = String(u.root);
+      const prefix = path.basename(root).normalize('NFC');
+      const existing = data.universes.find(x => resolveRoot(x.root) === root);
+      if (existing) {
+        if (u.name) existing.name = String(u.name).slice(0, 60);
+        if (u.bookmark) existing.bookmark = u.bookmark;
+        continue;
+      }
+      let id = slugify(u.name || prefix);
+      while (data.universes.find(x => x.id === id)) id += '2';
+      data.universes.push({ id, name: (u.name || prefix).slice(0, 60), subtitle: prefix, root, prefix, bookmark: u.bookmark || undefined, expandDirs: [] });
+    }
+  }
+  // Ajan adları/rolleri kişiselleştirmesi
+  if (Array.isArray(p.agents)) {
+    for (const a of p.agents) {
+      const ex = (data.agents || []).find(x => x.id === a.id);
+      if (ex) {
+        if (a.name) ex.name = String(a.name).slice(0, 30);
+        if (a.role) ex.role = String(a.role).slice(0, 40);
+      }
+    }
+  }
+  if (!data.universes.length) return { ok: false, error: data.profile.lang === 'en' ? 'Pick at least one folder' : 'En az bir klasör seç' };
+  saveData(data);
+  restoreBookmarks();
+  createWindow();
+  if (onboardWin && !onboardWin.isDestroyed()) onboardWin.close();
+  onboardWin = null;
+  return { ok: true };
+});
+
+ipcMain.handle('galaxy:profileGet', () => {
+  const d = loadData();
+  return d.profile || { name: '', lang: 'tr', onboarded: false };
+});
 
 // ---------- menü çubuğu: hızlı not ----------
 let tray = null, quickWin = null;
@@ -1339,13 +1646,16 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  migrateLegacyData();
+  restoreBookmarks();
+  if (needsOnboarding()) createOnboardingWindow(); else createWindow();
   createTray();
-  globalShortcut.register('CommandOrControl+Shift+G', showQuickCapture);
+  try { globalShortcut.register('CommandOrControl+Shift+G', showQuickCapture); } catch (e) {}
+  autoDetectLocalDbs(); // yerel PostgreSQL/MySQL sunucularını arka planda bul ve ekle
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => { /* tray'de yaşamaya devam et */ });
 app.on('activate', () => {
   const wins = BrowserWindow.getAllWindows().filter(w => w !== quickWin);
-  if (!wins.length) createWindow();
+  if (!wins.length) { if (needsOnboarding()) createOnboardingWindow(); else createWindow(); }
 });
