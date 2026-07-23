@@ -50,7 +50,13 @@
       "Bash(osascript -e 'tell application \"Electron\" to activate')",
       "Bash(osascript -e 'tell application \"Project Galaxy\" to activate')",
       "Bash(osascript -e 'tell application \"System Events\" to get name of every process whose visible is true')",
-      "Bash(screencapture -x -o /private/tmp/claude-501/-Users-furkanyildiz-Desktop-FY-Projects-ProjectGalaxy/0f01ba58-9c8f-4d16-a0b3-66a0cb418e64/scratchpad/live2.png)"
+      "Bash(screencapture -x -o /private/tmp/claude-501/-Users-furkanyildiz-Desktop-FY-Projects-ProjectGalaxy/0f01ba58-9c8f-4d16-a0b3-66a0cb418e64/scratchpad/live2.png)",
+      "Bash(pkill -f \"polish/rm.js\")",
+      "Bash(pkill -9 -f \"polish/rm.js\")",
+      "Bash(pkill -9 -f \"polish-rm\")",
+      "Bash(pkill -9 -f \"polish\")",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -r kill -9)"
     ],
     "additionalDirectories": [
       "/tmp"
