@@ -46,7 +46,7 @@
   .card {
     width: 640px; background: var(--panel); border: 1px solid var(--line);
     border-radius: 10px; padding: 26px 28px; backdrop-filter: blur(8px);
-    max-height: 380px; overflow-y: auto;
+    max-height: 320px; overflow-y: auto;
   }
   .row { display: flex; gap: 12px; }
   .grow { flex: 1; }
@@ -94,6 +94,43 @@
   @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .sumLine { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(120,160,255,.08); font-size: 13px; }
   .sumLine .k { color: var(--faint); width: 130px; flex: none; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding-top: 2px; }
+
+  /* --- tanıtım görselleri (docs/Project_Galaxy_Mission_Control.pdf) --- */
+  .illus {
+    position: relative; width: 640px; height: 132px; margin: 0 0 18px;
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    background: #05080f; cursor: zoom-in; flex: none;
+    box-shadow: 0 12px 38px rgba(0, 0, 0, .5);
+  }
+  .illus img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+  .illus:hover { border-color: var(--cy); }
+  .illus .zoom {
+    position: absolute; right: 8px; bottom: 8px; font-family: Menlo, monospace;
+    font-size: 8px; letter-spacing: .2em; color: var(--cy); opacity: 0; transition: opacity .15s;
+    background: rgba(4, 8, 20, .82); border: 1px solid rgba(97, 220, 255, .35);
+    border-radius: 5px; padding: 3px 8px;
+  }
+  .illus:hover .zoom { opacity: 1; }
+  #lb {
+    position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center;
+    background: rgba(2, 4, 12, .93); backdrop-filter: blur(6px); cursor: zoom-out; padding: 4vh 4vw;
+  }
+  #lb.on { display: flex; }
+  #lb img { max-width: 100%; max-height: 100%; border-radius: 12px; border: 1px solid var(--line); }
+  .agentRow .av {
+    width: 34px; height: 34px; flex: none; border-radius: 9px; object-fit: cover;
+    border: 1px solid var(--line); background: #0b1330;
+  }
+
+  /* --- erişilebilirlik --- */
+  .btn:focus-visible, .langCard:focus-visible, .illus:focus-visible,
+  input[type=text]:focus-visible {
+    outline: 2px solid var(--cy); outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #nebula { animation: none !important; }
+    .fade { animation: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -104,6 +141,7 @@
   <div class="hud mono" id="hudLabel">İLK KALKIŞ</div>
   <div class="title">PROJECT GALAXY</div>
   <div class="sub" id="stepSub"></div>
+  <div id="illusHost"></div>
   <div id="stepBody"></div>
   <div class="nav">
     <button class="btn" id="backBtn">◂ <span></span></button>
@@ -112,6 +150,7 @@
   </div>
   <div class="err mono" id="err"></div>
 </div>
+<div id="lb"><img alt=""></div>
 
 <script>
 // ---- yıldız arka planı ----
@@ -173,25 +212,109 @@ const STR = {
 };
 
 // ---- durum ----
-const state = { step: 0, lang: 'tr', name: '', universes: [], agents: [], isMas: false };
+const MODE = new URLSearchParams(location.search).get('mode') === 'settings' ? 'settings' : 'onboard';
+const state = { step: 0, lang: 'tr', name: '', universes: [], agents: [], isMas: false,
+  staleDays: 21, planPending: 5, dataDir: '', version: '' };
 const $ = id => document.getElementById(id);
 const T = () => STR[state.lang];
 
 async function init() {
   try {
-    const st = await window.galaxy.onboardStatus();
-    state.lang = (st.profile && st.profile.lang) || 'tr';
-    state.name = (st.profile && st.profile.name) || '';
-    state.universes = (st.universes || []).map(u => ({ name: u.name, root: u.root, bookmark: null }));
-    state.agents = st.agents || [];
-    state.isMas = !!st.isMas;
+    if (MODE === 'settings') {
+      const sg = await window.galaxy.settingsGet();
+      state.lang = (sg.profile && sg.profile.lang) || 'tr';
+      state.name = (sg.profile && sg.profile.name) || '';
+      state.staleDays = sg.settings.staleDays;
+      state.planPending = sg.settings.planPending;
+      state.dataDir = sg.dataDir || '';
+      state.version = sg.version || '';
+      state.isMas = !!sg.isMas;
+    } else {
+      const st = await window.galaxy.onboardStatus();
+      state.lang = (st.profile && st.profile.lang) || 'tr';
+      state.name = (st.profile && st.profile.name) || '';
+      state.universes = (st.universes || []).map(u => ({ name: u.name, root: u.root, bookmark: null }));
+      state.agents = st.agents || [];
+      state.isMas = !!st.isMas;
+    }
   } catch (e) {}
-  render();
+  if (MODE === 'settings') renderSettings(); else render();
+}
+
+// ---- ayarlar modu: tek sayfalık form ----
+function renderSettings() {
+  const tr = state.lang !== 'en';
+  $('hudLabel').textContent = tr ? 'AYARLAR' : 'SETTINGS';
+  $('stepSub').textContent = tr
+    ? 'Profilini ve uyarı eşiklerini buradan değiştir. Evrenler ✎ ile, ajanlar ⚙ ile uygulama içinden düzenlenir.'
+    : 'Edit your profile and alert thresholds here. Universes (✎) and agents (⚙) are edited inside the app.';
+  $('illusHost').innerHTML = '';
+  $('backBtn').style.visibility = 'hidden';
+  $('dots').innerHTML = '';
+  $('nextBtn').textContent = tr ? 'KAYDET ▸' : 'SAVE ▸';
+  $('stepBody').innerHTML = `<div class="card fade" style="max-height:none">
+    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'AD / HİTAP' : 'NAME'}</div>
+    <input type="text" id="setName" value="${esc(state.name)}" maxlength="60" style="margin:6px 0 16px">
+    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'DİL / LANGUAGE' : 'LANGUAGE'}</div>
+    <div class="row" style="margin:8px 0 16px">
+      <button class="btn ${tr ? 'solid' : ''}" id="langTr" type="button">TÜRKÇE</button>
+      <button class="btn ${tr ? '' : 'solid'}" id="langEn" type="button">ENGLISH</button>
+    </div>
+    <div class="row">
+      <div class="grow">
+        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'İHMAL UYARISI (GÜN)' : 'NEGLECT ALERT (DAYS)'}</div>
+        <input type="text" id="setStale" value="${state.staleDays}" style="margin-top:6px" inputmode="numeric">
+      </div>
+      <div class="grow">
+        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'PLAN UYARISI (MADDE)' : 'PLAN ALERT (ITEMS)'}</div>
+        <input type="text" id="setPlan" value="${state.planPending}" style="margin-top:6px" inputmode="numeric">
+      </div>
+    </div>
+    <div class="hint mono" style="margin-top:18px">${tr ? 'Veri' : 'Data'}: ${esc(state.dataDir)}<br>${tr ? 'Sürüm' : 'Version'}: v${esc(state.version)}${state.isMas ? ' · App Store' : ''}</div>
+  </div>`;
+  $('setName').addEventListener('input', e => { state.name = e.target.value; });
+  $('langTr').addEventListener('click', () => { state.lang = 'tr'; renderSettings(); });
+  $('langEn').addEventListener('click', () => { state.lang = 'en'; renderSettings(); });
+}
+
+async function saveSettings() {
+  const stale = parseInt($('setStale').value, 10);
+  const plan = parseInt($('setPlan').value, 10);
+  $('nextBtn').disabled = true;
+  try {
+    await window.galaxy.settingsSave({
+      name: state.name, lang: state.lang,
+      staleDays: isNaN(stale) ? state.staleDays : stale,
+      planPending: isNaN(plan) ? state.planPending : plan
+    });
+    window.close();
+  } catch (e) { $('nextBtn').disabled = false; }
+}
+
+// Tanıtım görselleri: her adım, sunumdaki karşılık gelen infografikle açılır.
+// Şerit kırpılmış görünür; tıklayınca tam boy açılır.
+const AST = 'assets/guide/';
+const STEP_ILLUS = [
+  { img: 'hero-kapak.jpg', cap: { tr: 'Klasörleri yaşayan bir evrene dönüştür', en: 'Turn folders into a living universe' } },
+  { img: 'eski-yeni.jpg', cap: { tr: 'Dağınık klasörlerden otonom seyir defterine', en: 'From scattered folders to an autonomous logbook' } },
+  { img: 'terminoloji.jpg', cap: { tr: 'Galaksi · Yıldız Sistemi · Gezegen', en: 'Galaxy · Star System · Planet' } },
+  { img: 'gorev-murettebati.jpg', cap: { tr: 'Görev mürettebatın', en: 'Your mission crew' } },
+  { img: 'kisayol-haritasi.jpg', cap: { tr: 'Kısayol haritası — evrenin seni bekliyor', en: 'Shortcut map — your universe awaits' } }
+];
+
+function renderIllus(step) {
+  const host = $('illusHost');
+  const it = STEP_ILLUS[step];
+  if (!it) { host.innerHTML = ''; return; }
+  const src = AST + it.img;
+  host.innerHTML = `<div class="illus" data-zoom="${src}" title="${esc(it.cap[state.lang] || it.cap.tr)}">
+    <img src="${src}" alt=""><span class="zoom">BÜYÜT</span></div>`;
 }
 
 function render() {
   const t = T();
   $('hudLabel').textContent = t.hud + ' · ' + (state.step + 1) + '/5';
+  renderIllus(state.step);
   $('backBtn').style.visibility = state.step === 0 ? 'hidden' : 'visible';
   $('backBtn').innerHTML = '◂ ' + t.back;
   $('nextBtn').textContent = state.step === 4 ? t.start : t.next;
@@ -203,9 +326,13 @@ function render() {
   if (state.step === 0) {
     $('stepSub').textContent = t.s0 + ' ' + t.s0b;
     body.innerHTML = `<div class="langCards">
-      <div class="langCard ${state.lang === 'tr' ? 'sel' : ''}" onclick="setLang('tr')">
+      <div class="langCard ${state.lang === 'tr' ? 'sel' : ''}" onclick="setLang('tr')"
+           role="button" tabindex="0" aria-pressed="${state.lang === 'tr'}"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setLang('tr')}">
         <div class="flag">🇹🇷</div><div class="name">TÜRKÇE</div></div>
-      <div class="langCard ${state.lang === 'en' ? 'sel' : ''}" onclick="setLang('en')">
+      <div class="langCard ${state.lang === 'en' ? 'sel' : ''}" onclick="setLang('en')"
+           role="button" tabindex="0" aria-pressed="${state.lang === 'en'}"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setLang('en')}">
         <div class="flag">🇬🇧</div><div class="name">ENGLISH</div></div>
     </div>`;
   } else if (state.step === 1) {
@@ -258,9 +385,12 @@ function renderUniverses() {
 
 function renderAgents() {
   const el = $('agentList');
+  const CREW = ['cto', 'pm', 'doc', 'forge', 'mentor'];
   el.innerHTML = state.agents.map((a, i) => `
     <div class="agentRow">
-      <div class="agentDot" style="background:${esc(a.color || '#61dcff')}"></div>
+      ${CREW.indexOf(a.id) >= 0
+        ? `<img class="av" src="${AST}avatar-${esc(a.id)}.jpg" alt="">`
+        : `<div class="agentDot" style="background:${esc(a.color || '#61dcff')}"></div>`}
       <input type="text" class="nm mono" data-i="${i}" data-f="name" value="${esc(a.name)}" maxlength="30">
       <input type="text" class="grow" data-i="${i}" data-f="role" value="${esc(a.role)}" maxlength="40">
     </div>`).join('');
@@ -318,8 +448,16 @@ async function finish() {
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
-$('nextBtn').addEventListener('click', next);
-$('backBtn').addEventListener('click', () => { if (state.step > 0) { state.step--; render(); } });
+// görsel büyütme
+document.addEventListener('click', e => {
+  const z = e.target.closest && e.target.closest('[data-zoom]');
+  if (z) { const lb = $('lb'); lb.querySelector('img').src = z.dataset.zoom; lb.classList.add('on'); return; }
+  if (e.target.closest && e.target.closest('#lb')) $('lb').classList.remove('on');
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('lb').classList.remove('on'); });
+
+$('nextBtn').addEventListener('click', () => { if (MODE === 'settings') saveSettings(); else next(); });
+$('backBtn').addEventListener('click', () => { if (MODE !== 'settings' && state.step > 0) { state.step--; render(); } });
 window.setLang = setLang;
 init();
 </script>

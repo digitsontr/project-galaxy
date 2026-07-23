@@ -16,7 +16,7 @@ Hedef: kişisel araçtan, satılabilir bir macOS ürününe. İki dağıtım hed
 - [x] **Sabit yolları kaldır**: PAPILON varsayımı silindi; veri `~/Library/Application Support/ProjectGalaxy/` altında, eski konumdan otomatik migrasyon var
 - [x] **İlk açılış onboarding'i**: dil (TR/EN) + ad (ajanlar ismiyle hitap eder) + evren klasörleri (klasör seçici, MAS'ta bookmark üretir) + ajan adı/rolü kişiselleştirme (`onboarding.html`)
 - [ ] **Claude CLI → Claude API geçişi (opsiyonlu)**: kullanıcı ya kendi Claude Code kurulumunu ya da API anahtarını kullanır (Ayarlar ekranı; anahtar safeStorage'da). Ajanlar API modunda `fetch` ile Messages API'ye gider — **App Store'da ajanların çalışması buna bağlı** (şimdilik karar: CLI'da kal)
-- [ ] **Ayarlar ekranı**: onboarding'deki tercihlerin sonradan da düzenlenebildiği yer; tarama aralığı, uyarı eşikleri (21 gün / 5 madde)
+- [x] **Ayarlar ekranı**: ad, dil ve uyarı eşikleri (ihmal günü / plan maddesi) — HUD'daki ⚙, tray menüsü veya ⌘K → Ayarlar
 - [ ] **i18n (arayüz)**: ana arayüz string'lerini sözlüğe çıkar (onboarding + ajan dili tamam)
 - [ ] Örnek evren + rehberli turun onboarding'e bağlanması
 
@@ -24,7 +24,7 @@ Hedef: kişisel araçtan, satılabilir bir macOS ürününe. İki dağıtım hed
 - [x] Apple Developer Program üyeliği ($99/yıl)
 - [x] **Notarization**: `build.mac.notarize: true` — `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID` ortam değişkenleriyle çalışır (bkz. RELEASE.md 1b)
 - [ ] **Developer ID Application** sertifikasını Anahtar Zinciri'ne yükle → ilk imzalı `npm run dist` (RELEASE.md 1a)
-- [ ] **Auto-update**: electron-updater + GitHub Releases (private repo yeterli)
+- [x] **Auto-update**: electron-updater + GitHub Releases kodu hazır — repo + GH_TOKEN gerekli (RELEASE.md 2½)
 - [ ] Crash/hata raporlama: Sentry (opt-in)
 - [ ] Universal build doğrulaması (Intel Mac'te test)
 
