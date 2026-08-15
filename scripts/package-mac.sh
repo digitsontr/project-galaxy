@@ -19,7 +19,8 @@ rm -rf dist
   --ignore="^/dist" --ignore="\.command$" --ignore="\.zip$" --ignore="backup" \
   --ignore="^/build/icon_preview" --ignore="claude-design-result" \
   --ignore="^/reports" --ignore="^/attachments" --ignore="preview-sample" \
-  --ignore="newui/build.py" --ignore="^/test" --ignore="^/\.github" --ignore="^/scripts"
+  --ignore="newui/build.py" --ignore="^/test" --ignore="^/\.github" --ignore="^/scripts" \
+  --ignore="galaxy-data.json"
 
 APP="dist/Project Galaxy-darwin-$ARCH/Project Galaxy.app"
 

@@ -55,7 +55,7 @@ PKG_ARGS=(. "Project Galaxy"
   --extend-info=build/extra-info.plist
   --ignore="^/dist" --ignore="\.zip$" --ignore="\.command$" --ignore="backup" --ignore="^/build/icon_preview"
   --ignore="claude-design-result" --ignore="^/reports" --ignore="^/attachments"
-  --ignore="preview-sample" --ignore="newui/build.py")
+  --ignore="preview-sample" --ignore="newui/build.py" --ignore="galaxy-data.json" --ignore="^/test")
 
 # Yerel @electron/packager binary'sini çalıştır (npx deprecated 'electron-packager'ı çeker — YANLIŞ)
 if [ "$RUNNER" = "bun" ]; then
