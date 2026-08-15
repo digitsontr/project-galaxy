@@ -202,14 +202,25 @@ function looksLikeProject(dir) {
   } catch (e) { return false; }
 }
 
+// Bir klasörün kendisi bir git deposu mu? (gezegen tanımının birincil ölçütü)
+function isGitRepo(dir) {
+  try { return fs.existsSync(path.join(dir, '.git')); } catch (e) { return false; }
+}
+
+// Çatı (yıldız sistemi) mı? Kural: KENDİ .git'i varsa asla çatı değildir — GEZEGEN kalır
+// (monorepo kökü dahil tek gezegen). Kendi .git'i yok ama bir alt klasörü git deposu
+// ya da belirgin bir proje ise → çatı (yıldız sistemi), içindeki projeler ayrı gezegen olur.
 function looksLikeContainer(dir) {
-  if (looksLikeProject(dir)) return false;   // kendisi projeyse gezegen kalır
+  if (isGitRepo(dir)) return false;          // kendi .git'i olan klasör HER ZAMAN gezegen
   const subs = listDirs(dir);
   if (!subs.length) return false;
-  let projLike = 0;
-  for (const s of subs.slice(0, 30)) {
-    if (looksLikeProject(path.join(dir, s))) projLike++;
-    if (projLike) return true;               // içinde en az bir proje varsa çatıdır
+  for (const s of subs.slice(0, 40)) {
+    if (isGitRepo(path.join(dir, s))) return true;  // alt klasörde git deposu varsa çatı (yıldız sistemi)
+  }
+  // .git'i olmayan ama xcodeproj/workspace taşıyan alt proje de çatı sayılır (git init edilmemiş)
+  for (const s of subs.slice(0, 40)) {
+    const child = path.join(dir, s);
+    try { if (fs.readdirSync(child).some(n => n.endsWith('.xcodeproj') || n.endsWith('.xcworkspace'))) return true; } catch (e) {}
   }
   return false;
 }
@@ -276,15 +287,13 @@ function scanProjects() {
 
   for (const u of data.universes) {
     const root = resolveRoot(u.root);
-    u.expandDirs = u.expandDirs || [];
-    // Otomatik hiyerarşi: çatı klasörler yıldız sistemi olarak işaretlenir (kalıcı)
-    for (const name of listDirs(root)) {
-      if (u.expandDirs.includes(name)) continue;
-      if (looksLikeContainer(path.join(root, name))) {
-        u.expandDirs.push(name);
-        hierarchyChanged = true;
-      }
-    }
+    const prevExpand = u.expandDirs || [];
+    // Otomatik hiyerarşi: çatı klasörler (yıldız sistemi) her taramada GÜNCEL kurala göre
+    // yeniden hesaplanır — böylece eski yanlış sınıflandırma (üst klasörün gezegen görünmesi)
+    // kendiliğinden düzelir. Yalnızca .git tabanlı; elle override yok.
+    const nextExpand = listDirs(root).filter(name => looksLikeContainer(path.join(root, name)));
+    u.expandDirs = nextExpand;
+    if (nextExpand.length !== prevExpand.length || nextExpand.some(n => !prevExpand.includes(n))) hierarchyChanged = true;
     const found = [];
     for (const name of listDirs(root)) {
       if (u.expandDirs.includes(name)) {
@@ -298,11 +307,15 @@ function scanProjects() {
     for (const { rel, full } of found) {
       const id = u.prefix ? `${u.prefix}/${rel}` : rel;
       if ((data.ignored || []).includes(id)) continue; // evrenden gizlenmiş
+      const git = gitInfo(full);
+      // Yalnız GERÇEK projeler (içinde .git olan) gezegen olur — rastgele/çatı klasörler haritayı kirletmesin.
+      // İstisna: kullanıcı bu klasöre daha önce elle veri kaydettiyse (isim/durum/plan) yine göster.
+      const savedMeta = data.projects[id];
+      if (!git && !(savedMeta && (savedMeta.name || savedMeta.status || (savedMeta.plan && savedMeta.plan.length)))) continue;
       knownPaths.add(full);
       let mtime = null;
       try { mtime = fs.statSync(full).mtime.toISOString(); } catch (e) {}
-      const saved = data.projects[id] || {};
-      const git = gitInfo(full);
+      const saved = savedMeta || {};
       const lastAct = git && git.lastTs ? Date.parse(git.lastTs) : (mtime ? Date.parse(mtime) : Date.now());
       const staleDays = Math.floor((Date.now() - lastAct) / 86400000);
       let hasReadme = false;
@@ -443,14 +456,21 @@ ipcMain.handle('galaxy:projectUnhide', (e, projectId) => {
 });
 
 // ---------- kullanıcı ayarları (uyarı eşikleri vb.) ----------
-const DEFAULT_SETTINGS = { staleDays: 21, planPending: 5 };
+const DEFAULT_SETTINGS = { staleDays: 21, planPending: 5, claudePath: '', terminalApp: 'Terminal', sshTimeout: 8, focusMin: 25, assistantBio: '' };
 function getSettings(data) {
   const s = (data && data.settings) || {};
   return {
     staleDays: Math.min(365, Math.max(1, +s.staleDays || DEFAULT_SETTINGS.staleDays)),
-    planPending: Math.min(50, Math.max(1, +s.planPending || DEFAULT_SETTINGS.planPending))
+    planPending: Math.min(50, Math.max(1, +s.planPending || DEFAULT_SETTINGS.planPending)),
+    claudePath: String(s.claudePath || '').trim(),
+    terminalApp: (s.terminalApp === 'iTerm') ? 'iTerm' : 'Terminal',
+    sshTimeout: Math.min(60, Math.max(3, +s.sshTimeout || DEFAULT_SETTINGS.sshTimeout)),
+    focusMin: Math.min(180, Math.max(1, +s.focusMin || DEFAULT_SETTINGS.focusMin)),
+    assistantBio: String(s.assistantBio || '').slice(0, 2000)
   };
 }
+// Yapılandırılabilir tüketiciler için kısa yardımcılar (her çağrıda güncel ayarı okur)
+function claudeBin() { try { return getSettings(loadData()).claudePath || 'claude'; } catch (e) { return 'claude'; } }
 
 // Proaktif uyarılar — deterministik, anında (Claude gerekmez)
 function buildAlerts(projects, st) {
@@ -618,6 +638,27 @@ ipcMain.handle('galaxy:save', (e, project) => {
   return true;
 });
 
+// README'si olmayan projeye başlangıç README.md yaz (ad + açıklama + plan + not)
+ipcMain.handle('galaxy:createReadme', (e, projectId) => {
+  const scan = scanProjects();
+  const proj = scan.projects.find(p => p.id === projectId);
+  if (!proj || !proj.path) return { ok: false, error: 'Proje yolu yok' };
+  if (isRemotePath(proj.path)) return { ok: false, error: 'Uzak projede README oluşturulamıyor' };
+  const readmePath = path.join(proj.path, 'README.md');
+  if (fs.existsSync(readmePath)) return { ok: false, error: 'README zaten var' };
+  const saved = (loadData().projects || {})[projectId] || {};
+  const desc = (saved.desc || proj.desc || '').trim();
+  const plan = saved.plan || proj.plan || [];
+  const notes = (saved.notes || proj.notes || '').trim();
+  const lines = [`# ${proj.name}`, ''];
+  if (desc) lines.push(desc, '');
+  lines.push('## Kurulum', '', '```bash', '# kurulum adımlarını buraya yaz', '```', '');
+  if (plan.length) { lines.push('## Yapılacaklar', ''); for (const it of plan) lines.push(`- [${it.done ? 'x' : ' '}] ${it.text}`); lines.push(''); }
+  if (notes) lines.push('## Notlar', '', notes, '');
+  try { fs.writeFileSync(readmePath, lines.join('\n'), 'utf8'); return { ok: true, path: readmePath }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+
 // README'deki "- [ ]" maddelerini plana aktar (okuma yönü)
 ipcMain.handle('galaxy:syncReadme', (e, projectId) => {
   const scan = scanProjects();
@@ -687,7 +728,14 @@ ipcMain.handle('galaxy:tree', async (e, p) => {
 // ---------- tek seviye dizin listesi (gezegen yörüngesi) ----------
 function safeJoin(root, rel) {
   const full = path.resolve(root, rel || '');
-  return (full === root || full.startsWith(root + path.sep)) ? full : null;
+  if (!(full === root || full.startsWith(root + path.sep))) return null;
+  // symlink'le kök dışına çıkışı engelle: gerçek yolu çöz ve tekrar doğrula
+  try {
+    const real = fs.realpathSync(full);
+    const realRoot = fs.realpathSync(root);
+    if (!(real === realRoot || real.startsWith(realRoot + path.sep))) return null;
+  } catch (e) { /* dosya henüz yoksa realpath atar — mantıksal kontrol yeterli */ }
+  return full;
 }
 
 ipcMain.handle('galaxy:list', async (e, { root, rel }) => {
@@ -740,11 +788,72 @@ ipcMain.handle('galaxy:file', async (e, { root, rel }) => {
 });
 
 ipcMain.handle('galaxy:openFile', (e, p) => {
+  if (!p || typeof p !== 'string') return false;
   // yalnızca bilinen proje köklerinin altındaki dosyalar
   for (const root of knownPaths) {
     if (p === root || p.startsWith(root + path.sep)) { shell.openPath(p); return true; }
   }
   return false;
+});
+
+// ---------- Dosya yaz/oluştur/sil/yeniden adlandır + projede ara ----------
+ipcMain.handle('galaxy:fileWrite', (e, { root, rel, content } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak dosya yazma desteklenmiyor' };
+  const full = safeJoin(root, rel);
+  if (!full) return { ok: false, error: 'Geçersiz yol' };
+  try { fs.writeFileSync(full, String(content == null ? '' : content), 'utf8'); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:fileCreate', (e, { root, rel } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const full = safeJoin(root, rel);
+  if (!full) return { ok: false, error: 'Geçersiz yol' };
+  if (fs.existsSync(full)) return { ok: false, error: 'Zaten var' };
+  try {
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    if (/\/$/.test(rel)) fs.mkdirSync(full, { recursive: true });   // klasör
+    else fs.writeFileSync(full, '', 'utf8');
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:fileDelete', (e, { root, rel } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const full = safeJoin(root, rel);
+  if (!full || full === root) return { ok: false, error: 'Geçersiz yol' };
+  try { fs.rmSync(full, { recursive: true, force: true }); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:fileRename', (e, { root, rel, newRel } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const a = safeJoin(root, rel), b = safeJoin(root, newRel);
+  if (!a || !b || a === root) return { ok: false, error: 'Geçersiz yol' };
+  try { fs.mkdirSync(path.dirname(b), { recursive: true }); fs.renameSync(a, b); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+// Projede metin ara (git grep varsa onu, yoksa basit tarama)
+ipcMain.handle('galaxy:projectGrep', async (e, { root, query } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const q = String(query || '').trim();
+  if (q.length < 2) return { ok: false, error: 'En az 2 karakter' };
+  const useGit = fs.existsSync(path.join(root, '.git'));
+  const args = useGit
+    ? ['grep', '-n', '-I', '--no-color', '--fixed-strings', '--ignore-case', '-e', q]
+    : ['-rniI', '--exclude-dir=.git', '--exclude-dir=node_modules', '--fixed-strings', q, '.'];
+  const bin = useGit ? 'git' : 'grep';
+  return new Promise(res => {
+    execFile(bin, args, { cwd: root, env: ENV, timeout: 20000, maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
+      const lines = String(out || '').split('\n').filter(Boolean).slice(0, 200).map(l => {
+        const m = l.match(/^(?:\.\/)?(.+?):(\d+):(.*)$/);
+        return m ? { file: m[1], line: +m[2], text: m[3].slice(0, 200) } : null;
+      }).filter(Boolean);
+      res({ ok: true, matches: lines, truncated: lines.length >= 200 });
+    });
+  });
 });
 
 // ---------- ajan yönetimi ----------
@@ -800,15 +909,36 @@ async function dbConnect(cfg) {
     const SQL = await initSqlJs({
       locateFile: f => path.join(APP_DIR, 'node_modules', 'sql.js', 'dist', f)
     });
-    const buf = fs.readFileSync(cfg.file.replace(/^~/, os.homedir()));
+    const filePath = cfg.file.replace(/^~/, os.homedir());
+    const buf = fs.readFileSync(filePath);
     const db = new SQL.Database(buf);
     return {
-      query: async sql => {
+      sqlite: true,
+      query: async (sql, params) => {
+        // Parametreli sorgu (satır düzenleme/silme) — hazır ifade ile bağla
+        if (params && params.length) {
+          const stmt = db.prepare(sql);
+          try {
+            stmt.bind(params);
+            if (/^\s*select/i.test(sql)) {
+              const rows = []; let cols = [];
+              while (stmt.step()) { const o = stmt.getAsObject(); rows.push(o); if (!cols.length) cols = Object.keys(o); }
+              return { rows, fields: cols, rowCount: null };
+            }
+            stmt.step();
+            let changes = null; try { changes = db.getRowsModified(); } catch (e) {}
+            return { rows: [], fields: [], rowCount: changes };
+          } finally { stmt.free(); }
+        }
         const res = db.exec(sql);
-        if (!res.length) return { rows: [], fields: [] };
-        const { columns, values } = res[0];
-        return { fields: columns, rows: values.map(v => Object.fromEntries(columns.map((c, i) => [c, v[i]]))) };
+        // db.exec döndürdüğü res son SELECT'in sonucudur; yazma ifadelerinde etkilenen satır sayısı:
+        const changes = (() => { try { return db.getRowsModified(); } catch (e) { return null; } })();
+        if (!res.length) return { rows: [], fields: [], rowCount: changes };
+        const { columns, values } = res[res.length - 1];
+        return { fields: columns, rows: values.map(v => Object.fromEntries(columns.map((c, i) => [c, v[i]]))), rowCount: changes };
       },
+      // yazma sonrası bellekteki değişikliği diske kalıcı yaz
+      persist: () => { try { fs.writeFileSync(filePath, Buffer.from(db.export())); return true; } catch (e) { return false; } },
       end: () => { try { db.close(); } catch (e) {} }
     };
   }
@@ -817,7 +947,10 @@ async function dbConnect(cfg) {
     const mysql = require('mysql2/promise');
     const conn = await mysql.createConnection({ ...base, connectTimeout: 6000 });
     return {
-      query: async sql => { const [rows, fields] = await conn.query(sql); return { rows, fields: (fields || []).map(f => f.name) }; },
+      query: async (sql, params) => { const [res, fields] = await conn.query(sql, params || []);
+        if (Array.isArray(res)) return { rows: res, fields: (fields || []).map(f => f.name) };
+        return { rows: [], fields: [], rowCount: (res && res.affectedRows != null) ? res.affectedRows : null };
+      },
       end: () => conn.end().catch(() => {})
     };
   }
@@ -825,9 +958,24 @@ async function dbConnect(cfg) {
   const client = new Client({ ...base, database: base.database || 'postgres', connectionTimeoutMillis: 6000 });
   await client.connect();
   return {
-    query: async sql => { const r = await client.query(sql); return { rows: r.rows, fields: (r.fields || []).map(f => f.name) }; },
+    query: async (sql, params) => { const r = await client.query(sql, params); return { rows: r.rows, fields: (r.fields || []).map(f => f.name), rowCount: r.rowCount }; },
     end: () => client.end().catch(() => {})
   };
+}
+
+// Bağlantıyı aç, işi çalıştır, HER durumda kapat (hata yolunda sızıntı olmasın)
+async function withDb(cfg, fn) {
+  const c = await dbConnect(cfg);
+  try { return await fn(c); }
+  finally { try { if (c && c.end) c.end(); } catch (e) {} }
+}
+// Yazma ifadesi mi (SELECT/EXPLAIN/SHOW/PRAGMA dışı)
+function isWriteSql(sql) {
+  return /^\s*(insert|update|delete|replace|merge|create|drop|alter|truncate|grant|revoke|call|vacuum|reindex)\b/i.test(String(sql || ''));
+}
+// Yıkıcı DDL/komut mı (ekstra onay gerektirir)
+function isDangerSql(sql) {
+  return /^\s*(drop|truncate|alter)\b/i.test(String(sql || '')) || /\bdrop\s+(table|database|schema)\b/i.test(String(sql || ''));
 }
 
 function getDbCfg(id) {
@@ -927,9 +1075,7 @@ ipcMain.handle('galaxy:dbDelete', (e, id) => {
 ipcMain.handle('galaxy:dbTest', async (e, cfgRaw) => {
   try {
     const cfg = cfgRaw.id && !cfgRaw.password ? getDbCfg(cfgRaw.id) : cfgRaw;
-    const c = await dbConnect(cfg);
-    await c.query('SELECT 1');
-    c.end();
+    await withDb(cfg, c => c.query('SELECT 1'));
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err.code === 'MODULE_NOT_FOUND' ? 'Sürücü eksik — ProjectGalaxy klasöründe: npm install' : err.message };
@@ -946,12 +1092,10 @@ ipcMain.handle('galaxy:dbDatabases', async (e, id) => {
   if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
   if (cfg.type === 'sqlite') return { ok: true, databases: [path.basename(cfg.file || 'sqlite')] };
   try {
-    const c = await dbConnect({ ...cfg, database: cfg.type === 'postgres' ? (cfg.database || 'postgres') : (cfg.database || undefined) });
     const sql = cfg.type === 'mysql'
       ? 'SHOW DATABASES'
       : `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY 1`;
-    const r = await c.query(sql);
-    c.end();
+    const r = await withDb({ ...cfg, database: cfg.type === 'postgres' ? (cfg.database || 'postgres') : (cfg.database || undefined) }, c => c.query(sql));
     const skip = new Set(['information_schema', 'performance_schema', 'mysql', 'sys']);
     const databases = r.rows.map(row => Object.values(row)[0]).filter(d => !skip.has(d));
     return { ok: true, databases };
@@ -962,25 +1106,21 @@ ipcMain.handle('galaxy:dbTables', async (e, { id, database }) => {
   const cfg = getDbCfg(id);
   if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
   try {
-    const c = await dbConnect(cfg.type === 'sqlite' ? cfg : { ...cfg, database: database || cfg.database });
     const sql = cfg.type === 'sqlite'
       ? `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY 1`
       : cfg.type === 'mysql'
         ? 'SHOW TABLES'
         : `SELECT schemaname || '.' || tablename AS t FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY 1`;
-    const r = await c.query(sql);
-    c.end();
+    const r = await withDb(cfg.type === 'sqlite' ? cfg : { ...cfg, database: database || cfg.database }, c => c.query(sql));
     const tables = r.rows.map(row => Object.values(row)[0]);
     return { ok: true, tables };
   } catch (err) { return { ok: false, error: dbErr(err) }; }
 });
 
 // Şema: tablolar + kolonlar + foreign key ilişkileri
-ipcMain.handle('galaxy:dbSchema', async (e, { id, database }) => {
-  const cfg = getDbCfg(id);
-  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+async function buildDbSchema(cfg, database) {
   try {
-    const c = await dbConnect(cfg.type === 'sqlite' ? cfg : { ...cfg, database: database || cfg.database });
+    return await withDb(cfg.type === 'sqlite' ? cfg : { ...cfg, database: database || cfg.database }, async c => {
     const tables = []; const fks = [];
 
     if (cfg.type === 'sqlite') {
@@ -1014,9 +1154,15 @@ ipcMain.handle('galaxy:dbSchema', async (e, { id, database }) => {
         WHERE tc.constraint_type='FOREIGN KEY'`);
       for (const r2 of fr.rows) fks.push({ from: r2.f, fromCol: r2.fc, to: r2.rt, toCol: r2.rc });
     }
-    c.end();
     return { ok: true, tables: tables.slice(0, 80), fks };
+    });
   } catch (err) { return { ok: false, error: dbErr(err) }; }
+}
+
+ipcMain.handle('galaxy:dbSchema', async (e, { id, database }) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  return buildDbSchema(cfg, database);
 });
 
 ipcMain.handle('galaxy:dbQuery', async (e, { id, table, sql, database }) => {
@@ -1029,16 +1175,218 @@ ipcMain.handle('galaxy:dbQuery', async (e, { id, table, sql, database }) => {
     finalSql = cfg.type === 'mysql' ? `SELECT * FROM \`${table}\` LIMIT 100` : `SELECT * FROM ${table.includes('.') ? table : '"' + table + '"'} LIMIT 100`;
   } else {
     if (!/^\s*select\b/i.test(sql || '')) return { ok: false, error: 'Yalnızca SELECT sorgularına izin var' };
+    // Çoklu-ifade kaçağını engelle (pg simple-query "SELECT 1; DELETE …" çalıştırır)
+    if (/;\s*\S/.test(String(sql).replace(/;\s*$/, ''))) return { ok: false, error: 'Tek SELECT ifadesi çalıştırılabilir (noktalı virgülle birden çok ifade değil)' };
     finalSql = sql;
   }
   try {
-    const c = await dbConnect(cfg);
-    const r = await c.query(finalSql);
-    c.end();
+    const r = await withDb(cfg, c => c.query(finalSql));
     return { ok: true, fields: r.fields, rows: r.rows.slice(0, 200) };
   } catch (err) {
     return { ok: false, error: err.message };
   }
+});
+
+// ---------- DB işlem (yazma dahil) + audit log ----------
+// SQL'i çalıştır (bağlantıyı garanti kapat, sqlite yazmasını diske persist et) ve audit log'a yaz.
+// Log HER ZAMAN await'lerden SONRA taze loadData ile yazılır (kayıp-güncelleme yarışı olmasın).
+async function runDbAndLog(cfg, sql, logMeta, params) {
+  let result;
+  try {
+    result = await withDb(cfg, async c => {
+      const r = await c.query(sql, params);
+      if (c.sqlite && c.persist && isWriteSql(sql)) c.persist();
+      const affected = (r && r.rowCount != null) ? r.rowCount : (r && r.affectedRows != null ? r.affectedRows : ((r && r.rows) ? r.rows.length : 0));
+      return { ok: true, fields: (r && r.fields) || [], rows: ((r && r.rows) || []).slice(0, 200), affected };
+    });
+  } catch (err) { result = { ok: false, error: err.message }; }
+  const data = loadData(); data.dbLog = data.dbLog || [];
+  data.dbLog.unshift(Object.assign({
+    ts: new Date().toISOString(), sql: String(sql).slice(0, 600),
+    ok: result.ok, info: result.ok ? ((result.affected || 0) + ' satır etkilendi') : result.error
+  }, logMeta || {}));
+  data.dbLog = data.dbLog.slice(0, 200);
+  saveData(data);
+  return result;
+}
+
+ipcMain.handle('galaxy:dbExec', async (e, { id, database, sql, confirm, agent, request } = {}) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (database && cfg.type !== 'sqlite') cfg.database = database;
+  if (!sql || !String(sql).trim()) return { ok: false, error: 'SQL boş' };
+  // Yazma/DDL işlemleri için açık onay iste (yanlışlıkla veri değiştirmeyi/silmeyi önle)
+  if (isWriteSql(sql) && confirm !== true) {
+    return { ok: false, needConfirm: true, sql: String(sql), danger: isDangerSql(sql), write: true };
+  }
+  // Ajan tarafından üretilip onaylanan yazı ise log'da 🤖 istek olarak etiketle
+  const meta = { conn: cfg.name || id, db: cfg.database || '' };
+  if (agent) { meta.agent = true; meta.request = String(request || '').slice(0, 300); }
+  return runDbAndLog(cfg, sql, meta);
+});
+// ---------- Tablo veri tarayıcı + satır düzenle/sil (parametreli, injection-güvenli) ----------
+function quoteIdent(name, type) {
+  if (!/^[\w$]+$/.test(String(name))) return null;              // yalnız harf/rakam/_/$ — enjeksiyon yok
+  return type === 'mysql' ? '`' + name + '`' : '"' + name + '"';
+}
+function quoteTableName(table, type) {
+  const parts = String(table).split('.');                        // şema.tablo veya tablo
+  if (parts.length > 2 || parts.length < 1) return null;
+  const q = parts.map(p => quoteIdent(p, type));
+  if (q.some(x => x === null)) return null;
+  return q.join('.');
+}
+function ph(type, i) { return type === 'postgres' ? '$' + i : '?'; }
+
+// Tablonun ilk 100 satırı + PK bilgisi
+ipcMain.handle('galaxy:dbRows', async (e, { id, database, table, offset, orderBy, orderDir } = {}) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (database && cfg.type !== 'sqlite') cfg.database = database;
+  const qt = quoteTableName(table, cfg.type);
+  if (!qt) return { ok: false, error: 'Geçersiz tablo adı' };
+  const off = Math.max(0, parseInt(offset, 10) || 0);
+  let orderSql = '';
+  if (orderBy) { const oc = quoteIdent(orderBy, cfg.type); if (oc) orderSql = ` ORDER BY ${oc} ${/desc/i.test(orderDir) ? 'DESC' : 'ASC'}`; }
+  try {
+    const sc = await buildDbSchema(cfg, database);
+    const tbl = (sc.tables || []).find(t => t.name === table || t.name.split('.').pop() === String(table).split('.').pop());
+    const pk = tbl ? tbl.columns.filter(c => c.pk).map(c => c.name) : [];
+    const columns = tbl ? tbl.columns.map(c => ({ name: c.name, type: c.type, pk: !!c.pk })) : [];
+    const r = await withDb(cfg, c => c.query(`SELECT * FROM ${qt}${orderSql} LIMIT 100 OFFSET ${off}`));
+    let total = null;
+    try { const cr = await withDb(cfg, c => c.query(`SELECT COUNT(*) AS n FROM ${qt}`)); total = cr.rows && cr.rows[0] ? +Object.values(cr.rows[0])[0] : null; } catch (er) {}
+    const fields = (r.fields && r.fields.length) ? r.fields : columns.map(c => c.name);
+    return { ok: true, fields, rows: (r.rows || []).map(row => fields.map(f => row[f])), pk, columns, offset: off, total, orderBy: orderBy || '', orderDir: orderDir || '' };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+// Yeni satır ekle (INSERT)
+ipcMain.handle('galaxy:dbInsertRow', async (e, { id, database, table, values } = {}) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (database && cfg.type !== 'sqlite') cfg.database = database;
+  const qt = quoteTableName(table, cfg.type);
+  if (!qt) return { ok: false, error: 'Geçersiz tablo adı' };
+  const cols = Object.keys(values || {}).filter(c => values[c] !== '' && values[c] != null);
+  if (!cols.length) return { ok: false, error: 'En az bir alan doldur' };
+  const colQ = [], vals = []; let i = 1;
+  for (const c of cols) { const cq = quoteIdent(c, cfg.type); if (!cq) return { ok: false, error: 'Geçersiz kolon' }; colQ.push(cq); vals.push(values[c]); }
+  const phs = cols.map((_, j) => ph(cfg.type, j + 1)).join(', ');
+  const sql = `INSERT INTO ${qt} (${colQ.join(', ')}) VALUES (${phs})`;
+  return runDbAndLog(cfg, sql, { conn: cfg.name || id, db: cfg.database || '', table }, vals);
+});
+
+// Tabloyu CSV'ye aktar (Downloads'a yaz + Finder'da göster)
+ipcMain.handle('galaxy:dbExportCsv', async (e, { id, database, table } = {}) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (database && cfg.type !== 'sqlite') cfg.database = database;
+  const qt = quoteTableName(table, cfg.type);
+  if (!qt) return { ok: false, error: 'Geçersiz tablo adı' };
+  try {
+    const r = await withDb(cfg, c => c.query(`SELECT * FROM ${qt} LIMIT 10000`));
+    const fields = r.fields || [];
+    const esc = v => { if (v == null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [fields.map(esc).join(',')];
+    for (const row of (r.rows || [])) lines.push(fields.map(f => esc(row[f])).join(','));
+    const dir = app.getPath('downloads');
+    const safe = String(table).replace(/[^\w.-]/g, '_');
+    const file = path.join(dir, `${safe}-${Date.now()}.csv`);
+    fs.writeFileSync(file, lines.join('\n'), 'utf8');
+    shell.showItemInFolder(file);
+    return { ok: true, file, rows: (r.rows || []).length };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+// Tek satırı PK'ye göre güncelle
+ipcMain.handle('galaxy:dbUpdateRow', async (e, { id, database, table, key, changes } = {}) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (database && cfg.type !== 'sqlite') cfg.database = database;
+  const qt = quoteTableName(table, cfg.type);
+  if (!qt) return { ok: false, error: 'Geçersiz tablo adı' };
+  const keyCols = Object.keys(key || {});
+  const changeCols = Object.keys(changes || {});
+  if (!keyCols.length) return { ok: false, error: 'Birincil anahtar yok — güvenli güncelleme yapılamıyor' };
+  if (!changeCols.length) return { ok: false, error: 'Değişiklik yok' };
+  const setQ = [], whereQ = [], vals = []; let i = 1;
+  for (const c of changeCols) { const q = quoteIdent(c, cfg.type); if (!q) return { ok: false, error: 'Geçersiz kolon' }; setQ.push(q + '=' + ph(cfg.type, i++)); vals.push(changes[c]); }
+  for (const c of keyCols) { const q = quoteIdent(c, cfg.type); if (!q) return { ok: false, error: 'Geçersiz kolon' }; whereQ.push(q + '=' + ph(cfg.type, i++)); vals.push(key[c]); }
+  const sql = `UPDATE ${qt} SET ${setQ.join(', ')} WHERE ${whereQ.join(' AND ')}`;
+  return runDbAndLog(cfg, sql, { conn: cfg.name || id, db: cfg.database || '', table }, vals);
+});
+
+// Tek satırı PK'ye göre sil
+ipcMain.handle('galaxy:dbDeleteRow', async (e, { id, database, table, key } = {}) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (database && cfg.type !== 'sqlite') cfg.database = database;
+  const qt = quoteTableName(table, cfg.type);
+  if (!qt) return { ok: false, error: 'Geçersiz tablo adı' };
+  const keyCols = Object.keys(key || {});
+  if (!keyCols.length) return { ok: false, error: 'Birincil anahtar yok — güvenli silme yapılamıyor' };
+  const whereQ = [], vals = []; let i = 1;
+  for (const c of keyCols) { const q = quoteIdent(c, cfg.type); if (!q) return { ok: false, error: 'Geçersiz kolon' }; whereQ.push(q + '=' + ph(cfg.type, i++)); vals.push(key[c]); }
+  const sql = `DELETE FROM ${qt} WHERE ${whereQ.join(' AND ')}`;
+  return runDbAndLog(cfg, sql, { conn: cfg.name || id, db: cfg.database || '', table }, vals);
+});
+
+ipcMain.handle('galaxy:dbLog', () => (loadData().dbLog || []).slice(0, 100));
+ipcMain.handle('galaxy:dbLogClear', () => { const d = loadData(); d.dbLog = []; saveData(d); return { ok: true }; });
+
+// ---------- DB ajanı: doğal dil → SQL → çalıştır + audit log ----------
+function cleanAgentSql(raw) {
+  let s = String(raw || '').trim();
+  // ``` veya ```sql çitlerini ayıkla
+  const fence = s.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+  // baştaki "SQL:" gibi etiketleri at
+  s = s.replace(/^\s*(sql|sorgu|query)\s*[:\-]\s*/i, '').trim();
+  return s;
+}
+ipcMain.handle('galaxy:dbAgent', async (e, { id, database, request, confirm } = {}) => {
+  const cfg = getDbCfg(id);
+  if (!cfg) return { ok: false, error: 'Bağlantı bulunamadı' };
+  if (!request || !String(request).trim()) return { ok: false, error: 'İstek boş' };
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const db = (database && cfg.type !== 'sqlite') ? database : cfg.database;
+  // 1) Şemayı çıkar
+  const sc = await buildDbSchema(cfg, database);
+  if (!sc.ok) return { ok: false, error: 'Şema okunamadı: ' + sc.error };
+  const schemaTxt = (sc.tables || []).map(t =>
+    `${t.name}(${t.columns.map(cl => `${cl.name}${cl.pk ? ' PK' : ''} ${cl.type}`).join(', ')})`
+  ).join('\n');
+  const fkTxt = (sc.fks || []).map(f => `${f.from}.${f.fromCol} -> ${f.to}.${f.toCol}`).join('\n');
+  const dialect = cfg.type === 'mysql' ? 'MySQL' : (cfg.type === 'sqlite' ? 'SQLite' : 'PostgreSQL');
+  // 2) Claude'dan SQL üret
+  const prompt = `Sen bir ${dialect} SQL üreticisisin. Aşağıdaki veritabanı şemasına göre, kullanıcının doğal dildeki (Türkçe olabilir) isteğini TEK bir geçerli ${dialect} SQL ifadesine çevir.
+
+KURALLAR:
+- SADECE SQL döndür. Açıklama, markdown, kod çiti (\`\`\`), yorum veya noktalı virgül dışında hiçbir metin ekleme.
+- Şemadaki tam tablo/kolon adlarını kullan (şema adı dahil, ör. public.sergeant).
+- Yazma isteği yoksa SELECT üret; kullanıcı açıkça isterse INSERT/UPDATE/DELETE üret.
+- Emin değilsen en makul yorumu seç.
+
+=== ŞEMA ===
+${schemaTxt}
+${fkTxt ? '\n=== İLİŞKİLER (FK) ===\n' + fkTxt : ''}
+
+=== KULLANICI İSTEĞİ ===
+${String(request).trim()}`;
+  const gen = await runClaudeText(prompt, DATA_DIR);
+  if (gen.error) return { ok: false, error: 'Ajan: ' + gen.error, request };
+  const sql = cleanAgentSql(gen.text);
+  if (!sql) return { ok: false, error: 'Ajan geçerli SQL üretemedi', request };
+  const cfg2 = { ...cfg };
+  if (database && cfg.type !== 'sqlite') cfg2.database = database;
+  // 3) Yazma/DDL üretildiyse çalıştırmadan önce onaya sun (UI onaylayınca dbExec ile çalışır)
+  if (isWriteSql(sql) && confirm !== true) {
+    return { ok: false, needConfirm: true, sql, request: String(request), danger: isDangerSql(sql), write: true, agent: true };
+  }
+  // 4) Çalıştır + logla (SELECT ise doğrudan; yazma onaylandıysa buraya gelir)
+  const result = await runDbAndLog(cfg2, sql, { conn: cfg.name || id, db: db || '', agent: true, request: String(request).slice(0, 300) });
+  return { ...result, sql, request: String(request) };
 });
 
 // ---------- git detayları ----------
@@ -1050,17 +1398,33 @@ ipcMain.handle('galaxy:gitLog', async (e, projectId) => {
   if (!fs.existsSync(path.join(proj.path, '.git'))) return { ok: false, error: 'Git deposu yok' };
   const { exec } = require('child_process');
   const run = cmd => new Promise(res => exec(cmd, { cwd: proj.path, env: ENV, timeout: 10000 }, (err, out) => res(err ? '' : out.trim())));
-  const [logOut, branch, statusOut, branches] = await Promise.all([
+  const [logOut, branch, statusOut, branches, aheadBehind] = await Promise.all([
     run('git log --pretty=format:"%h§%an§%ad§%s" --date=format:"%Y-%m-%d %H:%M" -40'),
     run('git branch --show-current'),
     run('git status --porcelain'),
-    run('git branch --format="%(refname:short)"')
+    run('git branch --format="%(refname:short)"'),
+    run('git rev-list --left-right --count @{u}...HEAD')   // "behind<TAB>ahead" (upstream yoksa boş)
   ]);
+  let behind = 0, ahead = 0;
+  { const m = String(aheadBehind || '').trim().split(/\s+/); if (m.length === 2) { behind = +m[0] || 0; ahead = +m[1] || 0; } }
   const commits = logOut ? logOut.split('\n').map(l => {
     const [h, an, ad, ...s] = l.split('§');
     return { h, an, ad, s: s.join('§') };
   }) : [];
   const dirty = statusOut ? statusOut.split('\n').filter(Boolean) : [];
+  // Porcelain XY ayrıştır: X=stage (index), Y=worktree (unstaged). Staged + unstaged ayrı ayrı.
+  const files = dirty.map(line => {
+    const x = line[0], y = line[1];
+    let p = line.slice(3);
+    if (p.includes(' -> ')) p = p.split(' -> ')[1];         // rename → yeni ad
+    p = p.replace(/^"|"$/g, '');
+    const untracked = x === '?' && y === '?';
+    const staged = !untracked && x !== ' ';
+    const unstaged = untracked || y !== ' ';
+    const code = untracked ? '?' : (staged ? x : y);
+    const label = { M: 'Değişti', A: 'Yeni', D: 'Silindi', R: 'Taşındı', C: 'Kopya', U: 'Çakışma', '?': 'Yeni' }[code] || 'Değişti';
+    return { path: p, x, y, staged, unstaged, untracked, code, label };
+  });
   return {
     ok: true,
     branch: branch || (proj.git && proj.git.branch) || '?',
@@ -1068,8 +1432,67 @@ ipcMain.handle('galaxy:gitLog', async (e, projectId) => {
     commits,
     dirty: dirty.length,
     dirtyFiles: dirty.slice(0, 12).map(l => l.trim()),
+    files,
+    staged: files.filter(f => f.staged).length,
+    ahead, behind, hasUpstream: String(aheadBehind || '').trim().split(/\s+/).length === 2,
     activity30: proj.git ? proj.git.activity30 : 0
   };
+});
+
+// ---------- Git aksiyonları (stage/commit/push/pull/branch/diff) ----------
+function gitProj(projectId) {
+  const proj = scanProjects().projects.find(p => p.id === projectId);
+  if (!proj || !proj.path) return { error: 'Proje bulunamadı' };
+  if (isRemotePath(proj.path)) return { error: 'Uzak projede git aksiyonu desteklenmiyor' };
+  if (!fs.existsSync(path.join(proj.path, '.git'))) return { error: 'Git deposu yok' };
+  return { proj };
+}
+function execGit(cwd, args, timeout) {
+  return new Promise(res => {
+    execFile('git', args, { cwd, env: ENV, timeout: timeout || 60000, maxBuffer: 16 * 1024 * 1024 }, (err, out, se) => {
+      if (err) res({ ok: false, error: (se || err.message || '').toString().trim() || 'git hatası', out: (out || '').toString() });
+      else res({ ok: true, out: (out || '').toString() });
+    });
+  });
+}
+ipcMain.handle('galaxy:gitStage', async (e, { projectId, file } = {}) => {
+  const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
+  return execGit(g.proj.path, file ? ['add', '--', file] : ['add', '-A']);
+});
+ipcMain.handle('galaxy:gitUnstage', async (e, { projectId, file } = {}) => {
+  const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
+  return execGit(g.proj.path, file ? ['restore', '--staged', '--', file] : ['reset', '-q']);
+});
+ipcMain.handle('galaxy:gitCommit', async (e, { projectId, message } = {}) => {
+  const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
+  if (!message || !String(message).trim()) return { ok: false, error: 'Commit mesajı boş' };
+  return execGit(g.proj.path, ['commit', '-m', String(message)]);
+});
+ipcMain.handle('galaxy:gitPush', async (e, { projectId } = {}) => {
+  const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
+  return execGit(g.proj.path, ['push'], 120000);
+});
+ipcMain.handle('galaxy:gitPull', async (e, { projectId } = {}) => {
+  const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
+  return execGit(g.proj.path, ['pull'], 120000);
+});
+ipcMain.handle('galaxy:gitSwitch', async (e, { projectId, branch, create } = {}) => {
+  const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
+  if (!branch || !/^[\w.\/-]+$/.test(branch)) return { ok: false, error: 'Geçersiz dal adı' };
+  return execGit(g.proj.path, create ? ['switch', '-c', branch] : ['switch', branch]);
+});
+ipcMain.handle('galaxy:gitDiff', async (e, { projectId, file, staged } = {}) => {
+  const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
+  const args = ['diff', '--no-color'];
+  if (staged) args.push('--staged');
+  if (file) args.push('--', file);
+  const r = await execGit(g.proj.path, args, 30000);
+  // untracked dosya için diff boş döner → içeriği göster
+  if (r.ok && !r.out && file && !staged) {
+    const full = safeJoin(g.proj.path, file);
+    if (full) { try { const c = fs.readFileSync(full, 'utf8').slice(0, 100 * 1024); return { ok: true, out: c, untracked: true }; } catch (er) {} }
+  }
+  return r;
 });
 
 // ---------- README ----------
@@ -1094,10 +1517,12 @@ function streamClaude({ win, channel, runId, cwd, args }) {
   const send = (kind, text) => { if (!win.isDestroyed()) win.webContents.send(channel, { runId, kind, text }); };
   let child;
   try {
-    child = spawn('claude', args, { cwd, env: ENV });
+    child = spawn(claudeBin(), args, { cwd, env: ENV });
   } catch (err) {
     return { ok: false, error: err.message };
   }
+  // Prompt -p ile arg olarak geçiyor; stdin'i kapat ki "no stdin data received" uyarısı çıkmasın.
+  try { child.stdin && child.stdin.end(); } catch (e) {}
   runs.set(runId, child);
 
   let buf = '';
@@ -1112,9 +1537,16 @@ function streamClaude({ win, channel, runId, cwd, args }) {
         const msg = JSON.parse(line);
         if (msg.type === 'system' && msg.subtype === 'init') {
           send('info', `oturum başladı · model: ${msg.model || '?'}`);
+        } else if (msg.type === 'stream_event' && msg.event) {
+          // Token token akış (--include-partial-messages): metin delta'larını canlı gönder.
+          const ev = msg.event;
+          if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta' && ev.delta.text) {
+            child._sawDelta = true; send('text', ev.delta.text);
+          }
         } else if (msg.type === 'assistant' && msg.message && msg.message.content) {
           for (const c of msg.message.content) {
-            if (c.type === 'text' && c.text) send('text', c.text);
+            // Delta olarak akıttıysak tam metni TEKRAR gönderme (çift olmasın).
+            if (c.type === 'text' && c.text) { if (!child._sawDelta) send('text', c.text); }
             else if (c.type === 'tool_use') send('tool', `${c.name}${c.input && c.input.file_path ? ' → ' + c.input.file_path : c.input && c.input.command ? ' → ' + String(c.input.command).slice(0, 120) : ''}`);
           }
         } else if (msg.type === 'result') {
@@ -1125,7 +1557,14 @@ function streamClaude({ win, channel, runId, cwd, args }) {
       }
     }
   });
-  child.stderr.on('data', chunk => send('err', chunk.toString()));
+  child.stderr.on('data', chunk => {
+    // Zararsız uyarıları (trust/stdin/permission) hata olarak gösterme — yalnız gerçek hatalar.
+    for (const line of String(chunk).split('\n')) {
+      const l = line.trim(); if (!l) continue;
+      if (/not been trusted|Ignoring \d+ permission|permissions\.allow|no stdin data received|proceeding without it|redirect stdin/i.test(l)) continue;
+      send('err', l);
+    }
+  });
   child.on('error', err => {
     send('err', err.code === 'ENOENT'
       ? 'claude komutu bulunamadı. Kurulum: npm install -g @anthropic-ai/claude-code'
@@ -1197,8 +1636,93 @@ ipcMain.handle('galaxy:claudeRun', (e, { runId, cwd, prompt, continueSession, at
   return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'claude:out', runId, cwd, args });
 });
 
+// ---------- Galaxy Asistanı (dijital ikiz — sohbet + proje yardımı) ----------
+// claudeRun'dan farkı: KİŞİLİK sistem promptu ekler, projede olmak ŞART DEĞİL (genel sohbet de yapar),
+// ve nötr bir dizinde çalışabilir. Böylece "bu kodlama sorusu değil" gibi robotik cevaplar vermez.
+function assistantPersona(ctx) {
+  let name = '', bio = '';
+  try { const d = loadData(); name = (d.profile && d.profile.name) || ''; bio = getSettings(d).assistantBio || ''; } catch (e) {}
+  const who = name ? `${name}'in` : 'kullanıcının';
+  ctx = ctx || {};
+  const unis = (ctx.unis || []).slice(0, 30).join(', ');
+  const projs = (ctx.projects || []).slice(0, 60).join(', ');
+  const lines = [
+    `Sen ${who} kişisel DİJİTAL İKİZİ ve asistanısın. "Project Galaxy" adlı masaüstü uygulamasının içinde yaşıyorsun. Konumu: ${ctx.location || 'uzay'}.`,
+    `Konuşma tarzın: gerçek bir insan gibi — sıcak, samimi, doğal, kısa. Robotik olma, madde madde liste dökme; sohbet eder gibi konuş. Cevapların SESLE okunuyor: EMOJİ KULLANMA, kısa akıcı cümleler kur.`,
+    `Sadece bir kodlama aracı DEĞİLSİN. Hava, genel kültür, sohbet, tavsiye — HER konuda insan gibi cevap ver. Asla "bu bir kodlama sorusu değil, yardımcı olamam" deme.`,
+    `Web arama ve web getirme araçların AÇIK ve tam yetkili. Hava, haber, güncel bilgi sorulduğunda DOĞRUDAN web'den ara ve gerçek veriyi ver — asla "iznim yok / erişemiyorum / konumunu bilmiyorum" deme. Şehir belliyse (ör. Ankara) direkt o şehrin güncel havasını ara.`,
+    `Türkçe konuş (kullanıcı başka dilde yazarsa o dilde).`,
+    ``,
+    `UYGULAMAYI KONTROL EDEBİLİRSİN — tam yetkin var. Bir işlem yapmak gerektiğinde cevabının İÇİNE şu formatta gizli bir komut yaz (kullanıcı bunu görmez, uygulama çalıştırır): [[ACT ad|argüman]]. Ayrıca kullanıcıya doğal bir cümleyle ne yaptığını söyle.`,
+    `Kullanılabilir komutlar:`,
+    `[[ACT open_universe|<evren adı>]] · [[ACT open_project|<proje adı>]] · [[ACT open_tab|genel|evren|pano|db|docker|zaman|servers]] · [[ACT open_git]] (git merkezi) · [[ACT back]] (uzaya dön) · [[ACT git_push]] · [[ACT git_pull]] · [[ACT git_commit|<mesaj>]] · [[ACT run|<bash komutu>]] (aktif projede) · [[ACT open_folder]] · [[ACT open_terminal]] · [[ACT open_settings]] · [[ACT hud]]`,
+    `Örnek: kullanıcı "papilon evrenini aç" derse cevabın: "[[ACT open_universe|Papilon]] Papilon evrenini açıyorum." Kullanıcı "testleri çalıştır" derse: "[[ACT run|npm test]] Testleri başlatıyorum."`,
+    `Bir işlemi yapabiliyorsan MUTLAKA komutu yaz — "yapamam / senin tıklaman gerekiyor" DEME, çünkü bu komutlarla sen yapabilirsin.`,
+    unis ? `Mevcut evrenler: ${unis}.` : '',
+    projs ? `Mevcut projeler (gezegenler): ${projs}.` : '',
+    bio ? `\nKULLANICI HAKKINDA (senin bildiklerin — onun gibi düşün, tarzını benimse): ${bio}` : ''
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+// ---------- Asistan sohbet geçmişi (kalıcı, diske) ----------
+function asstChatFile() { return path.join(DATA_DIR, 'assistant-chat.json'); }
+function asstChatLoad() { try { return JSON.parse(fs.readFileSync(asstChatFile(), 'utf8')) || []; } catch (e) { return []; } }
+function asstChatSave(arr) { try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(asstChatFile(), JSON.stringify(arr.slice(-400)), 'utf8'); } catch (e) {} }
+ipcMain.handle('galaxy:asstHistoryGet', () => ({ ok: true, messages: asstChatLoad() }));
+ipcMain.handle('galaxy:asstHistoryAppend', (e, msg) => { const a = asstChatLoad(); a.push({ role: (msg && msg.role) || 'assistant', text: String((msg && msg.text) || '').slice(0, 8000), ts: (msg && msg.ts) || Date.now() }); asstChatSave(a); return { ok: true }; });
+ipcMain.handle('galaxy:asstHistoryClear', () => { asstChatSave([]); return { ok: true }; });
+ipcMain.handle('galaxy:assistantRun', (e, { runId, prompt, cwd, continueSession, ctx }) => {
+  // cwd: proje verildiyse (bilinen yol) orada çalış (dosya işi yapabilsin); yoksa nötr veri dizini (sadece sohbet).
+  const workCwd = (cwd && knownPaths.has(cwd)) ? cwd : DATA_DIR;
+  // Asistan TAM YETKİLİ: tüm araçlar (web arama/getirme, dosya, bash) izin sormadan çalışsın.
+  const args = ['-p', String(prompt || ''),
+    '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+    '--dangerously-skip-permissions',
+    '--append-system-prompt', assistantPersona(ctx)];
+  if (continueSession) args.push('--continue');
+  return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'claude:out', runId, cwd: workCwd, args });
+});
+
+// ---------- Native ses tanıma (macOS Speech) — asistanın sesli komutu + "Hey Galaxy" uyandırma ----------
+let sttChild = null;
+function sttBin() {
+  try { const packaged = path.join(process.resourcesPath || '', 'galaxy-stt'); if (fs.existsSync(packaged)) return packaged; } catch (e) {}
+  const out = path.join(DATA_DIR, 'galaxy-stt');
+  const src = path.join(APP_DIR, 'native', 'galaxy-stt.swift');
+  try {
+    if (!fs.existsSync(src)) return fs.existsSync(out) ? out : null;
+    if (fs.existsSync(out) && fs.statSync(out).mtimeMs >= fs.statSync(src).mtimeMs) return out;
+    const { execFileSync } = require('child_process');
+    const swiftc = ['/usr/bin/swiftc', 'swiftc'].find(p => { try { return p === 'swiftc' || fs.existsSync(p); } catch (e) { return false; } }) || 'swiftc';
+    execFileSync(swiftc, [src, '-O', '-o', out], { stdio: 'ignore', timeout: 90000, env: ENV });
+    return fs.existsSync(out) ? out : null;
+  } catch (e) { return fs.existsSync(out) ? out : null; }
+}
+ipcMain.handle('galaxy:sttAvailable', () => ({ ok: process.platform === 'darwin' && !!sttBin() }));
+ipcMain.handle('galaxy:sttStart', (e) => {
+  if (process.platform !== 'darwin') return { ok: false, error: 'yalnız macOS' };
+  if (sttChild) return { ok: true };
+  const bin = sttBin();
+  if (!bin) return { ok: false, error: 'stt-derlenemedi (Xcode Command Line Tools gerekli)' };
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const send = (msg) => { try { if (win && !win.isDestroyed()) win.webContents.send('stt:out', msg); } catch (e) {} };
+  try { sttChild = spawn(bin, [], { env: ENV }); }
+  catch (err) { sttChild = null; return { ok: false, error: err.message }; }
+  let buf = '';
+  sttChild.stdout.on('data', d => { buf += d.toString(); let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue; try { send(JSON.parse(line)); } catch (e) {} } });
+  sttChild.stderr.on('data', () => {});
+  sttChild.on('close', () => { send({ type: 'status', text: 'closed' }); sttChild = null; });
+  sttChild.on('error', (err) => { send({ type: 'error', text: err.message }); sttChild = null; });
+  return { ok: true };
+});
+ipcMain.handle('galaxy:sttStop', () => {
+  if (sttChild) { try { sttChild.stdin.write('quit\n'); } catch (e) {} const c = sttChild; sttChild = null; setTimeout(() => { try { c.kill(); } catch (e) {} }, 500); }
+  return { ok: true };
+});
+app.on('will-quit', () => { if (sttChild) { try { sttChild.kill(); } catch (e) {} sttChild = null; } });
+
 // ---------- ajan (CTO vb.) çalıştırma ----------
-ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attachments }) => {
+ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attachments, continueSession }) => {
   const data = loadData();
   const agent = (data.agents || []).find(a => a.id === agentId);
   if (!agent) return { ok: false, error: 'Ajan bulunamadı' };
@@ -1230,6 +1754,7 @@ ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attac
   const args = ['--output-format', 'stream-json', '--verbose'];
   full = applyAttachments(full, args, attachments);
   args.unshift('-p', full);
+  if (continueSession) args.push('--continue'); // oturum sürekliliği — ajan geçmişi korunur
   // Diğer evren kökleri (ör. FY) mutlak yol olarak erişime açılır
   for (const u of data.universes || []) {
     if (path.isAbsolute(u.root)) args.push('--add-dir', u.root);
@@ -1244,7 +1769,7 @@ function runClaudeJson(prompt, cwd) {
     if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
-      child = spawn('claude', ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
+      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
     } catch (err) { return resolve({ error: err.message }); }
     let out = '';
     const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 90000);
@@ -1354,6 +1879,12 @@ ipcMain.handle('galaxy:report', (e, name) => {
   try { return fs.readFileSync(path.join(DATA_DIR, 'reports', name), 'utf8'); } catch (err) { return null; }
 });
 
+// Raporu harici uygulamada (Finder/editör) aç
+ipcMain.handle('galaxy:openReportFile', (e, name) => {
+  if (typeof name !== 'string' || !/^[\w çğıöşüÇĞİÖŞÜ.-]+\.md$/.test(name)) return false;
+  try { shell.openPath(path.join(DATA_DIR, 'reports', name)); return true; } catch (err) { return false; }
+});
+
 ipcMain.handle('galaxy:claudeStop', (e, runId) => {
   const child = runs.get(runId);
   if (child) { child.kill('SIGTERM'); runs.delete(runId); }
@@ -1408,6 +1939,57 @@ function ensureShell(shellId, cwd) {
   return rec;
 }
 
+// Uzak sunucuda kabuk: ssh üzerinden bash (PTY yok → temiz satır çıktısı, echo/prompt yok).
+// Yerel ensureShell ile aynı SHELL_SENTINEL mantığı ve aynı shell:out kanalı.
+function ensureSshShell(shellId, serverId) {
+  const existing = shells.get(shellId);
+  if (existing && !existing.child.killed && existing.child.exitCode === null) return existing;
+  const srv = getServer(serverId);
+  if (!srv) throw new Error('Sunucu bulunamadı');
+  // 'bash -l' = LOGIN kabuk: /etc/profile + ~/.bash_profile/.profile yüklenir, böylece
+  // uzak PATH kullanıcının kendi terminalindekiyle aynı olur (docker/node/nvm/brew komutları bulunur).
+  const child = spawn('ssh', [...sshBaseArgs(srv), sshTarget(srv), 'bash -l'], { env: ENV });
+  let buf = '';
+  child.stdout.on('data', chunk => {
+    buf += chunk.toString();
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i);
+      buf = buf.slice(i + 1);
+      if (line.startsWith(SHELL_SENTINEL)) {
+        const rest = line.slice(SHELL_SENTINEL.length);
+        const sp = rest.indexOf(' ');
+        const code = +(sp >= 0 ? rest.slice(0, sp) : rest) || 0;
+        const cwd = sp >= 0 ? rest.slice(sp + 1) : '';
+        if (cwd) { const rec2 = shells.get(shellId); if (rec2) rec2.cwd = cwd; }
+        broadcastShell({ id: shellId, kind: 'done', code, cwd });
+      } else {
+        broadcastShell({ id: shellId, kind: 'out', text: line });
+      }
+    }
+  });
+  child.stderr.on('data', chunk => { for (const line of chunk.toString().split('\n')) if (line) broadcastShell({ id: shellId, kind: 'err', text: line }); });
+  child.on('error', err => broadcastShell({ id: shellId, kind: 'err', text: 'ssh başlatılamadı: ' + (err && err.message || err) }));
+  child.on('close', (code) => { broadcastShell({ id: shellId, kind: 'exit', code }); shells.delete(shellId); });
+  const rec = { child, remote: true, serverId };
+  shells.set(shellId, rec);
+  return rec;
+}
+
+ipcMain.handle('galaxy:sshShellStart', (e, { shellId, serverId } = {}) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
+  try { ensureSshShell(shellId, serverId); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:sshShellInput', (e, { shellId, serverId, cmd } = {}) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
+  if (!cmd || !cmd.trim()) return { ok: false };
+  try {
+    const rec = ensureSshShell(shellId, serverId);
+    rec.child.stdin.write(cmd + '\n' + `printf '\\003GALAXY_DONE %s %s\\n' "$?" "$PWD"` + '\n');
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
 ipcMain.handle('galaxy:shellStart', (e, { shellId, cwd }) => {
   if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
   if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
@@ -1461,10 +2043,23 @@ app.on('before-quit', () => {
 ipcMain.handle('galaxy:openTerminal', (e, p) => {
   if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
   if (!p || !knownPaths.has(p)) return false;
-  const cmd = `cd ${JSON.stringify(p)}`;
-  const script = `tell application "Terminal"
+  const cmd = `cd '${String(p).replace(/'/g, "'\\''")}'`;
+  const esc = s => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const app = getSettings(loadData()).terminalApp;   // 'Terminal' | 'iTerm' (ayarlardan)
+  // iTerm ve Terminal.app farklı AppleScript API'leri kullanır
+  const script = app === 'iTerm'
+    ? `tell application "iTerm"
     activate
-    do script "${cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
+    try
+      tell current window to create tab with default profile
+    on error
+      create window with default profile
+    end try
+    tell current session of current window to write text "${esc(cmd)}"
+  end tell`
+    : `tell application "Terminal"
+    activate
+    do script "${esc(cmd)}"
   end tell`;
   execFile('osascript', ['-e', script]);
   return true;
@@ -1476,7 +2071,7 @@ function runClaudeText(prompt, cwd) {
     if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
-      child = spawn('claude', ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
+      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
     } catch (err) { return resolve({ error: err.message }); }
     let out = '';
     const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 240000);
@@ -1517,24 +2112,37 @@ async function runSchedule(s, notifyWin) {
     for (const w of BrowserWindow.getAllWindows()) {
       try { w.webContents.send('schedule:done', { name: s.name, file: fname, error: res.error || null }); } catch (e) {}
     }
-    return { ok: !res.error, error: res.error, file: fname };
+    return { ok: !res.error, error: res.error, file: fname, out: res.error ? '' : (res.text || '') };
   } finally {
     scheduleRunning.delete(s.id);
   }
 }
 
-setInterval(() => {
+function checkSchedules() {
   const data = loadData();
   const now = new Date();
+  // Yerel tarih (toISOString UTC verir; yerel saatle karşılaştırmak için yerel gün)
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   for (const s of data.schedules || []) {
     if (!s.enabled) continue;
-    if (now.getHours() !== +s.hour || now.getMinutes() !== +s.minute) continue;
-    if (s.type === 'weekly' && now.getDay() !== +s.weekday) continue;
-    const today = now.toISOString().slice(0, 10);
+    // bugün zaten çalıştıysa geç
     if (s.lastRun && s.lastRun.slice(0, 10) === today) continue;
+    // haftalık: form Pzt=1..Paz=7, getDay() Paz=0 → 7'yi 0'a çevir
+    if (s.type === 'weekly') {
+      const wantDay = (+s.weekday === 7) ? 0 : +s.weekday;
+      if (now.getDay() !== wantDay) continue;
+    }
+    // Planlanan saat geldiyse VEYA geçtiyse çalıştır — uygulama o dakikada kapalıysa
+    // açıldığında (o gün, saatten sonra) telafi eder.
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const want = (Math.min(23, +s.hour || 0)) * 60 + (Math.min(59, +s.minute || 0));
+    if (mins < want) continue;
     runSchedule(s);
   }
-}, 60000);
+}
+setInterval(checkSchedules, 60000);
+// Açılıştan ~8sn sonra bir kez de kontrol et (gün içinde kaçmış görevleri telafi et)
+setTimeout(() => { try { checkSchedules(); } catch (e) {} }, 8000);
 
 ipcMain.handle('galaxy:scheduleList', () => loadData().schedules || []);
 
@@ -1580,20 +2188,40 @@ ipcMain.handle('galaxy:scheduleRun', async (e, id) => {
  * böylece art arda çağrılar (tarama, git, dosya) tek el sıkışmayla akar.
  */
 
-const SSH_CTL_DIR = path.join(DATA_DIR, 'ssh');
+// Kontrol soketi (ControlMaster multiplexing) için TABAN dizin. İki kısıt:
+//  1) BOŞLUKSUZ olmalı — DATA_DIR macOS'ta "Application Support" boşluğu içerir, ssh -o değerini bozar.
+//  2) KISA olmalı — unix soket yolu macOS'ta 104 bayt sınırlı; ssh %C'yi ~40 hex'e açar ve
+//     master soketi kurarken ~18 karakterlik geçici sonek ekler. os.tmpdir() (/var/folders/…) ~48
+//     karakter olduğundan sınırı aşar. /tmp kısa ve boşluksuz.
+const SSH_CTL_DIR = process.platform === 'win32' ? '' : '/tmp/.pgssh';
 
 function sshBaseArgs(srv) {
-  try { fs.mkdirSync(SSH_CTL_DIR, { recursive: true }); } catch (e) {}
+  let to = 8; try { to = getSettings(loadData()).sshTimeout; } catch (e) {}
   const args = [
     '-o', 'BatchMode=yes',
-    '-o', 'ConnectTimeout=8',
-    '-o', 'StrictHostKeyChecking=accept-new',
-    '-o', 'ControlMaster=auto',
-    '-o', 'ControlPersist=90',
-    '-o', 'ControlPath=' + path.join(SSH_CTL_DIR, 'cm-%C')
+    '-o', 'ConnectTimeout=' + to,
+    '-o', 'StrictHostKeyChecking=accept-new'
   ];
+  // Multiplexing'i yalnız yol boşluksuz VE yeterince kısaysa aç (yoksa bozuk/uzun soket üretme).
+  if (SSH_CTL_DIR) {
+    try { fs.mkdirSync(SSH_CTL_DIR, { recursive: true }); } catch (e) {}
+    const ctlPath = path.join(SSH_CTL_DIR, '%C');
+    // gerçek uzunluk ≈ taban + '/' + 40 (%C) + 18 (ssh geçici sonek); 100 baytın altında kalmalı
+    if (!/\s/.test(ctlPath) && (SSH_CTL_DIR.length + 1 + 40 + 18) < 100) {
+      args.push('-o', 'ControlMaster=auto', '-o', 'ControlPersist=90', '-o', 'ControlPath=' + ctlPath);
+    }
+  }
   if (srv.port && +srv.port !== 22) args.push('-p', String(+srv.port));
-  if (srv.key) args.push('-o', 'IdentitiesOnly=yes', '-i', srv.key);
+  // Anahtar dosyası verilmişse yalnız onu kullan. Yolu akıllıca çöz:
+  //  ~ genişlet · mutlak yolu olduğu gibi · ÇIPLAK dosya adını (ör. "id_ed25519") ~/.ssh altında ara.
+  // (ssh -i göreli yolu ÇALIŞMA DİZİNİNE göre çözer, ~/.ssh'a değil — çıplak ad bu yüzden bulunamıyordu.)
+  if (srv.key) {
+    let k = String(srv.key).trim().replace(/^~(?=\/|$)/, os.homedir());
+    if (!path.isAbsolute(k)) k = k.includes('/') ? path.resolve(os.homedir(), k) : path.join(os.homedir(), '.ssh', k);
+    // Anahtar dosyası GERÇEKTEN varsa yalnız onu kullan; yoksa -i EKLEME → agent/varsayılan anahtarlara düş
+    // (kullanıcı yanlış/olmayan bir ad yazmışsa ölü uca girmesin).
+    if (fs.existsSync(k)) args.push('-o', 'IdentitiesOnly=yes', '-i', k);
+  }
   return args;
 }
 
@@ -1817,7 +2445,9 @@ foreach ($root in $roots) {
       if (Test-Path (Join-Path $p $f)) { $readme = $f; break }
     }
     if (-not $cepoch) { $cepoch = 0 }
-    Write-Output ("P|{0}|{1}|{2}|{3}|{4}|{5}|{6}" -f $name,$p,$isGit,$branch,$cepoch,$mepoch,$readme)
+    $act30 = 0
+    if ($isGit) { $act30 = (& git -C $p log --since='30 days ago' --oneline 2>$null | Measure-Object).Count }
+    Write-Output ("P|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}" -f $name,$p,$isGit,$branch,$cepoch,$mepoch,$readme,$act30)
   }
 }
 `;
@@ -1998,18 +2628,19 @@ async function remoteFile(p, rel) {
   const name = full.split('/').pop();
   const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase();
   const base = { name, size, ext, path: p + (sub ? '/' + sub : '') };
-  // İkili içerik (görsel, pdf, video) uzaktan akıtılmıyor — faz 3'ün sınırı
+  // İkili içerik (görsel, pdf, video) uzaktan akıtılmıyor — faz 3'ün sınırı.
+  // UI 'binary' kind'ını tanır ("app içinde önizlenemiyor" + harici aç); mesajı content'te ver.
   if (IMAGE_EXT.has(ext) || ext === 'pdf' || MEDIA_EXT.has(ext)) {
-    return { ...base, kind: 'unsupported', remote: true,
-      text: `Bu dosya türü uzak sunucudan görüntülenemiyor (${ext.toUpperCase()}).\nUzak konum: ${full}` };
+    return { ...base, kind: 'binary', remote: true,
+      content: `Bu dosya türü uzak sunucudan görüntülenemiyor (${ext.toUpperCase()}).\nUzak konum: ${full}` };
   }
   if (size > REMOTE_MAX_TEXT) {
     return { ...base, kind: 'text', remote: true,
-      text: `Dosya çok büyük (${(size / 1048576).toFixed(1)} MB) — uzaktan yalnızca ${(REMOTE_MAX_TEXT / 1048576)} MB'a kadar okunuyor.` };
+      content: `Dosya çok büyük (${(size / 1048576).toFixed(1)} MB) — uzaktan yalnızca ${(REMOTE_MAX_TEXT / 1048576)} MB'a kadar okunuyor.` };
   }
   const r = await sshExec(t.srv, `head -c ${REMOTE_MAX_TEXT} -- ${shq(full)}`, 40000);
   if (!r.ok) return null;
-  return { ...base, kind: 'text', text: r.out, remote: true };
+  return { ...base, kind: 'text', content: r.out, remote: true };
 }
 
 async function remoteTree(p, depth) {
@@ -2215,6 +2846,35 @@ ipcMain.handle('galaxy:dockerLogs', async (e, { id, tail } = {}) => {
   return { ok: true, logs: r.out };
 });
 
+// Canlı log akışı (docker logs -f) + konteyner içinde komut çalıştır
+const dockerStreams = new Map();
+ipcMain.handle('galaxy:dockerLogStream', (e, { id } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(id)) return { ok: false, error: 'Geçersiz konteyner kimliği' };
+  const prev = dockerStreams.get(id); if (prev) { try { prev.kill('SIGKILL'); } catch (er) {} }
+  let child;
+  try { child = spawn('docker', ['logs', '-f', '--tail', '200', id], { env: ENV }); }
+  catch (err) { return { ok: false, error: err.message }; }
+  dockerStreams.set(id, child);
+  const send = (kind, text) => { for (const w of BrowserWindow.getAllWindows()) { try { w.webContents.send('docker:log', { id, kind, text }); } catch (e2) {} } };
+  child.stdout.on('data', c => send('out', c.toString()));
+  child.stderr.on('data', c => send('out', c.toString()));   // docker logs stderr'e de yazar
+  child.on('close', () => { dockerStreams.delete(id); send('done', ''); });
+  child.on('error', err => send('err', err.message));
+  return { ok: true };
+});
+ipcMain.handle('galaxy:dockerLogStop', (e, { id } = {}) => {
+  const c = dockerStreams.get(id); if (c) { try { c.kill('SIGKILL'); } catch (er) {} dockerStreams.delete(id); }
+  return { ok: true };
+});
+ipcMain.handle('galaxy:dockerExec', async (e, { id, cmd } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(id)) return { ok: false, error: 'Geçersiz konteyner kimliği' };
+  if (!cmd || !String(cmd).trim()) return { ok: false, error: 'Komut boş' };
+  const r = await docker(['exec', id, 'sh', '-c', String(cmd)], 30000);   // sh -c arg: kabuk yok, tek argüman
+  return r.ok ? { ok: true, out: r.out } : { ok: false, error: r.error };
+});
+
 // Alan temizliği — yalnızca güvenli prune biçimleri
 const PRUNE = {
   containers: ['container', 'prune', '-f'],
@@ -2234,7 +2894,7 @@ ipcMain.handle('galaxy:dockerPrune', async (e, kind) => {
 ipcMain.handle('galaxy:openClaude', (e, p) => {
   if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
   if (!p || !knownPaths.has(p)) return false;
-  const cmd = `cd ${JSON.stringify(p)} && claude`;
+  const cmd = `cd '${String(p).replace(/'/g, "'\\''")}' && claude`;
   const script = `tell application "Terminal"
     activate
     do script "${cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
@@ -2254,8 +2914,15 @@ function createWindow() {
   });
   // Arayüzü öncelikle veri dizininden yükle — UI güncellemeleri için
   // uygulamayı yeniden paketlemek gerekmesin (index.html oraya kopyalanabilir)
-  const external = path.join(DATA_DIR, 'index.html');
-  win.loadFile(fs.existsSync(external) ? external : path.join(APP_DIR, 'index.html'));
+  // Yeni tasarım arayüzü (newui/) — Three.js galaksi + dc-runtime, gerçek verine bağlı.
+  // DATA_DIR override'ı korunur (yeniden paketlemeden güncelleme): önce newui, sonra düz index.
+  const extNew = path.join(DATA_DIR, 'newui', 'index.html');
+  const extOld = path.join(DATA_DIR, 'index.html');
+  win.loadFile(
+    fs.existsSync(extNew) ? extNew :
+    fs.existsSync(extOld) ? extOld :
+    path.join(APP_DIR, 'newui', 'index.html')
+  );
 }
 
 // ---------- ilk açılış: uygulama kullanıcısını bir defalığına tanır ----------
@@ -2376,9 +3043,15 @@ ipcMain.handle('galaxy:settingsSave', (e, p) => {
   d.profile = d.profile || { onboarded: true };
   if (p.name !== undefined) d.profile.name = String(p.name).trim().slice(0, 60);
   if (p.lang !== undefined) d.profile.lang = p.lang === 'en' ? 'en' : 'tr';
+  const cur = getSettings(d);
   d.settings = {
-    staleDays: Math.min(365, Math.max(1, +p.staleDays || DEFAULT_SETTINGS.staleDays)),
-    planPending: Math.min(50, Math.max(1, +p.planPending || DEFAULT_SETTINGS.planPending))
+    staleDays: Math.min(365, Math.max(1, +p.staleDays || cur.staleDays)),
+    planPending: Math.min(50, Math.max(1, +p.planPending || cur.planPending)),
+    claudePath: (p.claudePath !== undefined) ? String(p.claudePath).trim() : cur.claudePath,
+    terminalApp: (p.terminalApp !== undefined) ? (p.terminalApp === 'iTerm' ? 'iTerm' : 'Terminal') : cur.terminalApp,
+    sshTimeout: Math.min(60, Math.max(3, +p.sshTimeout || cur.sshTimeout)),
+    focusMin: Math.min(180, Math.max(1, +p.focusMin || cur.focusMin)),
+    assistantBio: (p.assistantBio !== undefined) ? String(p.assistantBio).slice(0, 2000) : cur.assistantBio
   };
   saveData(d);
   return { ok: true, settings: getSettings(d) };
@@ -2424,46 +3097,57 @@ ipcMain.handle('galaxy:backupRestore', async (e, name) => {
 });
 
 // ---------- otomatik güncelleme (Developer ID / DMG sürümü) ----------
-// electron-updater kuruluysa açılışta sessizce denetler; tray menüsünden elle de denetlenir.
-// MAS sürümü App Store'dan, geliştirme modu ise elle güncellenir — ikisinde de kapalı.
-let autoUpdaterRef = null;
+// Hafif güncelleme denetleyici — GitHub Releases API üzerinden. Ad-hoc imzalı zip dağıtımı için
+// (Squirrel.Mac/electron-updater geçerli imza ister; ad-hoc'ta çalışmaz). Yeni sürüm varsa arayüze
+// bildirir, kullanıcı tek tıkla indirir. MAS App Store'dan güncellenir; geliştirme modunda kapalı.
+let UPDATE_REPO = '';
+try { UPDATE_REPO = require(path.join(APP_DIR, 'package.json')).updateRepo || ''; } catch (e) {}
 
+function verGt(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const x = pa[i] || 0, y = pb[i] || 0; if (x !== y) return x > y; }
+  return false;
+}
+function httpGetJson(url, depth) {
+  return new Promise((resolve, reject) => {
+    if ((depth || 0) > 4) return reject(new Error('too many redirects'));
+    const https = require('https');
+    const req = https.get(url, { headers: { 'User-Agent': 'ProjectGalaxy', 'Accept': 'application/vnd.github+json' } }, r => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); return httpGetJson(r.headers.location, (depth || 0) + 1).then(resolve, reject); }
+      if (r.statusCode !== 200) { r.resume(); return reject(new Error('http ' + r.statusCode)); }
+      let d = ''; r.on('data', c => d += c); r.on('end', () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.setTimeout(9000, () => { req.destroy(); reject(new Error('timeout')); });
+  });
+}
+async function checkForUpdate(manual) {
+  const send = (ch, p) => { for (const w of BrowserWindow.getAllWindows()) { try { if (!w.isDestroyed()) w.webContents.send(ch, p); } catch (e) {} } };
+  try {
+    if (!UPDATE_REPO) { if (manual) send('update:none', { version: app.getVersion(), noRepo: true }); return; }
+    const rel = await httpGetJson('https://api.github.com/repos/' + UPDATE_REPO + '/releases/latest');
+    const tag = String(rel.tag_name || '').replace(/^v/i, '');
+    const cur = app.getVersion();
+    if (tag && verGt(tag, cur)) {
+      const zip = (rel.assets || []).find(a => /\.zip$/i.test(a.name || ''));
+      send('update:available', { version: tag, url: (zip && zip.browser_download_url) || rel.html_url, notes: (rel.name || rel.tag_name || '') });
+    } else if (manual) { send('update:none', { version: cur }); }
+  } catch (e) { if (manual) send('update:error', { error: e.message }); }
+}
 function setupAutoUpdate() {
   if (IS_MAS || !app.isPackaged) return;
-  try {
-    const { autoUpdater } = require('electron-updater');
-    autoUpdater.autoDownload = true;
-    autoUpdater.on('error', () => {}); // ağ yoksa sessiz
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-    autoUpdaterRef = autoUpdater;
-  } catch (e) { /* electron-updater yüklü değil (npm install gerekli) — uygulama etkilenmez */ }
+  setTimeout(() => checkForUpdate(false), 6000); // açılıştan biraz sonra sessizce denetle
 }
+ipcMain.handle('galaxy:checkUpdate', () => { checkForUpdate(true); return { ok: true }; });
+ipcMain.handle('galaxy:openUpdate', (e, url) => { try { require('electron').shell.openExternal(url || ('https://github.com/' + UPDATE_REPO + '/releases')); } catch (err) {} return { ok: true }; });
 
 async function manualUpdateCheck() {
-  if (!autoUpdaterRef) {
-    dialog.showMessageBox({
-      type: 'info', title: 'Güncelleme',
-      message: 'Otomatik güncelleme bu sürümde etkin değil.',
-      detail: IS_MAS ? 'App Store sürümü güncellemelerini App Store üzerinden alır.'
-        : 'Geliştirme modunda ya da electron-updater kurulu değil (npm install).'
-    });
-    return;
-  }
-  try {
-    const r = await autoUpdaterRef.checkForUpdates();
-    const remote = r && r.updateInfo && r.updateInfo.version;
-    dialog.showMessageBox({
-      type: 'info', title: 'Güncelleme',
-      message: remote && remote !== app.getVersion()
-        ? `Yeni sürüm bulundu: v${remote}`
-        : `Güncelsin (v${app.getVersion()})`,
-      detail: remote && remote !== app.getVersion()
-        ? 'Arka planda indiriliyor; hazır olunca uygulama kapanıp açıldığında kurulur.'
-        : 'Yeni bir sürüm çıktığında açılışta otomatik denetlenir.'
-    });
-  } catch (err) {
-    dialog.showMessageBox({ type: 'warning', title: 'Güncelleme', message: 'Güncelleme denetlenemedi', detail: String((err && err.message) || err) });
-  }
+  if (IS_MAS) { dialog.showMessageBox({ type: 'info', title: 'Güncelleme', message: 'App Store sürümü', detail: 'Güncellemeler App Store üzerinden gelir.' }); return; }
+  // Pencere açıksa arayüzde banner/toast göster; yoksa aç ve denetle.
+  const wins = BrowserWindow.getAllWindows().filter(w => w !== quickWin);
+  if (!wins.length) createWindow();
+  checkForUpdate(true);
 }
 
 // ---------- menü çubuğu: hızlı not ----------
@@ -2525,6 +3209,12 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  // Media izin handler'ı (ileride sesli komut açılırsa hazır; şu an proaktif mikrofon izni İSTENMEZ).
+  try {
+    const { session } = require('electron');
+    session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(true));
+    try { session.defaultSession.setPermissionCheckHandler(() => true); } catch (e) {}
+  } catch (e) {}
   migrateLegacyData();
   restoreBookmarks();
   if (needsOnboarding()) createOnboardingWindow(); else createWindow();

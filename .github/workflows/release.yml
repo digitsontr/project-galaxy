@@ -1,0 +1,52 @@
+name: Release
+
+# v* tag'i push edilince (ör. v2.4.0) macOS'ta build + smoke test + paketle + Release yayınla.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:   # elle de tetiklenebilir (Actions sekmesinden)
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bağımlılıkları kur
+        run: npm install --no-audit --no-fund
+
+      - name: Arayüzü derle
+        run: python3 newui/build.py
+
+      - name: Smoke test (paketlemeden önce güvence)
+        run: |
+          set -o pipefail
+          env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/smoke.js 2>/dev/null | tee smoke.log
+          if grep -q "BAŞARISIZ" smoke.log || ! grep -q "geçti" smoke.log; then
+            echo "::error::Smoke test başarısız — release durduruldu."
+            exit 1
+          fi
+
+      - name: Paketle (.app → zip)
+        run: bash scripts/package-mac.sh
+
+      - name: Release yayınla
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Project-Galaxy-full.zip
+          generate_release_notes: true
+          body: |
+            ## Project Galaxy ${{ github.ref_name }}
+
+            **Kurulum:** `Project-Galaxy-full.zip`'i indir, aç, `Project Galaxy.app`'i Uygulamalar'a taşı.
+            İlk açılışta macOS engellerse: uygulamaya **sağ tık → Aç → Aç**
+            (ya da Terminal'de `xattr -cr "/Applications/Project Galaxy.app"`).
+
+            > Ad-hoc imzalı derleme — bu uyarı normaldir, tek seferliktir.

@@ -6,3 +6,8 @@ backups/
 attachments/
 dist-mas/
 out/
+*.zip
+*.app
+reports/
+smoke.log
+newui/index.html

@@ -83,6 +83,49 @@
   }
   .uniRow .path { color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
   .uniRow input { padding: 7px 10px; font-size: 13px; }
+  /* --- evren kartları: artifact "Evrenini seç" kart-grid + gezegen küre dili --- */
+  .uniGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 14px; }
+  .uniCard {
+    position: relative; padding: 18px 18px 16px;
+    border: 1px solid var(--line);
+    background: linear-gradient(172deg, rgba(13,18,36,.92), rgba(5,8,18,.96));
+    clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .uniCard:hover { border-color: var(--line-strong, rgba(190,205,255,.38)); box-shadow: 0 0 26px rgba(97,220,255,.08); }
+  .uniCard .planet {
+    width: 52px; height: 52px; border-radius: 50%; margin-bottom: 15px;
+    transition: transform .3s cubic-bezier(.34,1.56,.5,1);
+  }
+  .uniCard:hover .planet { transform: scale(1.06); }
+  .uniCard .un {
+    width: 100%; background: transparent; border: none; outline: none;
+    color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 17px; font-weight: 600; letter-spacing: .01em; padding: 0; margin-bottom: 5px;
+  }
+  .uniCard .un:focus { color: #fff; }
+  .uniCard .pth {
+    font-family: Menlo, "JetBrains Mono", monospace; font-size: 10.5px; color: var(--faint);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;
+    margin-bottom: 11px;
+  }
+  .uniCard .st { font-family: Menlo, "JetBrains Mono", monospace; font-size: 10px; color: var(--dim); letter-spacing: .04em; }
+  .uniCard .st b { color: var(--ink); font-weight: 600; }
+  .uniCard .rm {
+    position: absolute; top: 12px; right: 13px; color: var(--faint); cursor: pointer;
+    font-size: 13px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+    border-radius: 5px; transition: color .15s, background .15s;
+  }
+  .uniCard .rm:hover { color: #ff8b8b; background: rgba(255,139,139,.1); }
+  .uniCard.add {
+    border-style: dashed; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; cursor: pointer; min-height: 150px; clip-path: none; border-radius: 10px;
+    color: var(--dim);
+  }
+  .uniCard.add:hover { border-color: var(--cy); color: var(--cy); }
+  .uniCard.add .plus { font-size: 26px; font-weight: 200; margin-bottom: 8px; color: var(--cy); }
+  .uniCard.add .lbl { font-family: Menlo, monospace; font-size: 10px; letter-spacing: .18em; }
+  .uniCard.add .sub2 { font-family: Menlo, monospace; font-size: 9px; letter-spacing: .1em; color: var(--faint); margin-top: 5px; }
   .x { color: var(--faint); cursor: pointer; font-size: 15px; padding: 4px 7px; }
   .x:hover { color: #ff8b8b; }
   .agentRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -214,7 +257,8 @@ const STR = {
 // ---- durum ----
 const MODE = new URLSearchParams(location.search).get('mode') === 'settings' ? 'settings' : 'onboard';
 const state = { step: 0, lang: 'tr', name: '', universes: [], agents: [], isMas: false,
-  staleDays: 21, planPending: 5, dataDir: '', version: '' };
+  staleDays: 21, planPending: 5, dataDir: '', version: '',
+  claudePath: '', terminalApp: 'Terminal', sshTimeout: 8, focusMin: 25 };
 const $ = id => document.getElementById(id);
 const T = () => STR[state.lang];
 
@@ -226,6 +270,11 @@ async function init() {
       state.name = (sg.profile && sg.profile.name) || '';
       state.staleDays = sg.settings.staleDays;
       state.planPending = sg.settings.planPending;
+      state.claudePath = sg.settings.claudePath || '';
+      state.terminalApp = sg.settings.terminalApp || 'Terminal';
+      state.sshTimeout = sg.settings.sshTimeout || 8;
+      state.focusMin = sg.settings.focusMin || 25;
+      state.assistantBio = sg.settings.assistantBio || '';
       state.dataDir = sg.dataDir || '';
       state.version = sg.version || '';
       state.isMas = !!sg.isMas;
@@ -246,8 +295,8 @@ function renderSettings() {
   const tr = state.lang !== 'en';
   $('hudLabel').textContent = tr ? 'AYARLAR' : 'SETTINGS';
   $('stepSub').textContent = tr
-    ? 'Profilini ve uyarı eşiklerini buradan değiştir. Evrenler ✎ ile, ajanlar ⚙ ile uygulama içinden düzenlenir.'
-    : 'Edit your profile and alert thresholds here. Universes (✎) and agents (⚙) are edited inside the app.';
+    ? 'Profil, uyarı eşikleri ve araçları (Claude yolu, terminal, odak, SSH) buradan ayarla. Evrenler ✎, ajanlar ⚙ ile uygulama içinden düzenlenir.'
+    : 'Set your profile, alert thresholds and tools (Claude path, terminal, focus, SSH) here. Universes (✎) and agents (⚙) are edited inside the app.';
   $('illusHost').innerHTML = '';
   $('backBtn').style.visibility = 'hidden';
   $('dots').innerHTML = '';
@@ -270,22 +319,61 @@ function renderSettings() {
         <input type="text" id="setPlan" value="${state.planPending}" style="margin-top:6px" inputmode="numeric">
       </div>
     </div>
+    <div style="height:1px;background:rgba(190,205,255,.12);margin:20px 0 16px"></div>
+    <div style="font-size:11px;letter-spacing:.16em;color:var(--faint);margin-bottom:14px" class="mono">${tr ? 'ARAÇLAR & DAVRANIŞ' : 'TOOLS & BEHAVIOR'}</div>
+
+    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'CLAUDE KOMUT YOLU (boşsa PATH’ten)' : 'CLAUDE BINARY PATH (blank = from PATH)'}</div>
+    <input type="text" id="setClaude" value="${esc(state.claudePath)}" placeholder="claude  ·  /opt/homebrew/bin/claude" style="margin:6px 0 16px" spellcheck="false">
+
+    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'TERMİNAL UYGULAMASI' : 'TERMINAL APP'}</div>
+    <div class="row" style="margin:8px 0 16px">
+      <button class="btn ${state.terminalApp !== 'iTerm' ? 'solid' : ''}" id="termTerminal" type="button">Terminal</button>
+      <button class="btn ${state.terminalApp === 'iTerm' ? 'solid' : ''}" id="termIterm" type="button">iTerm</button>
+    </div>
+
+    <div class="row">
+      <div class="grow">
+        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'ODAK SÜRESİ (DK)' : 'FOCUS TIMER (MIN)'}</div>
+        <input type="text" id="setFocus" value="${state.focusMin}" style="margin-top:6px" inputmode="numeric">
+      </div>
+      <div class="grow">
+        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'SSH ZAMAN AŞIMI (SN)' : 'SSH TIMEOUT (SEC)'}</div>
+        <input type="text" id="setSshTo" value="${state.sshTimeout}" style="margin-top:6px" inputmode="numeric">
+      </div>
+    </div>
+
+    <div style="margin-top:18px">
+      <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'ASİSTAN KİŞİLİĞİ / HAKKINDA' : 'ASSISTANT PERSONA / ABOUT YOU'}</div>
+      <textarea id="setBio" rows="4" placeholder="${tr ? 'Dijital ikizin seni tanısın: kim olduğun, işlerin, konuşma tarzın, tercihlerin… (örn. \'Furkan, mobil + AI geliştiricisi. Kısa ve net konuşurum, teknik konularda derinlik severim.\')' : 'Let your twin know you: who you are, your work, tone, preferences…'}" style="margin-top:6px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px;font-family:inherit">${esc(state.assistantBio || '')}</textarea>
+    </div>
+
     <div class="hint mono" style="margin-top:18px">${tr ? 'Veri' : 'Data'}: ${esc(state.dataDir)}<br>${tr ? 'Sürüm' : 'Version'}: v${esc(state.version)}${state.isMas ? ' · App Store' : ''}</div>
   </div>`;
   $('setName').addEventListener('input', e => { state.name = e.target.value; });
+  $('setBio').addEventListener('input', e => { state.assistantBio = e.target.value; });
   $('langTr').addEventListener('click', () => { state.lang = 'tr'; renderSettings(); });
   $('langEn').addEventListener('click', () => { state.lang = 'en'; renderSettings(); });
+  $('setClaude').addEventListener('input', e => { state.claudePath = e.target.value; });
+  $('termTerminal').addEventListener('click', () => { state.terminalApp = 'Terminal'; renderSettings(); });
+  $('termIterm').addEventListener('click', () => { state.terminalApp = 'iTerm'; renderSettings(); });
 }
 
 async function saveSettings() {
   const stale = parseInt($('setStale').value, 10);
   const plan = parseInt($('setPlan').value, 10);
+  const focus = parseInt($('setFocus').value, 10);
+  const sshTo = parseInt($('setSshTo').value, 10);
   $('nextBtn').disabled = true;
   try {
     await window.galaxy.settingsSave({
       name: state.name, lang: state.lang,
       staleDays: isNaN(stale) ? state.staleDays : stale,
-      planPending: isNaN(plan) ? state.planPending : plan
+      planPending: isNaN(plan) ? state.planPending : plan,
+      claudePath: state.claudePath,
+      terminalApp: state.terminalApp,
+      focusMin: isNaN(focus) ? state.focusMin : focus,
+      sshTimeout: isNaN(sshTo) ? state.sshTimeout : sshTo,
+      assistantBio: state.assistantBio || ''
     });
     window.close();
   } catch (e) { $('nextBtn').disabled = false; }
@@ -346,10 +434,8 @@ function render() {
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') next(); });
   } else if (state.step === 2) {
     $('stepSub').textContent = t.s2;
-    body.innerHTML = `<div class="card" id="uniList"></div>
-      <div style="width:640px;margin-top:12px"><button class="btn" id="pickBtn">${t.pick}</button></div>`;
+    body.innerHTML = `<div class="card" id="uniList" style="max-height:340px;padding:16px"></div>`;
     renderUniverses();
-    $('pickBtn').addEventListener('click', pickFolder);
   } else if (state.step === 3) {
     $('stepSub').textContent = t.s3;
     body.innerHTML = `<div class="card" id="agentList"></div>`;
@@ -365,22 +451,40 @@ function render() {
   }
 }
 
+// Evren adından deterministik gezegen rengi (artifact "Evrenini seç" küre dili)
+function planetHue(s) { let h = 0; for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
+function planetStyle(hue) {
+  return `background:radial-gradient(circle at 38% 30%, hsl(${hue},95%,88%), hsl(${hue},78%,62%) 46%, hsl(${(hue + 14) % 360},58%,26%) 100%);`
+    + `box-shadow:0 0 22px hsla(${hue},80%,60%,.45);`;
+}
+
 function renderUniverses() {
   const t = T();
   const el = $('uniList');
-  if (!state.universes.length) { el.innerHTML = `<div style="color:var(--faint);font-size:13px">${t.s2none}</div>`; return; }
-  el.innerHTML = state.universes.map((u, i) => `
-    <div class="uniRow">
-      <input type="text" class="grow" data-i="${i}" value="${esc(u.name)}" placeholder="${t.s2name}" maxlength="60">
-      <div class="path mono grow" title="${esc(u.root)}">${esc(u.root)}</div>
-      <div class="x" data-x="${i}">✕</div>
-    </div>`).join('');
-  el.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+  const cards = state.universes.map((u, i) => {
+    const hue = planetHue(u.name || u.root || String(i));
+    return `<div class="uniCard">
+      <div class="rm" data-x="${i}" title="Kaldır">✕</div>
+      <div class="planet" style="${planetStyle(hue)}"></div>
+      <input class="un" data-i="${i}" value="${esc(u.name)}" placeholder="${t.s2name}" maxlength="60">
+      <div class="pth" title="${esc(u.root)}">${esc(u.root)}</div>
+      <div class="st"><b>gezegenler</b> taranacak</div>
+    </div>`;
+  }).join('');
+  const addCard = `<div class="uniCard add" id="addUni">
+    <div class="plus">+</div>
+    <div class="lbl">${(t.pick || '+ KLASÖR SEÇ').replace(/^\+\s*/, '')}</div>
+    <div class="sub2">${state.lang === 'en' ? 'local folder' : 'yerel klasör'}</div>
+  </div>`;
+  el.innerHTML = `<div class="uniGrid">${cards}${addCard}</div>`;
+  el.querySelectorAll('input.un').forEach(inp => inp.addEventListener('input', () => {
     state.universes[+inp.dataset.i].name = inp.value;
   }));
-  el.querySelectorAll('.x').forEach(x => x.addEventListener('click', () => {
+  el.querySelectorAll('.rm').forEach(x => x.addEventListener('click', () => {
     state.universes.splice(+x.dataset.x, 1); renderUniverses();
   }));
+  const add = $('addUni');
+  if (add) add.addEventListener('click', pickFolder);
 }
 
 function renderAgents() {

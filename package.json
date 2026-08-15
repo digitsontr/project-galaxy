@@ -1,13 +1,16 @@
 {
   "name": "project-galaxy",
   "productName": "Project Galaxy",
-  "version": "2.3.7",
+  "version": "2.3.9",
+  "updateRepo": "digitsontr/project-galaxy",
   "description": "Projelerini bir evren olarak gezdiğin, AI ajanlarıyla yönettiğin masaüstü uygulaması",
   "main": "main.js",
   "author": "Furkan Yıldız",
   "scripts": {
     "start": "electron .",
-    "make-app": "electron-packager . \"Project Galaxy\" --platform=darwin --arch=arm64 --icon=build/galaxy.icns --out=dist --overwrite --prune --app-bundle-id=com.furkan.projectgalaxy --ignore=\"^/dist\" --ignore=\"\\.command$\" --ignore=\"backup\" --ignore=\"^/build/icon_preview\"",
+    "test": "python3 newui/build.py && electron test/smoke.js",
+    "smoke": "electron test/smoke.js",
+    "make-app": "electron-packager . \"Project Galaxy\" --platform=darwin --arch=arm64 --icon=build/galaxy.icns --out=dist --overwrite --prune --app-bundle-id=com.furkan.projectgalaxy --ignore=\"^/dist\" --ignore=\"\\.command$\" --ignore=\"backup\" --ignore=\"^/build/icon_preview\" --ignore=\"claude-design-result\" --ignore=\"^/reports\" --ignore=\"^/attachments\"",
     "dist": "electron-builder --mac dmg",
     "release:mas": "node scripts/build-mas.js",
     "dist:mas": "node scripts/build-mas.js"

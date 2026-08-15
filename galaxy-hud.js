@@ -17,6 +17,20 @@
   if (window.__GALAXY_HUD__) return;
   window.__GALAXY_HUD__ = true;
 
+  // ── AÇILIŞ FLASH'INI ÖNLE ──────────────────────────────────────────────
+  // galaxy-hud.js index.html'in EN SONUNDA yüklenir; senkron çalışır (henüz ilk
+  // paint olmadan). React eski "dev-gezegen seçici"yi çizmeden ekranı kaplayan
+  // opak bir katman koyarız; overview hazır olunca (ya da güvenlik zaman aşımıyla)
+  // kaldırılır. Böylece "önce eski hali gelir sonra yeni" flash'ı olmaz.
+  try {
+    const b = document.createElement('div');
+    b.id = 'ghud-boot';
+    b.style.cssText = 'position:fixed;inset:0;z-index:10040;background:'
+      + 'radial-gradient(120% 88% at 50% -8%, rgba(20,26,54,.5), #04060c 62%), #04060c;';
+    (document.body || document.documentElement).appendChild(b);
+    setTimeout(function () { try { ovBootDone(); } catch (e) {} }, 5000);
+  } catch (e) {}
+
   /* ================= 0. MODERN İKON SETİ (inline SVG) ================= */
 
   function svg(path, vb) {
@@ -305,12 +319,14 @@
   .ghud-note-in input::placeholder { color:var(--gh-faint); }
   .ghud-note-in input:focus { border-color:var(--gh-cy); }
 
-  /* — popover — */
+  /* — popover — (artifact .panel-cut notch köşe dili; clip-path box-shadow'u kırptığı
+     için gölge drop-shadow filter'a taşındı, böylece kesik köşeyi takip eder) */
   #ghud-pop {
     position:fixed; z-index:10000; left:50%; bottom:186px; transform:translateX(-50%);
     width:min(680px, 90vw); max-height:min(480px, 58vh); display:none; flex-direction:column;
-    background:var(--gh-panel); border:1px solid var(--gh-line); border-radius:14px;
-    box-shadow:0 18px 64px rgba(0,0,0,.65); animation:ghudIn .18s ease; color:var(--gh-ink);
+    background:var(--gh-panel); border:1px solid var(--gh-line);
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    filter:drop-shadow(0 16px 42px rgba(0,0,0,.6)); animation:ghudIn .18s ease; color:var(--gh-ink);
   }
   #ghud-pop.open { display:flex; }
   #ghud-pop .ph { display:flex; align-items:center; gap:9px;
@@ -344,8 +360,9 @@
   .ghud-tab-btn.on { color:var(--gh-cy); border-color:rgba(95,224,255,.4); background:rgba(95,224,255,.08); }
   #ghud-pal { position:fixed; z-index:10001; left:50%; top:16vh; transform:translateX(-50%);
     width:min(560px, 92vw); display:none; flex-direction:column;
-    background:var(--gh-panel); border:1px solid var(--gh-line); border-radius:14px;
-    box-shadow:0 24px 80px rgba(0,0,0,.7); animation:ghudIn .15s ease;
+    background:var(--gh-panel); border:1px solid var(--gh-line);
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    filter:drop-shadow(0 20px 52px rgba(0,0,0,.65)); animation:ghudIn .15s ease;
     font-family:'Space Grotesk', -apple-system, sans-serif; color:var(--gh-ink); }
   #ghud-pal.open { display:flex; }
   #ghud-pal .pin { display:flex; align-items:center; gap:10px; padding:13px 16px;
@@ -692,6 +709,97 @@
     .ghud-h .hic, .ghud-card:hover .hic { transition:none; transform:none; filter:none; }
     .ghud-dk-empty { animation:none; }
     .ghud-dk-empty:before { animation:none; opacity:.7; }
+  }
+
+  /* ════════════ "GENEL BAKIŞ" — evren kart-grid (referans tasarımın içerik ekranı) ════════════
+   * Referans tasarımdaki "Evrenini seç" kart-grid'ini uygulamanın KENDİ token'larıyla
+   * (--accent/--ink/--line…) ve panel-cut notch'uyla (16px) render eder. Tam-ekran DEĞİL:
+   * içerik alanına oturur — üst nav, sol proje paneli ve sağ mürettebat rayı görünür kalır,
+   * böylece referanstaki bütünlüklü sekme görünümü elde edilir. İnset'ler açılışta ölçülür. */
+  #ghud-ov {
+    position:fixed;
+    top:var(--ghov-top,54px); left:var(--ghov-left,336px);
+    right:var(--ghov-right,200px); bottom:var(--ghov-bottom,32px);
+    z-index:10050; display:none; overflow-y:auto;
+    background:radial-gradient(120% 82% at 50% -12%, rgba(18,24,52,.5), rgba(4,6,12,.995) 62%), #05070e;
+    border-left:1px solid var(--line,#becdff1a);
+    color:var(--ink,#dbe4ff);
+    font-family:'Space Grotesk', -apple-system, sans-serif; animation:ghudIn .2s ease; }
+  #ghud-ov.open { display:block; }
+  /* tam-ekran (picker) modu: evrene girmeden önce dev-gezegen seçicinin YERİNE geçer;
+     içerik-alanı insetlerini iptal edip tüm ekranı kaplar, wrap ortalanır (referans "Evrenini seç"). */
+  #ghud-ov.full { top:0; left:0; right:0; bottom:0; border-left:none;
+    background:radial-gradient(120% 88% at 50% -8%, rgba(20,26,54,.6), rgba(4,6,12,.99) 60%), #04060c; }
+  #ghud-ov.full .ghud-ov-wrap { max-width:1180px; margin:0 auto; padding:76px 44px 60px; }
+  #ghud-ov.full .ghud-ov-close { display:none; }   /* picker'da geri dönülecek yer yok — evren seçilmeli */
+  .ghud-ov-wrap { max-width:1200px; padding:34px 40px 52px; }
+  .ghud-ov-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px; }
+  .ghud-ov-ovl { font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.3em; text-transform:uppercase;
+    color:var(--accent,#61dcff); margin-bottom:12px; }
+  .ghud-ov-h1 { font-size:34px; font-weight:600; letter-spacing:.005em; color:#fff; margin-bottom:10px; }
+  .ghud-ov-lead { font-size:13px; color:var(--ink-dim,#8b96b8); line-height:1.65; max-width:62ch; }
+  .ghud-ov-close { flex:none; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line,#becdff1a); color:var(--ink-dim,#8b96b8); cursor:pointer;
+    clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+    transition:color .15s, border-color .15s, background .15s; }
+  .ghud-ov-close:hover { color:var(--accent,#61dcff); border-color:var(--accent,#61dcff); background:var(--accent-dim,rgba(97,220,255,.14)); }
+  .ghud-ov-close svg { width:16px; height:16px; }
+  .ghud-ov-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:16px; }
+  .ghud-ov-card {
+    position:relative; padding:22px 22px 18px; cursor:pointer;
+    border:1px solid var(--line-strong,#becdff38);
+    background:linear-gradient(172deg,#0d1224eb,#050812f5);
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    transition:border-color .16s, box-shadow .16s, transform .16s cubic-bezier(.34,1.4,.5,1); }
+  .ghud-ov-card:hover { border-color:rgba(97,220,255,.5); box-shadow:0 0 34px rgba(97,220,255,.1); transform:translateY(-2px); }
+  .ghud-ov-row { display:flex; align-items:center; gap:16px; }
+  .ghud-ov-planet { width:60px; height:60px; border-radius:50%; flex:none;
+    transition:transform .3s cubic-bezier(.34,1.56,.5,1); }
+  .ghud-ov-card:hover .ghud-ov-planet { transform:scale(1.07); }
+  .ghud-ov-info { min-width:0; flex:1; }
+  .ghud-ov-name { font-size:19px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ghud-ov-path { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--ink-faint,#4d5677);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px; }
+  .ghud-ov-stats { display:flex; gap:18px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line,#becdff1a);
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--ink-dim,#8b96b8); }
+  .ghud-ov-stats b { color:#fff; font-weight:600; }
+  .ghud-ov-stats .ok b { color:var(--ok,#55e88b); }
+  .ghud-ov-add {
+    border:1px dashed var(--line-strong,#becdff38); clip-path:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    min-height:154px; color:var(--ink-dim,#8b96b8); background:transparent; }
+  .ghud-ov-add:hover { border-color:var(--accent,#61dcff); color:var(--accent,#61dcff); box-shadow:none; transform:none; }
+  .ghud-ov-add .pl { font-size:28px; font-weight:200; color:var(--accent,#61dcff); line-height:1; }
+  .ghud-ov-add .lb { font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.2em; }
+  .ghud-ov-add .s2 { font-family:'JetBrains Mono', monospace; font-size:9px; letter-spacing:.1em; color:var(--ink-faint,#4d5677); }
+  .ghud-ov-empty { color:var(--ink-faint,#4d5677); font-size:13px; padding:40px 0; text-align:center; }
+
+  /* ════════════ index.html ANA ARAYÜZ — artifact rafineleri ════════════
+   * galaxy-hud'un CSS'i document.head'e GLOBAL enjekte edilir; bu kurallar
+   * derlenmiş index.html'in KENDİ semantik sınıflarını hedefler. Hepsi
+   * additive: React'in inline stillerini EZMEZ, yalnızca tanımsız durumları
+   * (transition / :active / :focus) ekler. Yapısal layout'a dokunmaz.
+   * Amaç: buton/input geri bildirimini HUD ile ve artifact ile aynı dile getirmek. */
+  .gbtn { transition:transform .13s cubic-bezier(.34,1.56,.5,1), border-color .15s, color .15s, background .15s; }
+  .gbtn:active { transform:scale(.95); }
+  /* üst bar sekmeleri — hover'da cyan aksan (artifact seçili-sekme dili) */
+  .gbtn:hover { border-color:var(--accent, #61dcff); color:var(--accent, #61dcff); background:var(--accent-dim, rgba(97,220,255,.14)); }
+  /* tıklanabilir modal/kart panellerine hover derinliği + yumuşak iç kenar parıltısı */
+  .panel-cut.brackets:hover { border-color:var(--line-strong, rgba(190,205,255,.38)); box-shadow:0 0 32px rgba(97,220,255,.07); }
+  /* uygulama genelinde ince, tutarlı scrollbar (sol proje paneli + tüm listeler) */
+  ::-webkit-scrollbar { width:9px; height:9px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(190,205,255,.14); border-radius:5px; }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(97,220,255,.32); }
+  /* metin daha net render (artifact kalitesi) */
+  body, .panel-cut, .gbtn, .hud-label, .hud-value { -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  .hud-input { transition:border-color .15s, box-shadow .15s; }
+  .hud-input:focus { box-shadow:0 0 0 1px var(--accent, #61dcff), 0 0 18px rgba(97,220,255,.12); }
+  /* tıklanabilir modal/kart panellerine yumuşak geçiş (görünür değişim tek başına yok) */
+  .panel-cut.brackets { transition:border-color .18s, box-shadow .18s; }
+  @media (prefers-reduced-motion: reduce) {
+    .gbtn { transition:border-color .15s, color .15s, background .15s; }
+    .gbtn:active { transform:none; }
   }
   `;
 
@@ -1237,6 +1345,7 @@
     const norm = s => String(s || '').toLocaleLowerCase('tr');
     const nq = norm(q).trim();
     const cmds = [
+      { kind: 'cmd', act: 'overview', icon: I.rocket, label: 'Genel Bakış', hint: 'evren kartları · panorama' },
       { kind: 'cmd', act: 'docker', icon: I.box, label: 'Docker Merkezi', hint: 'konteyner · imaj · log' },
       { kind: 'cmd', act: 'servers', icon: I.server, label: 'Sunucu Merkezi', hint: 'uzak evren · SSH' },
       { kind: 'cmd', act: 'guide', icon: I.book, label: 'Seyir Rehberi', hint: 'görselli tanıtım · F1' },
@@ -1290,6 +1399,7 @@
     if (it.kind === 'proj') { showGit(it.p.id, it.p.name); return; }
     if (it.act === 'settings') { try { window.galaxy.openSettings(); } catch (e) {} }
     else if (it.act === 'backups') showBackups();
+    else if (it.act === 'overview') openOverview();
     else if (it.act === 'docker') openDocker();
     else if (it.act === 'servers') openServers();
     else if (it.act === 'guide') openGuide('neden');
@@ -1509,7 +1619,21 @@
     }
   }
 
+  // Marka sürümünü referans tasarımla hizala: "GALAXY v2" → "GALAXY v2.3"
+  // (package.json 2.3.7 ile tutarlı). index.html'e dokunmadan, DOM'daki sürüm etiketini günceller.
+  function injectBrandVersion() {
+    for (const s of document.querySelectorAll('.hud-label, span')) {
+      if (s.dataset.ghVer) continue;
+      const t = (s.textContent || '').trim();
+      if (t !== 'v2' && t !== 'V2') continue;
+      const p = s.parentElement;
+      if (p && /GALAXY/i.test(p.textContent || '')) { s.dataset.ghVer = '1'; s.textContent = 'v2.3'; }
+    }
+  }
+
   function enhanceAll() {
+    try { injectBrandVersion(); } catch (e) {}
+    try { injectOverviewTrigger(); } catch (e) {}
     try { injectDockerButton(); } catch (e) {}
     try { injectReadmeButton(); } catch (e) {}
     try { injectGitButtons(); } catch (e) {}
@@ -1972,6 +2096,221 @@
     }
   }
 
+  /* ================= 4.68 ARTIFACT "GENEL BAKIŞ" — canlı kart-grid =================
+     Kullanıcının tasarım dosyasındaki "Evrenini seç" ekranını gerçek verisiyle
+     uygulamaya getirir. React'e dokunmaz; z-index'i yüksek tam-ekran overlay. */
+
+  function ovPlanetStyle(hue) {
+    return `background:radial-gradient(circle at 38% 30%, hsl(${hue},95%,88%), hsl(${hue},78%,62%) 46%, hsl(${(hue + 14) % 360},58%,26%) 100%);`
+      + `box-shadow:0 0 26px hsla(${hue},80%,60%,.5);`;
+  }
+
+  // ~/… biçiminde kısaltılmış yol (evren nesnesinde subtitle yoksa root'tan üretilir)
+  function ovShortPath(p) {
+    if (!p) return '';
+    const home = (window.galaxy && window.galaxy.home) || '';
+    let s = String(p);
+    if (home && s.startsWith(home)) s = '~' + s.slice(home.length);
+    else s = s.replace(/^\/Users\/[^/]+/, '~');
+    return s;
+  }
+
+  // "Picker" durumu = henüz bir evrene girilmemiş; native dev-gezegen seçici ekranı
+  // (GİRİŞ butonlu kartlar) görünür. Bu durumda overlay TAM-EKRAN açılıp seçicinin
+  // yerine geçer; karta tıklayınca ilgili native GİRİŞ tetiklenip evrene girilir.
+  function ovGirisButtons() {
+    return [...document.querySelectorAll('button,div,span,a')].filter(e => {
+      const t = trFold((e.textContent || '').trim());
+      if (!t.startsWith(trFold('GİRİŞ'))) return false;
+      if (!e.offsetParent) return false;
+      const r = e.getBoundingClientRect();
+      return r.width > 30 && r.width < 190 && r.height > 10 && r.height < 64;
+    });
+  }
+  function ovPickerState() { return ovGirisButtons().length > 0; }
+
+  // Verilen evren adının native seçici KARTINDAKİ GİRİŞ'ini bulup tıklar → o evrene girer.
+  // Not: yalnızca kartın kendisine bakılır (tüm kartları saran grid'e ÇIKILMAZ), yoksa
+  // grid tüm evren adlarını içerdiği için yanlış evrene girilir. Eşleşme yoksa girmez
+  // (yanlış-evren riski > hiç girmemek). Tek-evren senaryosu da tek kartla doğal çalışır.
+  function ovEnterUniverse(name) {
+    const target = trFold(name);
+    for (const g of ovGirisButtons()) {
+      let n = g;
+      for (let i = 0; i < 3 && n; i++) {
+        n = n.parentElement; if (!n) break;
+        const txt = n.textContent || '';
+        if (txt.length > 90) break;                 // grid container'a ulaştık — kart değil, dur
+        if (trFold(txt).includes(target)) { g.click(); return true; }
+      }
+    }
+    return false;
+  }
+
+  /* Overlay içerik alanına otursun diye üst-bar / sol panel / mürettebat rayının
+     gerçek kenarlarını açılışta ölçer; bulamazsa referans layout'una göre fallback.
+     Picker durumunda ise tam-ekran (.full) moduna geçer. */
+  function ovMeasure(forceFull) {
+    const el = $('#ghud-ov'); if (!el) return;
+    if (forceFull || ovPickerState()) { el.classList.add('full'); return; }
+    el.classList.remove('full');
+    const W = window.innerWidth, H = window.innerHeight;
+    let top = 54, left = 336, right = 200, bottom = 32;
+    try {
+      const gb = [...document.querySelectorAll('button.gbtn')]
+        .find(b => trFold((b.textContent || '').trim()) === trFold('GENEL BAKIŞ'));
+      const bar = gb && gb.closest('div');
+      if (bar) { const r = bar.getBoundingClientRect(); if (r.width > W * 0.7 && r.top < 20) top = Math.round(r.bottom); }
+      const crew = [...document.querySelectorAll('.fixed.z-30')]
+        .find(n => { const r = n.getBoundingClientRect(); return r.height > 180 && r.width < 300 && r.left > W * 0.7; });
+      if (crew) { const r = crew.getBoundingClientRect(); right = Math.max(24, Math.round(W - r.left + 12)); }
+      const lbl = [...document.querySelectorAll('div,span')]
+        .find(e => e.children.length === 0 && /PROJELER|PROJ/.test((e.textContent || '').trim())
+          && e.getBoundingClientRect().left < 60 && e.getBoundingClientRect().top < H * 0.4);
+      if (lbl) {
+        let n = lbl;
+        for (let i = 0; i < 8 && n; i++) {
+          const r = n.getBoundingClientRect();
+          if (r.height > H * 0.35 && r.width > 150 && r.width < 460 && r.left < 40) { left = Math.round(r.right); break; }
+          n = n.parentElement;
+        }
+      }
+    } catch (e) {}
+    el.style.setProperty('--ghov-top', top + 'px');
+    el.style.setProperty('--ghov-left', left + 'px');
+    el.style.setProperty('--ghov-right', right + 'px');
+    el.style.setProperty('--ghov-bottom', bottom + 'px');
+  }
+
+  function renderOverview() {
+    const unis = cache.universes || [];
+    const projs = cache.projects || [];
+    const grid = unis.map(u => {
+      const up = projs.filter(p => p.universe === u.id);
+      const gezegen = up.length;
+      const sistem = new Set(up.map(p => p.group).filter(g => g && g !== 'Keşfedilmemiş')).size;
+      const aktif = up.filter(p => p.status === 'active').length;
+      const hue = hueOf(u.id || u.name);
+      return `<div class="ghud-ov-card" data-ovuni="${esc(u.id)}" data-ovnm="${esc(u.name)}">
+        <div class="ghud-ov-row">
+          <div class="ghud-ov-planet" style="${ovPlanetStyle(hue)}"></div>
+          <div class="ghud-ov-info">
+            <div class="ghud-ov-name">${esc(u.name)}</div>
+            <div class="ghud-ov-path">${esc(u.subtitle || ovShortPath(u.root) || '')}</div>
+          </div>
+        </div>
+        <div class="ghud-ov-stats">
+          <span><b>${gezegen}</b> gezegen</span>
+          <span><b>${sistem}</b> sistem</span>
+          <span class="ok"><b>${aktif}</b> aktif</span>
+        </div>
+      </div>`;
+    }).join('');
+    const add = `<div class="ghud-ov-card ghud-ov-add" data-ovadd="1">
+      <div class="pl">+</div><div class="lb">YENİ EVREN EKLE</div><div class="s2">yerel klasör · uzak sunucu</div>
+    </div>`;
+    $('#ghud-ov').innerHTML = `<div class="ghud-ov-wrap">
+      <div class="ghud-ov-top">
+        <div>
+          <div class="ghud-ov-ovl">GENEL BAKIŞ</div>
+          <div class="ghud-ov-h1">Evrenini seç</div>
+          <div class="ghud-ov-lead">Her evren bir galaksi: içindeki proje klasörleri gezegen, projeleri barındıran çatı klasörler yıldız sistemi olur.</div>
+        </div>
+        <div class="ghud-ov-close" data-ovclose="1" title="Kapat (ESC)">${I.close}</div>
+      </div>
+      ${unis.length ? `<div class="ghud-ov-grid">${grid}${add}</div>` : '<div class="ghud-ov-empty">Henüz evren yok — aşağıdan ekleyebilirsin.</div>'}
+    </div>`;
+  }
+
+  // Overview açıkken haritanın sağ-alt sektör minimap'i + zoom butonları görünür kalıp
+  // "harita sızması" yaratıyor (referans overview'de yoklar). Açıkken gizle, kapanınca geri getir.
+  let _ovHidden = [];
+  function ovHideMapChrome(hide) {
+    if (hide) {
+      _ovHidden = [];
+      const W = window.innerWidth, H = window.innerHeight;
+      const cands = [];
+      const lbl = [...document.querySelectorAll('.hud-label')]
+        .find(e => /SEKTÖR|HARİTAS/i.test(e.textContent || ''));
+      if (lbl) {
+        let n = lbl;
+        for (let i = 0; i < 6 && n; i++) {
+          const r = n.getBoundingClientRect();
+          if (r.width > 120 && r.width < 360 && r.height > 60 && r.height < 300 && r.left > W * 0.75) { cands.push(n); break; }
+          n = n.parentElement;
+        }
+      }
+      const zb = [...document.querySelectorAll('button')].find(b => {
+        const t = (b.textContent || '').trim(); const r = b.getBoundingClientRect();
+        return (t === '+' || t === '−' || t === '-') && r.left > W * 0.8 && r.top > H * 0.6;
+      });
+      if (zb && zb.parentElement) cands.push(zb.parentElement);
+      for (const el of cands) { try { _ovHidden.push([el, el.style.visibility]); el.style.visibility = 'hidden'; } catch (e) {} }
+    } else {
+      for (const [el, v] of _ovHidden) { try { el.style.visibility = v || ''; } catch (e) {} }
+      _ovHidden = [];
+    }
+  }
+
+  async function openOverview(forceFull) {
+    const el = $('#ghud-ov');
+    // EVREN sekmesi gibi picker'ın GELECEĞİNİ bildiğimiz durumda HEMEN tam-ekran kapla
+    // ki alttaki native dev-gezegen seçici bir an bile görünmesin (flash yok).
+    if (forceFull) { el.classList.add('full'); el.classList.add('open'); }
+    if (!cache.universes || !cache.universes.length) await refresh();
+    renderOverview();
+    ovMeasure(forceFull);
+    ovHideMapChrome(true);
+    el.classList.add('open');
+  }
+  function closeOverview() { $('#ghud-ov').classList.remove('open'); ovHideMapChrome(false); }
+  function ovIsOpen() { const el = $('#ghud-ov'); return !!(el && el.classList.contains('open')); }
+
+  async function ovAddUniverse() {
+    try {
+      const r = await window.galaxy.pickFolder();
+      if (!r || !r.path) return;
+      const name = r.path.split('/').filter(Boolean).pop() || 'Evren';
+      await window.galaxy.universeAdd({ name, root: r.path, bookmark: r.bookmark || null });
+      await refresh();
+      renderOverview();
+    } catch (e) {}
+  }
+
+  // Açılış flash-önleyici katmanı kaldır (React eski görünümü artık üstte değil).
+  function ovBootDone() { const b = document.getElementById('ghud-boot'); if (b) b.remove(); }
+
+  // Native picker (dev-gezegen seçici) belirince tam-ekran kart-grid'i onun ÜSTÜNE aç.
+  function ovOpenWhenPicker(maxTries) {
+    let tries = 0;
+    const t = () => {
+      if (ovIsOpen()) { ovBootDone(); return; }
+      if (ovPickerState()) { openOverview().then(ovBootDone); return; }   // kart-grid açık → boot kalkar
+      if (++tries < (maxTries || 18)) setTimeout(t, 80);
+      else ovBootDone();                                                   // picker yok (zaten evrende) → haritayı göster
+    };
+    t();
+  }
+
+  // Üst-bar sekmeleri:
+  //  • "GENEL BAKIŞ" → in-app inset kart-grid (native 3D zoom bastırılır — çift-render biter).
+  //  • "EVREN"       → native dev-gezegen seçicisini açtırır ama ANINDA tam-ekran kart-grid'le
+  //                    örter; kullanıcı eski seçiciyi görmez, karttan evren değiştirir.
+  //  • diğerleri     → açık overview'i kapat, native görünüme bırak.
+  function injectOverviewTrigger() {
+    for (const btn of document.querySelectorAll('button.gbtn')) {
+      if (btn.dataset.ghudOv) continue;
+      const nm = trFold((btn.textContent || '').trim());
+      const kind = nm === trFold('GENEL BAKIŞ') ? 'ov' : (nm === trFold('EVREN') ? 'ev' : 'x');
+      btn.dataset.ghudOv = kind;
+      btn.addEventListener('click', (e) => {
+        if (kind === 'ov') { e.stopPropagation(); setTimeout(openOverview, 0); }   // native overview() tetiklenmez
+        else if (kind === 'ev') { openOverview(true); }                             // native picker altta; ANINDA tam-ekran kart-grid örter
+        else if (ovIsOpen()) { closeOverview(); }                                    // başka sekme: native'e bırak
+      }, true);
+    }
+  }
+
   /* ================= 4.7 SEYİR REHBERİ (görselli tanıtım + kullanım) ================= */
   // docs/Project_Galaxy_Mission_Control.pdf sunumundaki infografikler burada
   // uygulamanın içinde yaşar: her ekranın anatomisi, terminoloji, mürettebat,
@@ -2326,6 +2665,11 @@
     lb.innerHTML = '<img alt="">';
     document.body.appendChild(lb);
 
+    // artifact "GENEL BAKIŞ" kart-grid overlay'i
+    const ov = document.createElement('div');
+    ov.id = 'ghud-ov';
+    document.body.appendChild(ov);
+
     const pal = document.createElement('div');
     pal.id = 'ghud-pal';
     pal.innerHTML = `<div class="pin">${I.search}<input type="text" placeholder="Proje ara ya da komut yaz…  (GİT için Enter)"></div>
@@ -2404,6 +2748,27 @@
       if (srow && !e.target.closest('.acts')) { srvOpenForm(srvCtx.servers.find(s => s.id === srow.dataset.srvid)); return; }
       const sbtn = e.target.closest('[data-ghudservers]');
       if (sbtn) { openServers(); return; }
+
+      // artifact genel bakış overlay
+      if (e.target.closest('[data-ovclose]')) { closeOverview(); return; }
+      if (e.target.closest('[data-ovadd]')) { ovAddUniverse(); return; }
+      const ovc = e.target.closest('[data-ovuni]');
+      if (ovc) {
+        const nm = ovc.dataset.ovnm || '';
+        if ($('#ghud-ov').classList.contains('full')) {
+          // picker: karta tıkla → o evrene gir (native GİRİŞ hazır olana kadar dene), sonra overlay'i kapat
+          let tries = 0;
+          const tryEnter = () => {
+            if (ovEnterUniverse(nm)) { setTimeout(closeOverview, 460); return; }
+            if (++tries < 20) setTimeout(tryEnter, 100);
+            // eşleşme hiç tutmazsa overlay AÇIK kalır (dev-gezegen seçici açığa çıkmasın)
+          };
+          tryEnter();
+        } else {
+          closeOverview();  // in-app GENEL BAKIŞ: overlay'i kapat, kullanıcı o evreni uygulamada görür
+        }
+        return;
+      }
       const pa = e.target.closest('[data-pact]');
       if (pa) {
         const { pact, pid, pnm, pp } = pa.dataset;
@@ -2456,13 +2821,21 @@
       }
       if (e.key === 'Escape') {
         if ($('#ghud-lb').classList.contains('open')) { $('#ghud-lb').classList.remove('open'); e.stopPropagation(); return; }
+        if ($('#ghud-ov').classList.contains('open') && !$('#ghud-ov').classList.contains('full')) { closeOverview(); e.stopPropagation(); return; }
         if ($('#ghud-pal').classList.contains('open')) { palClose(); e.stopPropagation(); return; }
         if ($('#ghud-pop').classList.contains('open')) { popClose(); e.stopPropagation(); return; }
         if (dock.classList.contains('open')) { setOpen(false); e.stopPropagation(); }
       }
     }, true);
 
-    refresh();
+    refresh().then(() => {
+      // Açılışta native dev-gezegen seçicisi (picker) belirir belirmez onun YERİNE
+      // yeni tasarım kart-grid'ini tam-ekran göster. Kullanıcı eski seçiciyi görmez;
+      // karttan evrene girilir. Zaten bir evrene girilmişse (picker yok) açılmaz.
+      setTimeout(() => ovOpenWhenPicker(40), 40);
+    });
+    // Açık overlay'i pencere yeniden boyutlanınca yeniden hizala
+    window.addEventListener('resize', () => { if (ovIsOpen()) ovMeasure(); });
     watchReadmePanel();
     setInterval(() => { if (dock.classList.contains('open')) refresh(); }, 60000);
   }
