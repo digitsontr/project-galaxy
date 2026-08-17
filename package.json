@@ -1,7 +1,7 @@
 {
   "name": "project-galaxy",
   "productName": "Project Galaxy",
-  "version": "2.3.9",
+  "version": "2.3.10",
   "updateRepo": "digitsontr/project-galaxy",
   "description": "Projelerini bir evren olarak gezdiğin, AI ajanlarıyla yönettiğin masaüstü uygulaması",
   "main": "main.js",
