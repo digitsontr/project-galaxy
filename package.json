@@ -25,15 +25,21 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64",
-            "x64"
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
           ]
         }
       ],
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.plist",
       "entitlementsInherit": "build/entitlements.plist",
-      "notarize": true
+      "notarize": true,
+      "artifactName": "Project-Galaxy-${version}-${arch}.${ext}"
     },
     "mas": {
       "category": "public.app-category.developer-tools",
@@ -53,28 +59,30 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "furkanyildiz",
+        "owner": "digitsontr",
         "repo": "project-galaxy"
       }
     ],
     "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "onboarding.html",
-      "galaxy-hud.js",
-      "galaxy-data.js",
-      "assets/guide/**",
-      "build/tray.png",
-      "!dist",
-      "!backups",
-      "!reports",
-      "!*.command",
-      "!index.v2.backup.html"
+      "**/*",
+      "!galaxy-data.json",
+      "!**/*.command",
+      "!test${/*}",
+      "!scripts${/*}",
+      "!.github${/*}",
+      "!native/*.swift",
+      "!newui/preview-sample.html",
+      "!newui/build.py",
+      "!backups${/*}",
+      "!reports${/*}",
+      "!attachments${/*}",
+      "!dist${/*}",
+      "!dist-mas${/*}"
     ],
     "extraMetadata": {
       "main": "main.js"
-    }
+    },
+    "asar": false
   },
   "dependencies": {
     "electron-updater": "^6.3.9",

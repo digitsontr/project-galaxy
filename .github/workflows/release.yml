@@ -1,10 +1,10 @@
 name: Release
 
-# v* tag'i push edilince (ör. v2.4.0) macOS'ta build + smoke test + paketle + Release yayınla.
+# v* tag'i push edilince (ör. v2.4.0) macOS'ta build + smoke + imzala + notarize + Release yayınla.
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:   # elle de tetiklenebilir (Actions sekmesinden)
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -34,27 +34,28 @@ jobs:
             exit 1
           fi
 
-      - name: Paketle (.app → zip)
-        run: bash scripts/package-mac.sh
+      - name: Build + imzala + notarize (electron-builder)
+        env:
+          # Developer ID imzalama sertifikası (.p12 → base64) + parolası
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          # Notarization kimlik bilgileri (Apple ID + uygulamaya özel parola + Team ID)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx --yes electron-builder --mac --publish never
 
-      - name: Release yayınla
+      - name: Release yayınla (dmg + zip)
         uses: softprops/action-gh-release@v2
         with:
-          files: Project-Galaxy-full.zip
+          files: |
+            dist/*.dmg
+            dist/*.zip
           generate_release_notes: true
           body: |
             ## Project Galaxy ${{ github.ref_name }}
 
-            **Kurulum:**
-            1. `Project-Galaxy-full.zip`'i indir, çift tıkla (açılır), `Project Galaxy.app`'i **Uygulamalar**'a taşı.
-            2. İlk açılışta macOS *"Apple could not verify…"* derse → **Done** (Move to Trash DEME).
-            3. **Terminal**'i aç ve şunu yapıştır + Enter (karantinayı temizler, tek seferlik):
-               ```
-               xattr -cr /Applications/"Project Galaxy.app"
-               ```
-               (App hâlâ Downloads'taysa: `xattr -cr ~/Downloads/"Project Galaxy.app"`)
-            4. App'e çift tıkla — açılır. Bir daha sormaz.
+            **Kurulum:** `.dmg`'yi indir, aç, `Project Galaxy`'yi **Applications**'a sürükle → çift tıkla.
+            İmzalı + Apple tarafından notarize edilmiştir — Gatekeeper uyarısı çıkmaz, direkt açılır. ✅
 
-            **Terminal istemezsen:** Done → **Sistem Ayarları → Gizlilik ve Güvenlik** → aşağıda *"engellendi"* satırında **Yine de Aç**.
-
-            > Ad-hoc imzalı derleme (Apple Developer ID yok) — bu uyarı normaldir, güvenlidir, tek seferliktir.
+            > Uygulama içi otomatik güncelleme `.zip`'i kullanır; sen sadece `.dmg`'yi indir.
