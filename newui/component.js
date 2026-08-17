@@ -839,12 +839,12 @@ class Component extends DCLogic {
       btnStyle:`position:relative;width:44px;height:44px;border-radius:50%;cursor:pointer;padding:0;background:url('${a.avatar}') center/cover,#0a0e1a;border:2px solid ${on?a.color:this.rgba(a.color,.4)};box-shadow:0 0 ${on?18:10}px ${this.rgba(a.color,on?.6:.25)}`,
       onClick:()=>this.setState({agentId:on?null:a.id}) }; });
     const activeRaw=this.AGENTS.find(a=>a.id===st.agentId)||null;
-    const activePresets=((activeRaw&&activeRaw.presets)||[]).map(p=>({label:p.label,onClick:()=>this.sendPreset(p.ask),style:`text-align:left;width:100%;padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid rgba(190,205,255,.16);color:#8b96b8;background:rgba(13,18,36,.5)`}));
+    const activePresets=((activeRaw&&activeRaw.presets)||[]).map(p=>({label:p.label,onClick:()=>this.sendPreset(p.ask),style:`text-align:left;width:100%;padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid rgba(190,205,255,.16);color:#8b96b8;background:rgba(13,18,36,.5);border-radius:14px`}));
     const activeDesc=activeRaw?(activeRaw.role||''):''; const hasActivePresets=activePresets.length>0;
     const active=activeRaw?{...activeRaw,avatarStyle:`width:38px;height:38px;flex-shrink:0;background:url('${activeRaw.avatar}') center/cover,#0a0e1a;border:1px solid ${this.rgba(activeRaw.color,.5)}`}:{avatarStyle:'',color:'#61dcff',name:'',role:'',prompt:''};
     const activeMsgs=(activeRaw?activeRaw.msgs:[]).map(([who,text])=>{ const isU=who==='u'; return { text, isUser:isU, notUser:!isU, lines:isU?[]:this._mdLines(text),
       wrapStyle:`display:flex;${isU?'justify-content:flex-end':''}`,
-      bubbleStyle:`max-width:88%;font-size:13px;line-height:1.5;padding:10px 13px;${isU?'background:rgba(97,220,255,.1);border:1px solid rgba(97,220,255,.25);color:#dbe4ff':`background:rgba(13,18,36,.7);border-left:2px solid ${activeRaw?activeRaw.color:'#61dcff'};color:#8b96b8`}` }; });
+      bubbleStyle:`max-width:88%;font-size:13px;line-height:1.5;padding:10px 13px;${isU?'background:rgba(97,220,255,.1);border:1px solid rgba(97,220,255,.25);color:#dbe4ff':`background:rgba(13,18,36,.7);border-radius:14px;border-left:2px solid ${activeRaw?activeRaw.color:'#61dcff'};color:#8b96b8`}` }; });
 
     // ARAMA — gerçek projeler (tüm evrenler) + komutlar, query'ye göre filtrelenir.
     const q=trFold(st.query||'');
@@ -869,7 +869,7 @@ class Component extends DCLogic {
         headStyle:`font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${cc};padding:12px 14px;border-bottom:1px solid rgba(190,205,255,.12)`,
         onDragOver:(e)=>{ if(e&&e.preventDefault)e.preventDefault(); }, onDrop:(e)=>{ if(e&&e.preventDefault)e.preventDefault(); if(this._dragTodo){ this._todoSetStatus(this._dragTodo,status); this._dragTodo=null; } },
         cards:items.map(t=>({ id:t.id, title:t.text, cc,
-          style:`border:1px solid rgba(190,205,255,.12);border-left:2px solid ${cc};background:rgba(13,18,36,.7);padding:12px;cursor:grab`,
+          style:`border:1px solid rgba(190,205,255,.12);border-left:2px solid ${cc};background:rgba(13,18,36,.7);border-radius:14px;padding:12px;cursor:grab`,
           dotStyle:`width:7px;height:7px;border-radius:50%;background:${cc}`,
           onDragStart:(e)=>{ this._dragTodo=t.id; }, onDelete:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this._todoDelete(t.id); } })) };
     });
@@ -965,7 +965,7 @@ class Component extends DCLogic {
     const dbSchemaTables=((_sch&&_sch.tables)||[]).map((t,i)=>{ const c=['#61dcff','#c77bff','#ffc861','#55e88b'][i%4];
       return {name:t.name, onClick:()=>this.dbOpenTable(t.name),
         headStyle:`font-family:'JetBrains Mono',monospace;font-size:12px;color:${c};padding:8px 14px;border-bottom:1px solid ${this.rgba(c,.25)};background:${this.rgba(c,.06)};cursor:pointer;display:flex;align-items:center;justify-content:space-between`,
-        boxStyle:`border:1px solid ${this.rgba(c,.35)};background:rgba(13,18,36,.85);cursor:pointer`,
+        boxStyle:`border:1px solid ${this.rgba(c,.35)};background:rgba(13,18,36,.85);border-radius:14px;cursor:pointer`,
         columns:((t.columns)||[]).map(cl=>({txt:(cl.pk?'🔑 ':'')+cl.name+' · '+(cl.type||''), style:`color:${cl.pk?'#ffc861':'#8b96b8'}`}))}; });
     // Tablo veri editörü grid
     const _td=st._dbTableData; const _edits=st._dbEdits||{};
@@ -997,7 +997,7 @@ class Component extends DCLogic {
          {name:'Papilon',path:'~/Papilon',planets:4,systems:1,active:2,color:'#c77bff',id:null},
          {name:'Arşiv',path:'~/Archive',planets:9,systems:3,active:0,color:'#8a8fa8',id:null}];
     const universes=uniSrc.map(u=>{ const c=u.color; return {name:u.name,path:u.path,planets:u.planets,systems:u.systems,active:u.active,
-      cardStyle:`display:flex;flex-direction:column;justify-content:space-between;min-height:150px;box-sizing:border-box;text-align:left;cursor:pointer;border:1px solid ${this.rgba(c,.38)};background:linear-gradient(160deg,${this.rgba(c,.12)},rgba(9,13,26,.86));padding:22px;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%);box-shadow:0 0 30px ${this.rgba(c,.1)},inset 0 0 0 1px rgba(255,255,255,.02)`,
+      cardStyle:`display:flex;flex-direction:column;justify-content:space-between;min-height:150px;box-sizing:border-box;text-align:left;cursor:pointer;border:1px solid ${this.rgba(c,.34)};background:linear-gradient(160deg,${this.rgba(c,.12)},rgba(9,13,26,.86));padding:22px;border-radius:16px;box-shadow:0 0 30px ${this.rgba(c,.1)},inset 0 0 0 1px rgba(255,255,255,.02)`,
       orbStyle:`width:52px;height:52px;border-radius:50%;background:${this.planetBg(c)};box-shadow:0 0 24px ${this.rgba(c,.5)};animation:floatOrb ${5+u.planets/3}s ease-in-out infinite`,
       accent:c, hasId:!!u.id, onClick:()=> u.id ? this.selectUni(u.id) : this.setState({tab:'evren'}),
       onDelete:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); if(u.id) this.askConfirm('"'+(u.name||'evren')+'" evrenini kaldır? (klasörler diskte kalır)',()=>this._universeDelete(u.id)); } }; });
