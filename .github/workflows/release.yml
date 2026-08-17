@@ -45,8 +45,16 @@ jobs:
           body: |
             ## Project Galaxy ${{ github.ref_name }}
 
-            **Kurulum:** `Project-Galaxy-full.zip`'i indir, aç, `Project Galaxy.app`'i Uygulamalar'a taşı.
-            İlk açılışta macOS engellerse: uygulamaya **sağ tık → Aç → Aç**
-            (ya da Terminal'de `xattr -cr "/Applications/Project Galaxy.app"`).
+            **Kurulum:**
+            1. `Project-Galaxy-full.zip`'i indir, çift tıkla (açılır), `Project Galaxy.app`'i **Uygulamalar**'a taşı.
+            2. İlk açılışta macOS *"Apple could not verify…"* derse → **Done** (Move to Trash DEME).
+            3. **Terminal**'i aç ve şunu yapıştır + Enter (karantinayı temizler, tek seferlik):
+               ```
+               xattr -cr /Applications/"Project Galaxy.app"
+               ```
+               (App hâlâ Downloads'taysa: `xattr -cr ~/Downloads/"Project Galaxy.app"`)
+            4. App'e çift tıkla — açılır. Bir daha sormaz.
 
-            > Ad-hoc imzalı derleme — bu uyarı normaldir, tek seferliktir.
+            **Terminal istemezsen:** Done → **Sistem Ayarları → Gizlilik ve Güvenlik** → aşağıda *"engellendi"* satırında **Yine de Aç**.
+
+            > Ad-hoc imzalı derleme (Apple Developer ID yok) — bu uyarı normaldir, güvenlidir, tek seferliktir.
