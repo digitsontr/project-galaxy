@@ -1,6 +1,6 @@
 
 class Component extends DCLogic {
-  state = { mode:'space', tab:'genel', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'kayit', warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500,
+  state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'kayit', warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500,
     toolsOpen:false, calcExpr:'', calMonthOffset:0, toolFind:'', _clockTick:0, locOpen:false,
     loaded:false, uniId:null, _docker:null, _sched:null, _db:null, _git:null, _preview:null, _prevLoading:false, _fsCwd:'', _reports:null, _reportView:null, query:'',
     gitMsg:'', branchInput:'', _branchAdd:false, _gitBusy:false, _gitActionMsg:'', _gitDiff:null,
@@ -56,6 +56,7 @@ class Component extends DCLogic {
       else if (e.key==='Escape'){ if (this._asst&&this._asst.open) this._asstClose(); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet') this.back(); }
     };
     window.addEventListener('keydown', this._key);
+    try{ if(localStorage.getItem('gxUiMode')==='kadet') this.state.uiMode='kadet'; }catch(e){}
     this._waitThree(0);
     this._loadReal();
     // Dil tercihi (tr/en) — ayarlardan gelir; UI metinleri buna göre çevrilir.
@@ -474,6 +475,8 @@ class Component extends DCLogic {
   runConfirm(){ const c=this.state._confirm; this.setState({_confirm:null}); if(c&&c.fn){ try{ c.fn(); }catch(e){} } }
   cancelConfirm(){ this.setState({_confirm:null}); }
   // ---------- DOCKER ----------
+  // Kadet (acemi) / Komutan (uzman) mod — Kadet'te gelişmiş sekmeler gizlenir
+  _setUiMode(m){ const adv=['db','docker','zaman','servers']; const ns={uiMode:m}; if(m==='kadet'&&adv.includes(this.state.tab)){ ns.tab='genel'; ns.mode='space'; } this.setState(ns); try{ localStorage.setItem('gxUiMode',m); }catch(e){} }
   // Sekme açılınca ilgili veriyi tazele — konteyner/DB/sunucu vb. güncel görünsün
   _onTabOpen(id){ try{
     if(id==='docker') this._loadDocker();
@@ -793,9 +796,13 @@ class Component extends DCLogic {
     const noteArr = realMode ? String(sel._notes||'').split(/\n+/).map(s=>s.trim()).filter(Boolean) : (this.NOTES[sel.id]||[]);
     const linkArr = realMode ? (sel._links||[]).map(l=>Array.isArray(l)?l:[l.name||l.label||String(l),l.desc||l.role||'',l.color||'#61dcff']) : (this.LINKS[sel.id]||[]);
 
-    const tabDef=[['genel','GENEL BAKIŞ'],['evren','EVREN'],['pano','PANO'],['db','DB'],['docker','DOCKER'],['zaman','ZAMANLAYICI'],['servers','SUNUCULAR']];
-    const tabBtn=(active)=>`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:7px 13px;cursor:pointer;border-radius:6px;border:none;background:${active?'rgba(97,220,255,.16)':'transparent'};box-shadow:${active?'inset 0 0 0 1px rgba(97,220,255,.5)':'none'};color:${active?'#61dcff':'#8b96b8'};transition:background .15s,color .15s`;
+    const kadet=st.uiMode==='kadet';
+    // Kadet (acemi) modu: yalnız temel sekmeler; Komutan (uzman): hepsi
+    const tabDefAll=[['genel','GENEL BAKIŞ'],['evren','EVREN'],['pano','PANO'],['db','DB'],['docker','DOCKER'],['zaman','ZAMANLAYICI'],['servers','SUNUCULAR']];
+    const tabDef=kadet?tabDefAll.filter(([id])=>['genel','evren','pano'].includes(id)):tabDefAll;
+    const tabBtn=(active)=>`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:7px 13px;cursor:pointer;border-radius:8px;border:none;background:${active?'rgba(97,220,255,.16)':'transparent'};box-shadow:${active?'inset 0 0 0 1px rgba(97,220,255,.5)':'none'};color:${active?'#61dcff':'#8b96b8'};transition:background .15s,color .15s`;
     const tabs=tabDef.map(([id,label])=>({id,label,style:tabBtn(st.tab===id),onClick:()=>{ this.setState({tab:id,mode:'space',agentId:null}); this._onTabOpen(id); }}));
+    const modeBtn=(on)=>`padding:6px 11px;cursor:pointer;font-size:13px;border:none;background:${on?'rgba(97,220,255,.16)':'transparent'};color:${on?'#61dcff':'#8b96b8'};transition:background .15s`;
 
     const relT=(d)=>{ d=d||0; if(d<=0) return 'bugün'; if(d===1) return 'dün'; if(d<7) return d+'g önce'; if(d<31) return Math.max(1,Math.floor(d/7))+'h önce'; if(d<365) return Math.floor(d/30)+'ay önce'; return Math.floor(d/365)+'y önce'; };
     // Tazelik sırasına göre (en son dokunulan üstte) — anlamlı: dal + son aktivite; "!" gürültüsü kaldırıldı
@@ -1172,6 +1179,8 @@ class Component extends DCLogic {
       hudOpen: st.hudOpen, hudArrow: st.hudOpen?'▾':'▴',
       hudBtnBg: st.hudOpen?'rgba(97,220,255,.08)':'transparent', hudBtnBorder: st.hudOpen?'#61dcff':'rgba(190,205,255,.16)', hudBtnColor: st.hudOpen?'#61dcff':'#8b96b8',
       tabs, railItems, planets, files, leftTabs, consoleTabs, agents,
+      kadetBtnStyle:modeBtn(kadet), komutanBtnStyle:modeBtn(!kadet),
+      setKadet:()=>this._setUiMode('kadet'), setKomutan:()=>this._setUiMode('komutan'),
       projCount:'· '+((this.PROJECTS&&this.PROJECTS.length)||0), noProjects:!(this.PROJECTS&&this.PROJECTS.length),
       isClaude: st.consoleTab==='claude', isBash: st.consoleTab==='bash',
       claudeLines, bashLines, emptyClaude:claudeLines.length===0, emptyBash:bashLines.length===0,
