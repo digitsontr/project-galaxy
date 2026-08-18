@@ -29,6 +29,7 @@ function staticChecks() {
     check('index-nonempty', h.length > 50000, h.length + ' bytes');
     check('workshop-stage', /Bir dosya seç/.test(h) && /Yörünge/.test(h) && !/belgede ara/.test(h), '');
     check('sprint-c-copy', /Evren bağla/.test(h) && /git init/.test(h) && /README.den çek/.test(h) && /confirmOkLabel/.test(h), '');
+    check('sprint-d-twin', /id="ga-root"/.test(h) && /id="ga-panel"/.test(h) && /id="ga-orbwrap"/.test(h) && !/<div id="ga-mic"/.test(h), '');
   } catch (e) { check('static-read', false, e.message); }
 }
 
@@ -62,12 +63,12 @@ app.whenReady().then(async () => {
     // Yazışma + komut yönlendirme: "docker aç" → Docker sekmesi
     await js(`(function(){var i=document.getElementById('ga-text');i.value='docker aç';i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})(); true`);
     await wait(700);
-    const dockerReply = await js(`(document.getElementById('ga-log').lastChild.innerText||'').includes('Docker')`);
+    const dockerReply = await js(`(document.getElementById('ga-log').innerText||'').includes('Docker')`);
     check('assistant-command', dockerReply);
     // Evren değiştir: "şirket evrenini aç"
     await js(`(function(){var i=document.getElementById('ga-text');i.value='şirket evrenini aç';i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})(); true`);
     await wait(500);
-    const uniReply = await js(`(document.getElementById('ga-log').lastChild.innerText||'').includes('evren')`);
+    const uniReply = await js(`(document.getElementById('ga-log').innerText||'').includes('evren')`);
     check('assistant-universe', uniReply);
     // Mic/voice kapalı olmalı (yazışma modu)
     const noMic = await js(`!document.getElementById('ga-mic') && !document.getElementById('ga-wake')`);

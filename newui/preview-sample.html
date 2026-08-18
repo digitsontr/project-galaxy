@@ -427,6 +427,11 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
   @keyframes slideIn{0%{opacity:0;transform:translateX(20px)}100%{opacity:1;transform:translateX(0)}}
   @keyframes popIn{0%{opacity:0;transform:scale(.96)}100%{opacity:1;transform:scale(1)}}
   #appShell button:focus-visible,#appShell [tabindex]:focus-visible{outline:2px solid #61dcff;outline-offset:2px}
+.ga-orbwrap{width:44px;height:44px;cursor:pointer;margin-top:auto;flex-shrink:0;border-radius:50%;transition:width .2s ease,height .2s ease,transform .18s ease}
+.ga-orbwrap:hover{transform:scale(1.08)}
+.ga-orbwrap.ga-dot{width:22px;height:22px}
+.ga-orbwrap.ga-dot:hover{transform:scale(1.12)}
+#ga-orb{width:100%;height:100%;display:block;border-radius:50%}
 </style>
 </helmet>
 <canvas id="bgGalaxy" style="position:fixed;inset:0;width:100vw;height:100vh;z-index:0"></canvas>
@@ -929,6 +934,7 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
         </button>
       </sc-for>
       <button sc-camel-on-click="{{ agentAdd }}" title="Yeni ajan ekle" style="width:44px;height:44px;border-radius:50%;cursor:pointer;background:transparent;border:1px dashed rgba(97,220,255,.4);color:#61dcff;font-size:18px;padding:0;line-height:1">+</button>
+      <div id="ga-orbwrap" class="ga-orbwrap" title="Galaxy Asistanı" sc-camel-on-click="{{ asstToggle }}" style="{{ asstOrbStyle }}"><canvas id="ga-orb" width="222" height="222"></canvas></div>
     </div>
   </aside>
 
@@ -1080,6 +1086,26 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
       </div>
     </div>
   </sc-if>
+
+  <div id="ga-root">
+    <div id="ga-panel" style="{{ asstPanelStyle }}">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(190,205,255,.1);flex-shrink:0">
+        <span id="ga-dot" style="{{ asstDotStyle }}"></span>
+        <div style="flex:1;min-width:0"><div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;color:#dbe4ff;letter-spacing:.02em">Galaxy Asistanı</div><div id="ga-status" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#8791b8;margin-top:1px">{{ asstStatus }}</div></div>
+        <button id="ga-new" sc-camel-on-click="{{ asstNewChat }}" title="Yeni sohbet" style="background:none;border:none;color:#8791b8;cursor:pointer;font-size:14px;padding:2px 6px">✎</button>
+        <button id="ga-close" sc-camel-on-click="{{ asstClose }}" title="Kapat" style="background:none;border:none;color:#8791b8;cursor:pointer;font-size:15px;padding:2px 6px">✕</button>
+      </div>
+      <div id="ga-log" style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ asstMsgs }}" as="m" hint-placeholder-count="2">
+          <div style="{{ m.wrapStyle }}"><div data-noi18n style="{{ m.bubbleStyle }}">{{ m.text }}</div></div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid rgba(190,205,255,.1);flex-shrink:0">
+        <input id="ga-text" value="{{ asstInput }}" placeholder="Bir şey yaz…" sc-camel-on-input="{{ onAsstInput }}" sc-camel-on-key-down="{{ onAsstKey }}" style="flex:1;background:rgba(10,14,28,.7);border:1px solid rgba(190,205,255,.16);border-radius:8px;color:#dbe4ff;font-family:'Space Grotesk',sans-serif;font-size:13px;padding:9px 12px;outline:none" />
+        <button id="ga-send" sc-camel-on-click="{{ sendAsst }}" title="Gönder" style="width:38px;height:38px;flex-shrink:0;border-radius:8px;border:1px solid #61dcff;background:rgba(97,220,255,.14);color:#61dcff;cursor:pointer;font-size:15px">➤</button>
+      </div>
+    </div>
+  </div>
 
   <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}"><div data-noi18n style="{{ toastStyle }}">{{ toastMsg }}</div></sc-if>
 

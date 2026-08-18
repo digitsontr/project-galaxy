@@ -1,7 +1,7 @@
 
 class Component extends DCLogic {
   state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'agac', orbitView:false, readmeOpen:true, warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500,
-    toolsOpen:false, calcExpr:'', calMonthOffset:0, toolFind:'', _clockTick:0, locOpen:false, moreOpen:false, holdPlanet:false,
+    toolsOpen:false, calcExpr:'', calMonthOffset:0, toolFind:'', _clockTick:0, locOpen:false, moreOpen:false, holdPlanet:false, asstOpen:false, asstInput:'',
     loaded:false, uniId:null, _docker:null, _sched:null, _db:null, _git:null, _preview:null, _prevLoading:false, _fsCwd:'', _reports:null, _reportView:null, query:'',
     gitMsg:'', branchInput:'', _branchAdd:false, _gitBusy:false, _gitActionMsg:'', _gitDiff:null,
     _editMode:false, _editContent:'', _editBusy:false, _editMsg:'', newFileInput:'', _newFileOpen:false, _fsMsg:'', grepQuery:'', _grep:null, _grepBusy:false,
@@ -57,11 +57,11 @@ class Component extends DCLogic {
       else if (e.key==='Enter' && !e.metaKey && !e.ctrlKey && !e.altKey){
         const t=(e.target&&e.target.tagName)||'';
         if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable)) return;
-        if(this.state.palette||this.state.moreOpen||this.state.toolsOpen||this.state._confirm||this.state.gitCenter||this.state.agentId) return;
+        if(this.state.palette||this.state.moreOpen||this.state.toolsOpen||this.state._confirm||this.state.gitCenter||this.state.agentId||this.state.asstOpen) return;
         if(this.state.mode==='space' && this.sel && this.sel.id){ e.preventDefault(); this.enter(); }
       }
       else if ((e.metaKey||e.ctrlKey) && (e.key==='\\' || e.code==='Backslash')){ if(this.state.mode==='planet'){ e.preventDefault(); this.toggleReadme(); } }
-      else if (e.key==='Escape'){ if (this._asst&&this._asst.open) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state._preview) this.closePreview(); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
+      else if (e.key==='Escape'){ if (this.state.asstOpen||(this._asst&&this._asst.open)) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state._preview) this.closePreview(); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
     };
     window.addEventListener('keydown', this._key);
     try{ if(localStorage.getItem('gxUiMode')==='kadet') this.state.uiMode='kadet'; }catch(e){}
@@ -214,6 +214,7 @@ class Component extends DCLogic {
     'Bu evrende henüz gezegen yok.':'No planets in this universe yet.','Evren bağla':'Bind universe','Bu klasör henüz git deposu değil.':'This folder is not a git repo yet.','git init':'git init',
     'Henüz madde yok. README’deki işaret kutularını çek veya ilk maddeyi yaz.':'No items yet. Pull checkboxes from the README or type the first one.','README’den çek':'Pull from README','ilk madde yaz… (Enter)':'first item… (Enter)',
     'Claude Code bulunamadı.':'Claude Code not found.','Konsol ve ajanlar CLI ister. Kur, sonra Ayarlar’dan yolu doğrula.':'Console and agents need the CLI. Install it, then confirm the path in Settings.',
+    'Galaxy Asistanı':'Galaxy Assistant','hazır — bir komut ver':'ready — give a command','çalışıyorum…':'working…','Bir şey yaz…':'Write something…','Yeni sohbet':'New chat',
     'Güncel':'Up to date','Commit…':'Commit…','Git Merkezi':'Git Center','Gizle':'Hide','Push':'Push','Onayla ve çalıştır':'Confirm and run',
     'Gezegeni gizle':'Hide planet','Veritabanı yazma':'Database write',
     // Git rehberi
@@ -494,7 +495,7 @@ class Component extends DCLogic {
     ['⎇ Git İstemcisi',['Dosyaları stage/unstage et, commit mesajı yaz → Commit','Push / Pull, dal değiştir/oluştur','Dosyaya tıkla → renkli diff görüntüleyici','Geçmiş + takım katkı grafiği (kim ne kadar commit\'lemiş)','Git Flow rehberi (adım adım)']],
     ['🐳 Docker',['Konteyner: başlat / durdur / ⟳ yeniden başlat / 🗑 kaldır','Canlı log akışı, konteyner içine terminal','İmaj yönetimi + silme, prune']],
     ['🖥 Uzak Sunucular (SSH)',['Sunucu ekle: anahtar seçici (agent/varsayılan + ~/.ssh anahtarların)','Uzak klasör tanımla → galakside evren olur (Düzenle → Uzak klasörler)','⌁ Uzak terminal — sunucuda komut çalıştır (Tab tamamlama, geçmiş)','Uzak dosya önizleme']],
-    ['🤖 AI Ajanları',['Sağ İSTASYON rayından ajan seç → sohbet (Claude, proje klasöründe çalışır)','Hazır komutlar tek tıkla; ajan ekle/düzenle/sil','Genel bakışta ajan TÜM evrene, gezegen içinde o projeye odaklanır']],
+    ['🤖 AI Ajanları',['Sağ İSTASYON rayından ajan seç → uzman sohbeti (Claude, proje klasöründe çalışır)','Hazır komutlar tek tıkla; ajan ekle/düzenle/sil','Ajan açıkken ikiz noktaya iner — aynı anda tek sohbet']],
     ['⏰ Zamanlayıcı',['Otomatik görev kur (haftalık/günlük, saat + ajan seç)','Telafi: app o an kapalıysa, açıldığında geçmiş görevi çalıştırır','Üretilen raporları HUD\'dan (🚀) görüntüle']],
     ['📋 Pano · 📁 Dosyalar · ⌁ Konsol',['Pano: görev ekle, sürükle-bırak taşı, README ile senkron','Dosyalar: ağaç varsayılan, orta panelde önizleme; Yörünge isteğe bağlı; düzenle→kaydet, grep','Konsol: Bash + Claude (proje klasöründe), Tab tamamlama, ↑/↓ geçmiş, sürükle yükseklik']],
     ['⌘ Kısayollar',['⌘K — komut paleti / arama','F1 — bu rehber','⌘\\ — README gizle/göster','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
@@ -844,7 +845,7 @@ class Component extends DCLogic {
     if (this._warpT) clearTimeout(this._warpT);
     if (this._focusI) clearInterval(this._focusI);
     if (this._barClock) clearInterval(this._barClock);
-    try{ if(this._asst){ if(this._asst._raf) cancelAnimationFrame(this._asst._raf); this._asstMicMeter(false); if(this._asst.root&&this._asst.root.parentNode) this._asst.root.parentNode.removeChild(this._asst.root); } }catch(e){}
+    try{ if(this._asst){ if(this._asst._raf) cancelAnimationFrame(this._asst._raf); this._asstMicMeter(false); } }catch(e){}
     try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){}
   }
 
@@ -929,7 +930,7 @@ class Component extends DCLogic {
 
     const agents=this.AGENTS.map(a=>{ const on=a.id===st.agentId; return { id:a.id, name:a.name, hasBadge:a.badge>0, badge:a.badge,
       btnStyle:`position:relative;width:44px;height:44px;border-radius:50%;cursor:pointer;padding:0;background:url('${a.avatar}') center/cover,#0a0e1a;border:2px solid ${on?a.color:this.rgba(a.color,.4)};box-shadow:0 0 ${on?18:10}px ${this.rgba(a.color,on?.6:.25)}`,
-      onClick:()=>this.setState({agentId:on?null:a.id}) }; });
+      onClick:()=>{ if(this._asst) this._asst.open=false; this.setState({agentId:on?null:a.id, asstOpen:false}); } }; });
     const activeRaw=this.AGENTS.find(a=>a.id===st.agentId)||null;
     const activePresets=((activeRaw&&activeRaw.presets)||[]).map(p=>({label:p.label,onClick:()=>this.sendPreset(p.ask),style:`text-align:left;width:100%;padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid rgba(190,205,255,.16);color:#8b96b8;background:rgba(13,18,36,.5);border-radius:14px`}));
     const activeDesc=activeRaw?(activeRaw.role||''):''; const hasActivePresets=activePresets.length>0;
@@ -1414,7 +1415,18 @@ class Component extends DCLogic {
       toolFindRes:this._toolFindHits().map(p=>({name:p.name,group:p.group||'',dot:'display:inline-block;width:8px;height:8px;border-radius:50%;background:'+((({active:'#55e88b',paused:'#ffc861',waiting:'#8791b8'})[p.status])||'#61dcff'),onClick:()=>this.toolGo(p.id)})),
       hasToolFind:!!(String(st.toolFind||'').trim()),
       onSearch:(e)=>this.onSearch(e), onSearchKey:(e)=>this.onSearchKey(e),
-      toggleHud:()=>this.setState({hudOpen:!st.hudOpen}), closeAgent:()=>this.setState({agentId:null}),
+      closeAgent:()=>this.setState({agentId:null}),
+      asstOpen:!!st.asstOpen, asstToggle:()=>this._asstToggle(), asstClose:()=>this._asstClose(), asstNewChat:()=>this._asstNewChat(),
+      asstInput:st.asstInput||'', onAsstInput:(e)=>this.onAsstInput(e), onAsstKey:(e)=>this.onAsstKey(e), sendAsst:()=>this.sendAsst(),
+      asstStatus:(this._asst&&this._asst.statusLbl)||'hazır — bir komut ver',
+      asstDotStyle:(()=>{ const col=(this._asst&&this._asst.dotCol)||'#61dcff'; return `width:9px;height:9px;border-radius:50%;background:${col};box-shadow:0 0 10px ${col};flex-shrink:0`; })(),
+      asstOrbStyle:(()=>{ const n=!!st.agentId; const col=(this._asst&&this._asst.dotCol)||'#61dcff'; return `width:${n?'22px':'44px'};height:${n?'22px':'44px'};filter:drop-shadow(0 0 ${n?10:18}px ${col}88)`; })(),
+      asstPanelStyle:`position:fixed;right:78px;bottom:52px;z-index:70;width:380px;max-width:84vw;display:flex;flex-direction:column;height:${st.asstOpen?Math.min((typeof window!=='undefined'?window.innerHeight:800)*0.7,520)+'px':'0'};opacity:${st.asstOpen?'1':'0'};pointer-events:${st.asstOpen?'auto':'none'};overflow:hidden;transition:height .3s cubic-bezier(.2,.8,.2,1),opacity .22s ease;background:linear-gradient(180deg,rgba(11,15,30,.97),rgba(5,8,18,.98));border:1px solid rgba(97,220,255,.24);border-radius:12px;backdrop-filter:blur(18px);box-shadow:0 22px 70px rgba(0,0,0,.55);font-family:'Space Grotesk',sans-serif`,
+      asstMsgs:((this._asst&&this._asst.msgs)||[]).map(m=>{ const me=!!m.isUser; const mono=!!m.mono;
+        return { text:m.text, wrapStyle:`display:flex;${me?'justify-content:flex-end':''}`,
+          bubbleStyle:`max-width:88%;font-size:${mono?'11px':'13px'};line-height:1.5;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-word;`
+            +(mono?"font-family:'JetBrains Mono',monospace;":"font-family:'Space Grotesk',sans-serif;")
+            +(me?'background:rgba(97,220,255,.14);border:1px solid rgba(97,220,255,.28);color:#dbe4ff;border-bottom-right-radius:4px':'background:rgba(20,26,46,.8);border:1px solid rgba(190,205,255,.12);color:#c3cbe6;border-bottom-left-radius:4px') }; }),
       // Global toast + yıkıcı-işlem onayı
       toastOpen:!!st._toast, toastMsg:(st._toast&&st._toast.msg)||'',
       toastStyle:`position:fixed;top:64px;right:22px;z-index:80;max-width:360px;padding:12px 16px;border:1px solid ${(st._toast&&st._toast.kind==='err')?'#ff6b7a':'#55e88b'};background:${(st._toast&&st._toast.kind==='err')?'rgba(40,12,16,.95)':'rgba(10,30,18,.95)'};color:${(st._toast&&st._toast.kind==='err')?'#ff9aa4':'#7bf0a8'};font-family:'JetBrains Mono',monospace;font-size:12px;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:slideIn .22s ease both`,
@@ -1432,47 +1444,31 @@ class Component extends DCLogic {
   }
 
   // ==================== PROJECT GALAXY ASİSTANI ====================
-  // dc dışında, body'ye eklenen bağımsız katman: parçacık orbu (canvas) + ses giriş/çıkış + komut yönlendirme.
-  // Durum renkleri: idle cyan · listening yeşil · working mavi · speaking parlak cyan.
+  // Markup: preview-sample.html (#ga-root / #ga-orbwrap). STT bu sprintte kapalı.
   _asstFold(s){ return String(s||'').toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/İ/g,'i'); }
+  _asstBind(){ const A=this._asst; if(!A||typeof document==='undefined') return;
+    A.root=document.getElementById('ga-root'); A.panel=document.getElementById('ga-panel');
+    A.log=document.getElementById('ga-log'); A.statusEl=document.getElementById('ga-status');
+    A.dotEl=document.getElementById('ga-dot'); A.textEl=document.getElementById('ga-text');
+    A.canvas=document.getElementById('ga-orb'); }
+  _asstScroll(){ try{ const el=document.getElementById('ga-log'); if(el) el.scrollTop=el.scrollHeight; }catch(e){} }
+  _asstFlush(){ const A=this._asst; this.setState({_asstTick:(this.state._asstTick||0)+1}); setTimeout(()=>this._asstScroll(),30); }
+  onAsstInput(e){ this.setState({asstInput:(e&&e.target&&e.target.value)||''}); }
+  onAsstKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.sendAsst(); } }
+  sendAsst(){ const el=typeof document!=='undefined'?document.getElementById('ga-text'):null; const v=String((el&&el.value)||this.state.asstInput||'').trim(); if(!v) return; this.setState({asstInput:''}); if(el) el.value=''; const A=this._asst; if(A) A.speak=false; this.assistantHandle(v); }
   _initAssistant(){
     if(this._asst||typeof document==='undefined') return;
-    const self=this;
-    const A=this._asst={ open:false, state:'idle', amp:0, rec:null, cc:0, speak:false, convo:false };
-    // --- kök + panel + orb ---
-    const root=document.createElement('div'); root.id='ga-root';
-    root.style.cssText='position:fixed;right:22px;bottom:50px;z-index:70;display:flex;flex-direction:column;align-items:flex-end;gap:12px;font-family:Inter,system-ui,-apple-system,sans-serif';
-    const panel=document.createElement('div'); panel.id='ga-panel';
-    panel.style.cssText='width:372px;max-width:84vw;height:0;opacity:0;pointer-events:none;overflow:hidden;transition:height .3s cubic-bezier(.2,.8,.2,1),opacity .22s ease;background:linear-gradient(180deg,rgba(11,15,30,.97),rgba(5,8,18,.98));border:1px solid rgba(97,220,255,.24);border-radius:16px;backdrop-filter:blur(18px);box-shadow:0 22px 70px rgba(0,0,0,.55);display:flex;flex-direction:column';
-    panel.innerHTML=
-      '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(190,205,255,.1)">'
-      + '<span id="ga-dot" style="width:9px;height:9px;border-radius:50%;background:#61dcff;box-shadow:0 0 10px #61dcff;flex-shrink:0"></span>'
-      + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#dbe4ff;letter-spacing:.02em">Galaxy Asistanı</div><div id="ga-status" style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:#8791b8;margin-top:1px">hazır — bir komut ver</div></div>'
-      + '<span id="ga-new" title="Yeni sohbet" style="color:#8791b8;cursor:pointer;font-size:14px;padding:2px 6px">✎</span>'
-      + '<span id="ga-close" title="Kapat" style="color:#8791b8;cursor:pointer;font-size:15px;padding:2px 6px">✕</span></div>'
-      + '<div id="ga-log" style="flex:1;min-height:220px;max-height:46vh;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px"></div>'
-      + '<div style="display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid rgba(190,205,255,.1)">'
-      + '<input id="ga-text" placeholder="Bir şey yaz…" style="flex:1;background:rgba(10,14,28,.7);border:1px solid rgba(190,205,255,.16);border-radius:10px;color:#dbe4ff;font-size:13px;padding:9px 12px;outline:none" />'
-      + '<button id="ga-send" title="Gönder" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:1px solid #61dcff;background:rgba(97,220,255,.14);color:#61dcff;cursor:pointer;font-size:15px">➤</button></div>';
-    const orbWrap=document.createElement('div'); orbWrap.id='ga-orbwrap';
-    orbWrap.title='Galaxy Asistanı — tıkla ya da konuş';
-    orbWrap.style.cssText='width:84px;height:84px;cursor:pointer;position:relative;transition:transform .18s ease';
-    orbWrap.onmouseenter=()=>{ orbWrap.style.transform='scale(1.08)'; }; orbWrap.onmouseleave=()=>{ orbWrap.style.transform='scale(1)'; };
-    const canvas=document.createElement('canvas'); canvas.id='ga-orb'; canvas.width=222; canvas.height=222;
-    canvas.style.cssText='width:100%;height:100%;display:block';
-    orbWrap.appendChild(canvas);
-    root.appendChild(panel); root.appendChild(orbWrap);
-    document.body.appendChild(root);
+    const A=this._asst={ open:false, state:'idle', amp:0, rec:null, cc:0, speak:false, convo:false, msgs:[], sttMode:'off', wakeOn:false, native:false };
+    this._asstBind();
     try{ window.__ga=A; }catch(e){}
-    A.root=root; A.panel=panel; A.canvas=canvas; A.log=panel.querySelector('#ga-log');
-    A.statusEl=panel.querySelector('#ga-status'); A.dotEl=panel.querySelector('#ga-dot'); A.textEl=panel.querySelector('#ga-text'); A.micBtn=panel.querySelector('#ga-mic');
-    // --- parçacık orbu (2D) ---
-    const ctx=canvas.getContext('2d'); const N=96; const P=[];
+    const canvas=()=>{ this._asstBind(); return A.canvas; };
+    const N=96; const P=[];
     for(let i=0;i<N;i++){ P.push({a:Math.random()*Math.PI*2, r:26+Math.random()*66, sp:0.003+Math.random()*0.012, sz:0.7+Math.random()*2.4, ph:Math.random()*Math.PI*2, rr:0.85+Math.random()*0.3}); }
     const COL={ idle:[97,220,255], listening:[85,232,139], working:[70,132,246], speaking:[138,231,255] };
     let tk=0;
     const draw=()=>{ A._raf=requestAnimationFrame(draw); tk++;
-      const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2; ctx.clearRect(0,0,w,h); ctx.globalCompositeOperation='lighter';
+      const cv=canvas(); if(!cv) return; const ctx=cv.getContext('2d'); if(!ctx) return;
+      const w=cv.width,h=cv.height,cx=w/2,cy=h/2; ctx.clearRect(0,0,w,h); ctx.globalCompositeOperation='lighter';
       const c=COL[A.state]||COL.idle;
       const speed=A.state==='working'?2.6:(A.state==='listening'?1.15:1);
       const pulse=A.state==='listening'?(0.6+A.amp*0.9+Math.sin(tk*0.11)*0.1):(A.state==='speaking'?(0.72+Math.abs(Math.sin(tk*0.16))*0.5):(0.88+Math.sin(tk*0.045)*0.13));
@@ -1486,39 +1482,27 @@ class Component extends DCLogic {
       ctx.globalCompositeOperation='source-over';
     };
     draw();
-    // --- olaylar ---
-    orbWrap.addEventListener('click',()=>this._asstToggle());
-    panel.querySelector('#ga-close').addEventListener('click',(e)=>{ e.stopPropagation(); this._asstClose(); });
-    // Sesli komut şimdilik kapalı — yalnız yazışma. (STT altyapısı dursun, aktive edilmiyor.)
-    A.sttMode='off'; A.wakeOn=false; A.native=false;
-    panel.querySelector('#ga-new').addEventListener('click',(e)=>{ e.stopPropagation(); this._asstNewChat(); });
-    // Kalıcı sohbet geçmişini yükle (kapanınca kaybolmasın)
-    try{ if(window.galaxy&&window.galaxy.asstHistoryGet){ window.galaxy.asstHistoryGet().then(r=>{ const ms=(r&&r.messages)||[]; if(ms.length){ A._greeted=true; for(const m of ms){ this._asstSay(m.role==='user'?'user':'assistant', m.text||'', {speak:false}); } if(A.log) A.log.scrollTop=A.log.scrollHeight; } }); } }catch(e){}
-    const send=()=>{ const v=A.textEl.value.trim(); if(!v) return; A.textEl.value=''; A.speak=false; this.assistantHandle(v); };  // yazılı → sesli okuma yok
-    panel.querySelector('#ga-send').addEventListener('click',(e)=>{ e.stopPropagation(); send(); });
-    A.textEl.addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } });
-    // ilk karşılama
+    try{ if(window.galaxy&&window.galaxy.asstHistoryGet){ window.galaxy.asstHistoryGet().then(r=>{ const ms=(r&&r.messages)||[]; if(ms.length){ A._greeted=true; A.msgs=ms.map(m=>({role:m.role==='user'?'user':'assistant', text:m.text||'', isUser:m.role==='user'})); this._asstFlush(); } }); } }catch(e){}
     A._greeted=false;
   }
-  _asstToggle(){ const A=this._asst; if(!A) return; A.open?this._asstClose():this._asstOpen(); }
-  _asstOpen(){ const A=this._asst; if(!A) return; A.open=true; A.panel.style.height='auto'; A.panel.style.height=Math.min(window.innerHeight*0.7,520)+'px'; A.panel.style.opacity='1'; A.panel.style.pointerEvents='auto';
+  _asstToggle(){ const A=this._asst; if(!A) return; (this.state.asstOpen||A.open)?this._asstClose():this._asstOpen(); }
+  _asstOpen(){ const A=this._asst; if(!A) return; A.open=true;
+    this.setState({asstOpen:true, agentId:null});
     if(!A._greeted){ A._greeted=true; this._asstSay('assistant','Selam! Ben senin dijital ikizin. İstersen sohbet ederiz, istersen bir işini hallederim — “Core SDK’ya git”, “commit et”, “terminalde npm test çalıştır” ya da aklına takılan herhangi bir şeyi yaz.',{speak:false}); }
-    setTimeout(()=>{ try{ A.textEl.focus(); }catch(e){} },80); }
-  _asstClose(){ const A=this._asst; if(!A) return; A.open=false; A.panel.style.height='0'; A.panel.style.opacity='0'; A.panel.style.pointerEvents='none'; try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){} }
+    setTimeout(()=>{ try{ const el=document.getElementById('ga-text'); if(el) el.focus(); }catch(e){} },80); }
+  _asstClose(){ const A=this._asst; if(!A) return; A.open=false; this.setState({asstOpen:false}); try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){} }
   _asstSetState(s){ const A=this._asst; if(!A) return; const prev=A.state; A.state=s; const lbl={idle:'hazır — bir komut ver',listening:'dinliyorum…',working:'çalışıyorum…',speaking:'yanıtlıyorum…'}[s]||''; const col={idle:'#61dcff',listening:'#55e88b',working:'#4684f6',speaking:'#8ae7ff'}[s]||'#61dcff';
-    if(A.statusEl) A.statusEl.textContent=lbl; if(A.dotEl){ A.dotEl.style.background=col; A.dotEl.style.boxShadow='0 0 10px '+col; } if(A.canvas){ A.canvas.parentNode.style.filter='drop-shadow(0 0 20px '+col+'88)'; }
-    if(s==='working'||prev==='working') this.setState({_hubTick:(this.state._hubTick||0)+1}); }
+    A.statusLbl=lbl; A.dotCol=col;
+    if(s==='working'||prev==='working'||s!==prev) this.setState({_hubTick:(this.state._hubTick||0)+1}); }
   _asstSay(role,text,opts){ const A=this._asst; if(!A) return; opts=opts||{};
-    const row=document.createElement('div'); const me=role==='user';
-    row.style.cssText='max-width:88%;align-self:'+(me?'flex-end':'flex-start')+';font-size:13px;line-height:1.5;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-word;'
-      +(me?'background:rgba(97,220,255,.14);border:1px solid rgba(97,220,255,.28);color:#dbe4ff;border-bottom-right-radius:4px':'background:rgba(20,26,46,.8);border:1px solid rgba(190,205,255,.12);color:#c3cbe6;border-bottom-left-radius:4px');
-    row.textContent=text; A.log.appendChild(row); A.log.scrollTop=A.log.scrollHeight;
-    if(!me && opts.speak!==false && A.speak) this._asstSpeak(text); return row; }  // yalnız sesli girişte oku
-  _asstReply(text){ if(!this._asst||!text) return; if(!this._asst.open) this._asstOpen(); this._asstSay('assistant',text); this._asstPersist('assistant',text); }
+    const msg={role, text, isUser:role==='user', mono:!!opts.mono};
+    A.msgs=A.msgs||[]; A.msgs.push(msg); this._asstFlush();
+    if(!msg.isUser && opts.speak!==false && A.speak) this._asstSpeak(text); return msg; }
+  _asstReply(text){ if(!this._asst||!text) return; if(!this.state.asstOpen) this._asstOpen(); this._asstSay('assistant',text); this._asstPersist('assistant',text); }
   _asstPersist(role,text){ try{ if(window.galaxy&&window.galaxy.asstHistoryAppend&&text) window.galaxy.asstHistoryAppend({role,text:String(text)}); }catch(e){} }
   _asstNewChat(){ const A=this._asst; if(!A) return; try{ if(window.galaxy&&window.galaxy.asstHistoryClear) window.galaxy.asstHistoryClear(); }catch(e){}
-    this._asstClaudeSess={};                                  // Claude devamlılığını da sıfırla (yeni oturum)
-    if(A.log) A.log.innerHTML=''; A._greeted=false; this._asstSay('assistant','Yeni bir sayfa açtık. Ne yapalım?',{speak:false}); A._greeted=true; }
+    this._asstClaudeSess={};
+    A.msgs=[]; A._greeted=false; this._asstSay('assistant','Yeni bir sayfa açtık. Ne yapalım?',{speak:false}); A._greeted=true; }
   // ---- Günlük durum brifingi (proaktif dijital ikiz) ----
   _asstBriefData(){ const ps=this._allProjects||[]; const active=ps.filter(p=>p.status==='active');
     const stale=active.filter(p=>(p._stale||0)>=14).sort((a,b)=>(b._stale||0)-(a._stale||0));
@@ -1700,7 +1684,7 @@ class Component extends DCLogic {
     this._asstSay('assistant','▮ '+cmd,{speak:false}); this._asstReply('Terminalde çalıştırıyorum: '+cmd);
     try{ if(window.galaxy&&window.galaxy.shellStart) window.galaxy.shellStart({shellId:sid,cwd:p._path}); if(window.galaxy&&window.galaxy.shellInput) window.galaxy.shellInput({shellId:sid,cwd:p._path,cmd}); }catch(e){} }
   _asstShellMsg(m){ const A=this._asst; if(!A) return; if(!m) return;
-    if(m.kind==='out'||m.kind==='err'){ const line=String(m.text||''); if(line){ A._shBuf=(A._shBuf||''); A._shBuf+=(A._shBuf?'\n':'')+line; if(A._shRow){ A._shRow.textContent=A._shBuf.slice(-1400); } else { A._shRow=this._asstSay('assistant',A._shBuf.slice(-1400),{speak:false}); A._shRow.style.fontFamily="'JetBrains Mono',monospace"; A._shRow.style.fontSize='11px'; } A.log.scrollTop=A.log.scrollHeight; } }
+    if(m.kind==='out'||m.kind==='err'){ const line=String(m.text||''); if(line){ A._shBuf=(A._shBuf||''); A._shBuf+=(A._shBuf?'\n':'')+line; if(A._shRow){ A._shRow.text=A._shBuf.slice(-1400); this._asstFlush(); } else { A._shRow=this._asstSay('assistant',A._shBuf.slice(-1400),{speak:false,mono:true}); } } }
     else if(m.kind==='done'||m.kind==='exit'){ this._asstSetState('idle'); const done=A._shBuf?('bitti.'):'komut çalıştı.'; A._shBuf=''; A._shRow=null; this._asstReply('Komut '+done); } }
   // Dijital ikiz: her yerde sohbet eder (proje şart değil). Projedeyken dosya/terminal işi de yapabilir.
   _asstAskClaude(text){ const p=this.sel; const A=this._asst; const inProj=this.state.mode==='planet'&&p&&p._path;
@@ -1716,7 +1700,7 @@ class Component extends DCLogic {
   _asstRunActions(){ const A=this._asst; const re=/\[\[ACT\s+([a-z_]+)(?:\|([^\]]*))?\]\]/gi; let m,i=0; const raw=A._clRaw||'';
     while((m=re.exec(raw))){ i++; if(i>A._clActN){ A._clActN=i; try{ this._asstDoAction(this._asstFold(m[1]).trim(), (m[2]||'').trim()); }catch(e){} } } }
   _asstClaudeMsg(m){ const A=this._asst; if(!A||!m) return;
-    const push=(t)=>{ A._clRaw=(A._clRaw||'')+t; this._asstRunActions(); const disp=this._asstActDisplay(A._clRaw); if(disp){ if(A._clRow) A._clRow.textContent=disp; else A._clRow=this._asstSay('assistant',disp,{speak:false}); } if(A.state!=='speaking') this._asstSetState('working'); A.log.scrollTop=A.log.scrollHeight; };
+    const push=(t)=>{ A._clRaw=(A._clRaw||'')+t; this._asstRunActions(); const disp=this._asstActDisplay(A._clRaw); if(disp){ if(A._clRow){ A._clRow.text=disp; this._asstFlush(); } else { A._clRow=this._asstSay('assistant',disp,{speak:false}); } } if(A.state!=='speaking') this._asstSetState('working'); this._asstScroll(); };
     if(m.kind==='text'||m.kind==='data'){ const t=String(m.text||''); if(t) push(t); }
     else if(m.kind==='result'){ if(!((A._clRaw||'').trim()) && m.text) push(String(m.text)); }
     else if(m.kind==='tool'||m.kind==='info'||m.kind==='raw'){ /* sessiz */ }

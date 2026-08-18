@@ -163,7 +163,7 @@ Alt kısımda, **başlıklı ayrı bir panel** olarak durur: **▮ TERMİNAL · 
 
 ### 🔮 Galaxy Asistanı — dijital ikizin
 
-Ekranın **sağ alt köşesinde**, parçacıklardan oluşan parlayan bir **asistan orbu** durur. Tıkla → asistan paneli açılır. Bu bir **dijital ikiz**: robotik bir komut kutusu değil, **insan gibi konuşan** kişisel bir asistan. Hem sohbet eder (hava, genel bilgi, tavsiye, günlük konuşma) hem de projede yaptığın her şeyi **yazarak** yaptırır.
+Ekranın **sağ istasyon** sütununun altında parçacıklı bir **asistan orbu** durur (ajan açıkken küçük nokta). Tıkla → 380px yazışma paneli açılır. Bu bir **dijital ikiz**: robotik bir komut kutusu değil, **insan gibi konuşan** kişisel asistan. Hem sohbet eder hem de projede yaptığın her şeyi **yazarak** yaptırır. Ajan paneli açıkken ikiz kapanır — aynı anda tek sohbet.
 
 - **Yazışarak konuş:** panele yaz, Enter'a bas. Yanıt **token token akar** (hece hece yazılır gibi). Cevaplar panelde kalır; oturum kaldığın yerden sürer.
 - **Durum renkleri** — orb yaptığı işe göre renk değiştirir: **cyan** hazır · **mavi** çalışıyor.
@@ -448,7 +448,7 @@ Onayına göre ilk sprint: **Faz 1’in üç parçası** (mic HUD + merkez orb +
 - **Yeni: İkiz kişiliği + kalıcı hafıza** — Ayarlar'da "hakkında" alanı (ikiz senin tarzınla konuşur) + sohbet geçmişi diske kaydedilir + "yeni sohbet".
 - **Yeni: Günlük durum brifingi** — her sabah ikiz tüm projelerini özetler (durgun/bekleyen/odak).
 - **Yeni: Regresyon smoke-test** — her paketlemeden önce otomatik boot+akış testi (`npm test`), bozuk sürüm çıkmaz.
-- **Yeni: 🔮 Galaxy Asistanı (dijital ikiz)** — sağ alttaki parçacık orbuna tıkla; yazışarak projede her şeyi yaptır (evren/proje/sekme aç, git, terminal, geliştirme) ve genel soruları sor. İnsan gibi konuşan kişilik, tam yetkili aksiyonlar, token-token akan yanıt. (Sesli komut altyapısı hazır ama şimdilik kapalı.)
+- **Yeni: 🔮 Galaxy Asistanı (dijital ikiz)** — sağ istasyonun altındaki parçacık orbuna tıkla; yazışarak projede her şeyi yaptır. Ajan açıkken orb noktaya iner. (Sesli komut altyapısı hazır ama şimdilik kapalı.)
 - **Yeni: İstasyon Araçları** — üst bardan canlı saat, mini takvim, hesap makinesi ve gezegen hızlı arama.
 - **Yeni: Konum breadcrumb + hızlı geçiş anahtarı** — nerede olduğun net; evren/gezegen değişimi tek tık.
 - **Kalıcı, projeye özel konsol oturumları** — bash ve Claude projeler arası geçişte kapanmaz; her projede kaldığın yerden devam. Başlıklı terminal paneli + "oturum sürüyor" göstergesi + yanıp sönen imleç.
