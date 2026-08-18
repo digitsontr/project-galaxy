@@ -4,7 +4,7 @@
 
 <h1 align="center">Project Galaxy</h1>
 <p align="center"><b>Bilgisayarındaki projeleri bir evren olarak gez, yapay zekâ ajanlarınla yönet, tek pencereden geliştir.</b><br>
-macOS · Electron · Claude Code · v2.3.9</p>
+macOS · Windows · Electron · Claude Code · v2.3.13</p>
 
 ---
 
@@ -15,6 +15,7 @@ macOS · Electron · Claude Code · v2.3.9</p>
 - [Terminoloji — galaksi · yıldız sistemi · gezegen](#terminoloji--galaksi--yıldız-sistemi--gezegen)
 - [Arayüz turu](#arayüz-turu)
   - [Üst bar & navigasyon](#üst-bar--navigasyon)
+  - [Kadet / Komutan](#kadet--komutan)
   - [İstasyon Araçları (saat · takvim · hesap · hızlı ara)](#i̇stasyon-araçları)
   - [Uzay modu — galaksi haritası](#uzay-modu--galaksi-haritası)
   - [Gezegen modu — projenin içi](#gezegen-modu--projenin-i̇çi)
@@ -33,6 +34,7 @@ macOS · Electron · Claude Code · v2.3.9</p>
 - [Verilerim güvende mi?](#verilerim-güvende-mi)
 - [Sık sorulanlar](#sık-sorulanlar)
 - [Klasör yapısı & mimari](#klasör-yapısı--mimari-meraklısına)
+- [Yol haritası — global ürün (yapılacaklar)](#yol-haritası--global-ürün-yapılacaklar)
 - [Sürüm notları — bu sürümde neler değişti](#sürüm-notları--bu-sürümde-neler-değişti)
 
 ---
@@ -53,7 +55,7 @@ Diskinde onlarca proje klasörü var: kimi yarım, kimi bitmiş, kiminde ne kald
 
 ## Kurulum (hiç bilmeyenler için)
 
-**Gerekenler:** macOS ve ~10 dakika.
+**Gerekenler:** macOS 12+ veya Windows 10+ ve ~10 dakika.
 
 **Adım 1 — Node.js *veya* Bun kur** (uygulamanın motoru):
 [nodejs.org](https://nodejs.org) → "LTS" ile indir. (Alternatif ve daha hızlı: [bun.sh](https://bun.sh). Paketleyici otomatik olarak bun'ı tercih eder.)
@@ -66,11 +68,13 @@ claude   # ilk çalıştırmada hesabınla giriş yapmanı ister
 ```
 
 **Adım 3 — Uygulamayı paketle** (tek seferlik):
-`ProjectGalaxy` klasöründeki **`create_app.command`** dosyasına çift tıkla.
-macOS "tanımlanamayan geliştirici" derse: dosyaya **sağ tık → Aç → Aç**.
-Script bağımlılıkları indirir, arayüzü derler (`newui/build.py`) ve bir üst klasöre **Project Galaxy.app** üretir, ad-hoc imzalayıp karantinayı temizler.
 
-> Paketlemeden hızlıca denemek için: **`Başlat.command`** dosyasına çift tıkla — uygulamayı doğrudan kaynak koddan açar.
+- **macOS:** `ProjectGalaxy` klasöründeki **`create_app.command`** dosyasına çift tıkla.
+  Sistem "tanımlanamayan geliştirici" derse: dosyaya **sağ tık → Aç → Aç**.
+  Script bağımlılıkları indirir, arayüzü derler (`newui/build.py`) ve bir üst klasöre **Project Galaxy.app** üretir, ad-hoc imzalayıp karantinayı temizler.
+- **Windows:** `npm install` sonra `npm run dist` — NSIS kurucu (`Project-Galaxy-Setup-….exe`) çıkar. Gömülü terminal için [Git for Windows](https://gitforwindows.org) (bash) gerekir. Hazır kurucu GitHub Releases’te de yayınlanır.
+
+> Paketlemeden hızlıca denemek için: macOS’ta **`Başlat.command`**, her iki sistemde `npm start` — uygulamayı doğrudan kaynak koddan açar.
 
 **Adım 4 — Aç ve tanış:**
 `Project Galaxy.app`'e çift tıkla (ilk sefer yine sağ tık → Aç gerekebilir). İlk açılışta uygulama seni **bir defalığına tanır**: dil (TR/EN), adın (ajanlar sana ismiyle hitap eder), proje klasörlerin (her biri bir evren) ve 5 ajanının kişiselleştirmesi. Bu ekran bir daha çıkmaz — hepsi sonradan **⚙ Ayarlar**'dan değişir. Dock'ta sağ tık → Seçenekler → **Dock'ta Tut**.
@@ -107,10 +111,15 @@ Soldan sağa:
 - **GALAXY** logosu · gezegen modundayken **‹** (uzaya dön) düğmesi.
 - **Konum breadcrumb'ı** — nerede olduğun her an bellidir: **🌌 Evren › 🪐 Gezegen ▾**. Tıkla → **hızlı geçiş anahtarı** açılır: üstte tüm **evrenler** (aktif olan işaretli), altta o evrenin **gezegenleri** (bulunduğun "buradasın" etiketiyle). Tek tıkla başka evrene/projeye ışınlan.
 - **Segmentli sekme çubuğu** — 7 sekme (aşağıda): aktif sekme dolgulu vurguyla belirgindir.
+- **🎓 Kadet / ★ Komutan** — yoğunluk anahtarı (aşağıda).
 - **◷ Saat** — canlı saat; tıkla → **İstasyon Araçları**.
 - **⌕ Ara (⌘K)** — hızlı komut paleti: proje ara, komut çalıştır.
 - **🚀 HUD** — alttaki gösterge panelini aç/kapat.
 - **⚙ Ayarlar**.
+
+### Kadet / Komutan
+
+Üst barda iki düğme: **Kadet** (🎓) sadeleştirilmiş acemi modu — gelişmiş sekmeler (DB, Docker, SSH, zamanlayıcı) gizlenir; harita, gezegen, git, pano ve asistan kalır. **Komutan** (★) tam yoğunluk: tüm araçlar. Tercih `localStorage`'da saklanır. İlk kez açan için Kadet önerilir; güç kullanıcı Komutan'da kalır.
 
 ### İstasyon Araçları
 
@@ -169,7 +178,7 @@ Ekranın **sağ alt köşesinde**, parçacıklardan oluşan parlayan bir **asist
 - **Günlük brifing:** her gün ilk açılışta ikiz sana kısa bir durum özeti verir (ne durgun, ne bekliyor, bugün neye odaklan). İstediğinde "brifing" / "durum raporu" yaz.
 - "Ne yapabilirsin?" dersen yeteneklerini sayar. `Esc` ile kapanır.
 
-> **Not:** Sesli komut altyapısı (native macOS ses tanıma + "Hey Galaxy" uyandırma) kodda hazır ama şu an **kapalı** — asistan yalnız yazışma modunda. İstenirse tek ayarla geri açılır.
+> **Not:** Sesli komut altyapısı (native macOS ses tanıma + “Hey Galaxy” uyandırma + TTS) kodda **hazır** ama arayüzde **kapalı** — asistan yalnız yazışma modunda. Açılınca durum HUD’u (LISTENING / konuşuyor), komutan çubuğu ve aksiyon kanıtı ile birlikte gelecek; bkz. [Yol haritası](#yol-haritası--global-ürün-yapılacaklar).
 
 ### GİT — canlı panel + Git Merkezi
 
@@ -290,7 +299,8 @@ Yedeklerden geri dönüş: ⌘K → Yedekler.
 
 <p align="center"><img src="assets/guide/mimari-guvenlik.jpg" alt="Mimari güvenlik ve performans" width="900"></p>
 
-- **Her şey diskinde:** tek veri dosyası `galaxy-data.json`, konum `~/Library/Application Support/ProjectGalaxy/`. Hiçbir bulut yok. (Eski sürümden geliyorsan verin ilk açılışta otomatik taşınır.)
+- **Kodun ve notların diskinde:** tek veri dosyası `galaxy-data.json`, konum macOS’ta `~/Library/Application Support/ProjectGalaxy/`, Windows’ta `%APPDATA%\ProjectGalaxy\`. Uygulama kendi bulutunu işletmez; yedek `backups/` altında yereldir.
+- **Model çağrıları dışarı çıkar:** ajanlar ve dijital ikiz Claude Code CLI üzerinden çalışır (sohbet, web araması, dosya/terminal). “Hiçbir paket internete gitmez” iddiası yok — dürüst söz: **senin repoların yerelde kalır, dil modeli senin Claude hesabınla konuşur.**
 - Her gün otomatik yedek (`backups/`, 14 gün) + her değişiklikte sessiz **git commit** — `git log` ile zaman yolculuğu.
 - Proje silme iki aşamalı onaylıdır ve en kötü ihtimalle macOS Çöp Kutusu'na gider; kalıcı silme yoktur.
 - DB parolaları `safeStorage` ile şifrelenir; DB yazma işlemleri onaylı ve denetim günlüğüne yazılır.
@@ -350,13 +360,87 @@ ProjectGalaxy/                       (kod)
 └── backups/  reports/  attachments/
 ```
 
-**Teknik notlar:** Arayüz proprietary `dc-runtime` bileşen çatısıyla yazılır; `newui/build.py`, `preview-sample.html` + `component.js`'ten `index.html` üretir. Galaksi arka planı WebGL (three.js) ile ayrı katmanda çizilir, bu yüzden arayüz yeniden render'ları 3D'yi etkilemez. Git bilgisi süreç başlatmadan `.git` dosyalarından okunur; ahead/behind `git rev-list` ile hesaplanır. Yerel/uzak kabuklar `SHELL_SENTINEL` ile komut bitişini yakalar; konsol çıktısı ve oturumları **proje bazlı** tutulur (`_consoles[pid]`, `_claudeSess[pid]`). DB sürücüleri saf JS (pg/mysql2/sql.js). Paketleyici `@electron/packager` (node v26 bozuk olduğundan bun tercih edilir); dağıtım ad-hoc imzalı zip (`xattr -cr` ile açılır).
+**Teknik notlar:** Arayüz proprietary `dc-runtime` bileşen çatısıyla yazılır; `newui/build.py`, `preview-sample.html` + `component.js`'ten `index.html` üretir. Galaksi arka planı WebGL (three.js) ile ayrı katmanda çizilir, bu yüzden arayüz yeniden render'ları 3D'yi etkilemez. Git bilgisi süreç başlatmadan `.git` dosyalarından okunur; ahead/behind `git rev-list` ile hesaplanır. Yerel/uzak kabuklar `SHELL_SENTINEL` ile komut bitişini yakalar; konsol çıktısı ve oturumları **proje bazlı** tutulur (`_consoles[pid]`, `_claudeSess[pid]`). DB sürücüleri saf JS (pg/mysql2/sql.js). Native ses tanıma `native/galaxy-stt.swift` (yalnız macOS). Windows gömülü terminal Git-Bash ister. Dağıtım: macOS DMG/zip (Developer ID + notarize), Windows NSIS, MAS sandbox kısıtlı.
+
+---
+
+## Yol haritası — global ürün (yapılacaklar)
+
+Hedef: kişisel araçtan, bir geliştiricinin klonlayıp yıldızlayacağı **yerel komuta OS’u**. Referans incelenen Apex (sesli JARVIS, Gmail döngüsü, takvim aksiyonu) **iş CRM’i değil** — oradan mekanik alınır, Galaxy’nin gezegen metaforu korunur.
+
+### Konum — neyiz, ne değiliz
+
+| Al | Bırak |
+|----|--------|
+| Sesle uyanan ikiz, LISTENING HUD, Chat \| Voice | Sales / Marketing / Instagram / Meta Ads |
+| “Yaptım”ın ekranda kanıtı (takvim bloğu, toast, aktivite) | Gelen kutusu yöneticisi olmak |
+| Döngü: Tetik → Tara → İş → İncele → Öğren → Bildir | Jenerik “AI OS” kimliği |
+| Gmail = brifing / stale uyarı / ajan çıktısı | Kişisel hayatın tamamını yönetmek |
+| Takvim = odak bloğu (“bu gezegene 2 saat”) | Ajanda uygulaması olmak |
+| 5 geliştirici ajanı + araç + KPI | Yeni iş departmanı ajanları |
+
+### Faz 0 — güven ve ilk izlenim
+
+- [x] README sürüm / platform / Kadet-Komutan / dürüst Claude sınırı (bu belge)
+- [ ] İngilizce README + 60 sn demo (uzay, ikiz, git, döngü)
+- [ ] Boş evren turu: `git init` ile ilk gezegen, örnek ajan sorusu
+- [ ] Ölü katman temizliği (`galaxy-hud.js`, kök `index.html`, gömülü demo `PROJECTS`)
+
+### Faz 1 — sesli ikiz (demo’nun wow’u)
+
+Kodda duran, üründe kapalı: native STT, “Hey Galaxy”, TTS, mic metre, durum renkleri.
+
+- [ ] STT’yi aç: mic, wake word, **STATUS: LISTENING** pill, dalga, Chat \| Voice On \| TR/EN
+- [ ] Orb’u sağ alttan **uzayın merkezine** al (gezegenler yörüngede kalsın)
+- [ ] Komutan çubuğu: “Galaxy’ye söyle…” — ⌘K ile tek kapı; interim transcript canlı aksın
+- [ ] Tehlikeli işte netleştir (hangi gezegen, commit mi push mı) — Apex’in slayt öncesi 3 sorusu
+- [ ] Aksiyon kanıtı: toast + Aktivite şeridi (`CREATE_COMMIT`, `OPEN_PLANET`) + geri al
+
+### Faz 2 — geliştirici döngüleri
+
+Apex WORKSPACE: Trigger → Gather → Work (model, short/long memory, araçlar) → Review → Learn → Notify. Gmail’de “Apex emails me”; “Waiting for my remarks.”
+
+- [ ] Döngü tuvali (yeni sekme veya gezegen katmanı): Tetik · Tara · İş · İncele · Bildir
+- [ ] Remarks → uzun bellek; çekirdek gerçekler tek kaynak (kimsin, evrenler, odak)
+- [ ] ATLAS / NAVIGATOR / DOCUMENTOR / FORGE / MENTOR’a araç + son koşu nabzı; haritada düğüm
+- [ ] Sol sağlık şeridi: Claude CLI, GitHub, STT izni, SSH, (sonra) Gmail / Takvim
+- [ ] Varsayılan onay kartı; Komutan’da süreli “güvenilir oturum”; `--dangerously-skip-permissions` kalksın
+
+### Faz 3 — dünyaya bağlan (dar Gmail / takvim)
+
+- [ ] **Gmail:** sabah brifingi, stale gezegen uyarısı, döngü çıktısı, PR özeti — gelen kutusu tarama yok
+- [ ] **Takvim:** “Pazar 10–12’yi bu gezegene kilitle” → olay yarat → **EVENT CREATED** kanıtı + sistem takviminde blok
+- [ ] **GitHub:** Takım Akışı’ndaki PR şablonunu gerçek `gh pr create` / API’ye bağla; checks oku
+
+### Faz 4 — global paket
+
+- [ ] `main.js` + asistan UI modüllere; `preview-sample.html` şişmesini kes (şu an ~1 MB)
+- [ ] Claude API BYOK — CLI’sız Windows ve (ileride) Mac App Store ajanları
+- [ ] Arayüz i18n TR/EN (onboarding var, ana UI gömülü)
+- [ ] Landing + gizlilik: local-first veri, isteğe bağlı model bulutu
+- [ ] `asar: true` + native STT `extraResources`
+
+### Bilinen borç (şimdi, yıldızdan önce)
+
+| Konu | Durum |
+|------|--------|
+| Asistan `document.body`’ye inline style ile enjekte; v2 tasarım sistemi dışında | Faz 1 ile birleşir |
+| Panelde `#ga-mic` yok ama kod arıyor — ses UI’si yarım sökülmüş | Faz 1 |
+| `component.js` tek 1600+ satır sınıf; `main.js` ~80 IPC / 3300 satır | Faz 4 |
+| i18n yarım; asistan sistem promptu Türkçe sabit | Faz 4 |
+| README ile ikiz “tam yetkili”, pratikte onay yok (push/run) | Faz 2 Guard |
+
+Onayına göre ilk sprint: **Faz 1’in üç parçası** (mic HUD + merkez orb + aksiyon kanıtı). Gmail beklemeden demo Apex seviyesine çıkar.
 
 ---
 
 ## Sürüm notları — bu sürümde neler değişti
 
-**v2.3.9 öne çıkanlar**
+**v2.3.13 / 2.3.12** — Windows NSIS kurucu; `build.py` UTF-8 (cp1252 kırılması).
+**v2.3.11** — v2 tasarım (Space Grotesk, yuvarlak köşeler); Kadet / Komutan yoğunluk anahtarı.
+**v2.3.10** — Developer ID imza + Apple notarization.
+
+**v2.3.9 öne çıkanlar** (temel ürün)
 
 - **Yeni: Otomatik güncelleme** — GitHub Releases'ten sürüm denetimi; yeni sürüm çıkınca üstte "🚀 İndir" bildirimi (tray'den elle de denetlenir).
 - **Yeni: İkiz kişiliği + kalıcı hafıza** — Ayarlar'da "hakkında" alanı (ikiz senin tarzınla konuşur) + sohbet geçmişi diske kaydedilir + "yeni sohbet".
@@ -381,7 +465,7 @@ Artık elle paketleme yok. GitHub Actions hallediyor:
 - **Her push/PR** → `.github/workflows/ci.yml` arayüzü derler + smoke test çalıştırır (bozuk kod erken yakalanır).
 - **Yeni sürüm çıkarmak için** tek komut — bir versiyon tag'i push et:
   ```bash
-  npm version patch          # package.json'ı 2.3.9 → 2.3.10 yapar + commit + tag
+  npm version patch          # package.json sürümünü yükseltir + commit + tag
   git push --follow-tags     # tag'i gönder → CI devreye girer
   ```
   `.github/workflows/release.yml` macOS'ta build + smoke + paketler ve **GitHub Release**'i `Project-Galaxy-full.zip` ekiyle otomatik yayınlar. Arkadaşlarının uygulaması bunu görüp "🚀 İndir" bildirimi gösterir.

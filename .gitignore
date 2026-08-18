@@ -12,3 +12,4 @@ reports/
 smoke.log
 newui/index.html
 galaxy-data.json
+.video-frames/
