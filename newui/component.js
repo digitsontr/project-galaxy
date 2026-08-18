@@ -1,7 +1,7 @@
 
 class Component extends DCLogic {
   state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'kayit', warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500,
-    toolsOpen:false, calcExpr:'', calMonthOffset:0, toolFind:'', _clockTick:0, locOpen:false,
+    toolsOpen:false, calcExpr:'', calMonthOffset:0, toolFind:'', _clockTick:0, locOpen:false, moreOpen:false, holdPlanet:false,
     loaded:false, uniId:null, _docker:null, _sched:null, _db:null, _git:null, _preview:null, _prevLoading:false, _fsCwd:'', _reports:null, _reportView:null, query:'',
     gitMsg:'', branchInput:'', _branchAdd:false, _gitBusy:false, _gitActionMsg:'', _gitDiff:null,
     _editMode:false, _editContent:'', _editBusy:false, _editMsg:'', newFileInput:'', _newFileOpen:false, _fsMsg:'', grepQuery:'', _grep:null, _grepBusy:false,
@@ -51,9 +51,15 @@ class Component extends DCLogic {
 
   componentDidMount(){
     this._key = (e) => {
-      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); this.setState({palette:true}); }
+      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); this.setState({palette:true, moreOpen:false}); }
       else if (e.key==='F1'){ e.preventDefault(); this.setState({_guideOpen:!this.state._guideOpen}); }
-      else if (e.key==='Escape'){ if (this._asst&&this._asst.open) this._asstClose(); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet') this.back(); }
+      else if (e.key==='Enter' && !e.metaKey && !e.ctrlKey && !e.altKey){
+        const t=(e.target&&e.target.tagName)||'';
+        if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable)) return;
+        if(this.state.palette||this.state.moreOpen||this.state.toolsOpen||this.state._confirm||this.state.gitCenter||this.state.agentId) return;
+        if(this.state.mode==='space' && this.sel && this.sel.id){ e.preventDefault(); this.enter(); }
+      }
+      else if (e.key==='Escape'){ if (this._asst&&this._asst.open) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
     };
     window.addEventListener('keydown', this._key);
     try{ if(localStorage.getItem('gxUiMode')==='kadet') this.state.uiMode='kadet'; }catch(e){}
@@ -171,6 +177,7 @@ class Component extends DCLogic {
   // ---------- i18n (tr↔en) — render sonrası DOM cümle değişimi ----------
   _enMapObj(){ return {
     'GENEL BAKIŞ':'OVERVIEW','EVREN':'UNIVERSE','PANO':'BOARD','DOCKER':'DOCKER','ZAMANLAYICI':'SCHEDULER','SUNUCULAR':'SERVERS','DB':'DB',
+    'Özet':'Overview','Evren':'Universe','Pano':'Board','Daha':'More','Kadet':'Cadet','Komutan':'Commander','İn':'In','İstasyon':'Station','HUD':'HUD',
     'PROJELER':'PROJECTS','İSTASYON':'STATION','Evrenini seç':'Choose your universe',
     'Her evren bir galaksi: içindeki proje klasörleri gezegen, projeleri barındıran çatı klasörler yıldız sistemi olur.':'Each universe is a galaxy: its project folders are planets, and the parent folders that hold them are star systems.',
     'YENİ EVREN EKLE':'ADD UNIVERSE','yerel klasör · uzak sunucu':'local folder · remote server','Evreni kaldır':'Remove universe',
@@ -342,12 +349,12 @@ class Component extends DCLogic {
     // Boş evren de olsa PROJECTS'i güncelle (eski evrenin gezegenleri sızmasın)
     this._layout(list); this.PROJECTS=list;
   }
-  selectUni(uniId){ this._applyUni(uniId); this.setState({uniId, tab:'evren', mode:'space', agentId:null, _fsCwd:'', _preview:null, selId:(this.PROJECTS[0]&&this.PROJECTS[0].id)||this.state.selId}); this._loadGit(); this._loadTodos(); }
+  selectUni(uniId){ this._applyUni(uniId); this.setState({uniId, tab:'evren', mode:'space', holdPlanet:false, moreOpen:false, agentId:null, _fsCwd:'', _preview:null, selId:(this.PROJECTS[0]&&this.PROJECTS[0].id)||this.state.selId}); this._loadGit(); this._loadTodos(); }
   // Aramadan bir projeye git: gerekirse evreni değiştir, seç, gezegen görünümüne gir.
   _gotoProject(pid){
     const all=this._allProjects||this.PROJECTS; const p=all.find(x=>x.id===pid); if(!p) return;
     if(p.universe && p.universe!==this.state.uniId){ this._applyUni(p.universe); }
-    this.setState({uniId:p.universe||this.state.uniId, selId:pid, tab:'evren', mode:'planet', palette:false, query:'', _fsCwd:'', _preview:null});
+    this.setState({uniId:p.universe||this.state.uniId, selId:pid, tab:'evren', mode:'planet', holdPlanet:true, moreOpen:false, palette:false, query:'', _fsCwd:'', _preview:null});
     this._loadGit();
   }
   onSearch(e){ this.setState({query:(e&&e.target&&e.target.value)||''}); }
@@ -417,7 +424,7 @@ class Component extends DCLogic {
   toggleTools(){ const open=!this.state.toolsOpen;
     if(open){ this._toolClock=setInterval(()=>this.setState({_clockTick:Date.now()}),1000); setTimeout(()=>this._focusEl('#gx-tool-find'),100); }
     else { clearInterval(this._toolClock); }
-    this.setState({toolsOpen:open, calMonthOffset:0}); }
+    this.setState({toolsOpen:open, calMonthOffset:0, moreOpen:false}); }
   closeTools(){ clearInterval(this._toolClock); this.setState({toolsOpen:false}); }
   // Hesap makinesi — güvenli değerlendirme (yalnız sayı/operatör/parantez/%)
   onCalc(e){ this.setState({calcExpr:(e&&e.target&&e.target.value)||''}); }
@@ -476,7 +483,15 @@ class Component extends DCLogic {
   cancelConfirm(){ this.setState({_confirm:null}); }
   // ---------- DOCKER ----------
   // Kadet (acemi) / Komutan (uzman) mod — Kadet'te gelişmiş sekmeler gizlenir
-  _setUiMode(m){ const adv=['db','docker','zaman','servers']; const ns={uiMode:m}; if(m==='kadet'&&adv.includes(this.state.tab)){ ns.tab='genel'; ns.mode='space'; } this.setState(ns); try{ localStorage.setItem('gxUiMode',m); }catch(e){} }
+  _setUiMode(m){ const adv=['db','docker','zaman','servers']; const ns={uiMode:m, moreOpen:false}; if(m==='kadet'&&adv.includes(this.state.tab)){ ns.tab='genel'; ns.mode='space'; } this.setState(ns); try{ localStorage.setItem('gxUiMode',m); }catch(e){} }
+  // Üst sekme: sahneyi değiştir ama gezegen bağlamını (holdPlanet) silme
+  _openTab(id){
+    const fromPlanet=this.state.mode==='planet';
+    const ns={tab:id, agentId:null, moreOpen:false};
+    if(fromPlanet){ ns.mode='space'; ns.holdPlanet=true; }
+    else if(this.state.mode!=='space') ns.mode='space';
+    this.setState(ns); this._onTabOpen(id);
+  }
   // Sekme açılınca ilgili veriyi tazele — konteyner/DB/sunucu vb. güncel görünsün
   _onTabOpen(id){ try{
     if(id==='docker') this._loadDocker();
@@ -548,7 +563,7 @@ class Component extends DCLogic {
   }
   // ---------- PROJE AKSİYONLARI ----------
   openProjectFolder(){ try{ const p=this.sel; if(p&&p._path&&window.galaxy.openFolder) window.galaxy.openFolder(p._path); }catch(e){} }
-  async removeProject(){ try{ const p=this.sel; if(p&&window.galaxy.projectDelete){ const r=await window.galaxy.projectDelete(p.id); if(r&&r.ok&&r.action&&r.action!=='cancel'){ this.setState({mode:'space'}); this._loadReal(); } } }catch(e){} }
+  async removeProject(){ try{ const p=this.sel; if(p&&window.galaxy.projectDelete){ const r=await window.galaxy.projectDelete(p.id); if(r&&r.ok&&r.action&&r.action!=='cancel'){ this.setState({mode:'space', holdPlanet:false}); this._loadReal(); } } }catch(e){} }
   // ---------- EVREN sil ----------
   async _universeDelete(id){ try{ if(window.galaxy.universeDelete){ await window.galaxy.universeDelete(id); this.toast('✓ evren kaldırıldı'); await this._loadReal(); const first=(this._unis&&this._unis[0]&&this._unis[0].id)||null; this._applyUni(first); this.setState({uniId:first,mode:'space',tab:'genel'}); } }catch(e){} }
   // ---------- YEDEKLER ----------
@@ -781,8 +796,14 @@ class Component extends DCLogic {
   rgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
 
   select(id){ this.setState({selId:id, _fsCwd:'', _preview:null}); this._loadGit(); }
-  enter(){ this._warp(()=>this.setState({mode:'planet'})); this._loadGit(); this._focusConsole(); }
-  back(){ this._warp(()=>this.setState({mode:'space'})); }
+  enter(){ this._warp(()=>this.setState({mode:'planet', holdPlanet:true, moreOpen:false})); this._loadGit(); this._focusConsole(); }
+  back(){
+    if(this.state.mode==='space' && this.state.holdPlanet){
+      this._warp(()=>this.setState({mode:'planet', tab:'evren', moreOpen:false}));
+      this._loadGit(); this._focusConsole(); return;
+    }
+    this._warp(()=>this.setState({mode:'space', holdPlanet:false, tab:'evren', moreOpen:false}));
+  }
   _warp(cb){ if(this._warpT) clearTimeout(this._warpT); this.setState({warping:true}); cb(); this._warpT=setTimeout(()=>this.setState({warping:false}),560); }
   toggleFocus(){ if(this.state.focusRunning){ clearInterval(this._focusI); this.setState({focusRunning:false}); } else { this._focusI=setInterval(()=>this.setState(s=>{ const n=Math.max(0,s.focusSec-1); if(n===0){ clearInterval(this._focusI); return {focusSec:0,focusRunning:false}; } return {focusSec:n}; }),1000); this.setState({focusRunning:true}); } }
   resetFocus(){ clearInterval(this._focusI); this.setState({focusRunning:false,focusSec:this._focusDefault||1500}); }
@@ -797,12 +818,17 @@ class Component extends DCLogic {
     const linkArr = realMode ? (sel._links||[]).map(l=>Array.isArray(l)?l:[l.name||l.label||String(l),l.desc||l.role||'',l.color||'#61dcff']) : (this.LINKS[sel.id]||[]);
 
     const kadet=st.uiMode==='kadet';
-    // Kadet (acemi) modu: yalnız temel sekmeler; Komutan (uzman): hepsi
-    const tabDefAll=[['genel','GENEL BAKIŞ'],['evren','EVREN'],['pano','PANO'],['db','DB'],['docker','DOCKER'],['zaman','ZAMANLAYICI'],['servers','SUNUCULAR']];
-    const tabDef=kadet?tabDefAll.filter(([id])=>['genel','evren','pano'].includes(id)):tabDefAll;
-    const tabBtn=(active)=>`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:7px 13px;cursor:pointer;border-radius:8px;border:none;background:${active?'rgba(97,220,255,.16)':'transparent'};box-shadow:${active?'inset 0 0 0 1px rgba(97,220,255,.5)':'none'};color:${active?'#61dcff':'#8b96b8'};transition:background .15s,color .15s`;
-    const tabs=tabDef.map(([id,label])=>({id,label,style:tabBtn(st.tab===id),onClick:()=>{ this.setState({tab:id,mode:'space',agentId:null}); this._onTabOpen(id); }}));
-    const modeBtn=(on)=>`padding:6px 11px;cursor:pointer;font-size:13px;border:none;background:${on?'rgba(97,220,255,.16)':'transparent'};color:${on?'#61dcff':'#8b96b8'};transition:background .15s`;
+    // Kadet: Özet / Evren / Pano. Komutan’da DB·Docker·Zaman·SSH Daha menüsünde.
+    const tabDefAll=[['genel','Özet'],['evren','Evren'],['pano','Pano'],['db','DB'],['docker','Docker'],['zaman','Zamanlayıcı'],['servers','Sunucular']];
+    const primaryIds=['genel','evren','pano'];
+    const moreIds=['db','docker','zaman','servers'];
+    const tabDef=tabDefAll.filter(([id])=>primaryIds.includes(id));
+    const tabBtn=(active)=>`font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;padding:6px 12px;cursor:pointer;border-radius:8px;border:none;background:${active?'rgba(97,220,255,.16)':'transparent'};box-shadow:${active?'inset 0 0 0 1px rgba(97,220,255,.5)':'none'};color:${active?'#61dcff':'#8b96b8'};transition:background .15s,color .15s`;
+    const tabs=tabDef.map(([id,label])=>({id,label,style:tabBtn(st.tab===id),onClick:()=>this._openTab(id)}));
+    const moreItem=(active)=>`display:flex;align-items:center;width:100%;text-align:left;padding:8px 12px;cursor:pointer;border:none;border-radius:7px;background:${active?'rgba(97,220,255,.12)':'transparent'};color:${active?'#61dcff':'#c3cbe6'};font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:.01em`;
+    const moreTabs=kadet?[]:tabDefAll.filter(([id])=>moreIds.includes(id)).map(([id,label])=>({id,label,style:moreItem(st.tab===id),onClick:()=>this._openTab(id)}));
+    const moreActive=moreIds.includes(st.tab)||!!st.moreOpen;
+    const modeBtn=(on)=>`padding:6px 10px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;border:none;background:${on?'rgba(97,220,255,.16)':'transparent'};color:${on?'#61dcff':'#8b96b8'};transition:background .15s`;
 
     const relT=(d)=>{ d=d||0; if(d<=0) return 'bugün'; if(d===1) return 'dün'; if(d<7) return d+'g önce'; if(d<31) return Math.max(1,Math.floor(d/7))+'h önce'; if(d<365) return Math.floor(d/30)+'ay önce'; return Math.floor(d/365)+'y önce'; };
     // Tazelik sırasına göre (en son dokunulan üstte) — anlamlı: dal + son aktivite; "!" gürültüsü kaldırıldı
@@ -814,13 +840,14 @@ class Component extends DCLogic {
       dotStyle:`width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${col};${active?`box-shadow:0 0 8px ${col}`:''}`,
       nameStyle:`font-size:13px;color:${active?'#dbe4ff':'#c3cbe6'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`,
       metaStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:${stale?'#8a7a55':(active?'#8791b8':'#6d78a0')};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px`,
-      onClick:()=>{ this.select(p.id); this.setState({mode:'planet',tab:'evren'}); } }; });
+      active, onClick:()=>this.select(p.id), onEnter:()=>this.enter(),
+      onEnterClick:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.enter(); } }; });
 
     const planets=this.PROJECTS.filter(p=>p.orbit).map(p=>{ const col=statusColor(p.status); const active=p.id===st.selId; return {
       id:p.id, name:p.name, warn:!!p.warn, progLabel:'%'+p.prog,
       style:`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);width:${p.size}px;height:${p.size}px;border-radius:50%;border:none;cursor:pointer;padding:0;background:${this.planetBg(col)};box-shadow:0 0 ${active?60:42}px ${this.rgba(col,active?.7:.45)},inset -7px -10px 30px rgba(0,0,0,.45)${active?`,0 0 0 3px ${this.rgba(col,.5)}`:''};animation:floatOrb ${5+p.size/30}s ease-in-out infinite`,
       labelStyle:`position:absolute;left:${p.x}%;top:calc(${p.y}% + ${p.size/2+16}px);transform:translateX(-50%);font-size:13px;color:#dbe4ff;pointer-events:none;white-space:nowrap`,
-      onClick:()=>this.select(p.id) }; });
+      onClick:()=>this.select(p.id), onEnter:()=>this.enter() }; });
 
     const files=this.FILES.map(f=>({ name:f.name, onClick:()=>this._openFsNode(f._rel,f._dir),
       style:`position:absolute;left:${f.x}%;top:${f.y}%;transform:translate(-50%,-50%);width:${f.s}px;height:${f.s}px;border-radius:50%;border:none;padding:0;cursor:pointer;background:${this.planetBg(f.c)};box-shadow:0 0 ${f.glow?24:16}px ${this.rgba(f.c,.5)}${f.glow?';animation:pulseGlow 1.6s ease-in-out infinite':''};color:${f.c}`,
@@ -1147,9 +1174,18 @@ class Component extends DCLogic {
       gcDurum: st.gitCenter==='durum', gcTakim: st.gitCenter==='takim', gcGecmis: st.gitCenter==='gecmis', gcRehber: st.gitCenter==='rehber',
       gitCenterTabs: [['durum','DURUM'],['takim','TAKIM AKIŞI'],['gecmis','GEÇMİŞ'],['rehber','GIT FLOW REHBERİ']].map(([id,label])=>({label,style:`padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:${st.gitCenter===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.gitCenter===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.gitCenter===id?'#61dcff':'#8b96b8'}`,onClick:()=>this.setState({gitCenter:id})})),
       isSpace: space, isPlanet: st.mode==='planet',
+      showPlanetCrumb: st.mode==='planet' || !!st.holdPlanet,
+      moreOpen: !!st.moreOpen, moreTabs,
+      toggleMore:()=>this.setState({moreOpen:!st.moreOpen, locOpen:false}),
+      closeMore:()=>this.setState({moreOpen:false}),
+      moreBtnStyle: tabBtn(moreActive),
+      moreTools:()=>{ this.setState({moreOpen:false}); this.toggleTools(); },
+      moreHud:()=>this.setState({hudOpen:!st.hudOpen, moreOpen:false}),
+      moreToolsStyle: moreItem(!!st.toolsOpen),
+      moreHudStyle: moreItem(!!st.hudOpen),
       // Konum breadcrumb + hızlı geçiş anahtarı
       locUniName: ((this._unis||[]).find(u=>u.id===st.uniId)||{}).name || 'Evren seç',
-      locOpen: st.locOpen, toggleLoc:()=>this.setState({locOpen:!st.locOpen}), closeLoc:()=>this.setState({locOpen:false}),
+      locOpen: st.locOpen, toggleLoc:()=>this.setState({locOpen:!st.locOpen, moreOpen:false}), closeLoc:()=>this.setState({locOpen:false}),
       locBtnBg: st.locOpen?'rgba(97,220,255,.1)':'rgba(4,6,12,.5)', locBtnBorder: st.locOpen?'#61dcff':'rgba(190,205,255,.18)',
       locUnis: (this._unis||[]).map(u=>{
         const ps=(this._allProjects||[]).filter(p=>p.universe===u.id);
@@ -1161,7 +1197,7 @@ class Component extends DCLogic {
       }),
       locActiveName: ((this._unis||[]).find(u=>u.id===st.uniId)||{}).name || '',
       locPlanets: (this._allProjects||[]).filter(p=>p.universe===st.uniId).map(p=>{
-        const cur=p.id===st.selId && st.mode==='planet';
+        const cur=p.id===st.selId && (st.mode==='planet' || !!st.holdPlanet);
         return { name:p.name,
           dot:`display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${(({active:'#55e88b',paused:'#ffc861',waiting:'#8791b8'})[p.status])||'#61dcff'}`,
           rowStyle:`display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 12px;cursor:pointer;background:${cur?'rgba(97,220,255,.1)':'transparent'};border:none;border-left:2px solid ${cur?'#61dcff':'transparent'}`,
@@ -1199,7 +1235,7 @@ class Component extends DCLogic {
       backupsOpen: st.backupsOpen, closeBackups:()=>this.setState({backupsOpen:false}),
       backupList:((st._backups)||[]).map(b=>({name:b.name,date:b.date||'',size:b.size?Math.round(b.size/1024)+' KB':'',onRestore:()=>this._restoreBackup(b.name)})),
       hasBackups:!!(st._backups&&st._backups.length), noBackups:!!(st._backups&&!st._backups.length),
-      contextChip: st.mode==='planet'? sel.name : 'Tüm evren',
+      contextChip: (st.mode==='planet'||st.holdPlanet)? sel.name : 'Tüm evren',
       paletteOpen: st.palette, paletteResults, warping: st.warping,
       hasSelected: space&&isEvren,
       readmeText:(st._readme&&st._readme.content)||'', readmeName:(st._readme&&st._readme.name)||'README.md', hasRealReadme:!!(st._readme&&st._readme.content), noRealReadme:!(st._readme&&st._readme.content),
@@ -1529,7 +1565,7 @@ class Component extends DCLogic {
     switch(name){
       case 'open_universe':{ const u=this._asstFindUni(arg); if(u){ this.selectUni(u.id); return '“'+u.name+'” evrenini açtım.'; } return arg?('“'+arg+'” diye bir evren bulamadım.'):null; }
       case 'open_project':{ const p=this._asstFindProject(arg); if(p){ this._gotoProject(p.id); return '“'+p.name+'” gezegenine indim.'; } return arg?('“'+arg+'” diye bir proje bulamadım.'):null; }
-      case 'open_tab':{ const map={genel:'Genel Bakış',evren:'Evren',pano:'Pano',db:'Veritabanı',docker:'Docker',zaman:'Zamanlayıcı',servers:'Sunucular'}; if(map[arg]){ this.setState({tab:arg,mode:'space',agentId:null}); try{ this._onTabOpen&&this._onTabOpen(arg); }catch(e){} return map[arg]+' sekmesini açtım.'; } return null; }
+      case 'open_tab':{ const map={genel:'Genel Bakış',evren:'Evren',pano:'Pano',db:'Veritabanı',docker:'Docker',zaman:'Zamanlayıcı',servers:'Sunucular'}; if(map[arg]){ this._openTab(arg); return map[arg]+' sekmesini açtım.'; } return null; }
       case 'open_git': if(!inProj) return 'Git için önce bir projeye girmem gerek.'; this.setState({leftTab:'git',gitCenter:'durum'}); return 'Git Merkezi’ni açtım.';
       case 'back': this.back&&this.back(); return 'Uzaya döndüm.';
       case 'git_push': if(!inProj) return 'Push için bir projeye girmem gerek.'; this.gitPush&&this.gitPush(); return 'Push ediyorum.';

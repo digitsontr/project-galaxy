@@ -46,7 +46,7 @@ app.whenReady().then(async () => {
     check('no-console-errors', consoleErr === 0, consoleErr + ' hata');
     // Sekmeler render
     const nav = await js(`(document.querySelector('nav')||{}).innerText||''`);
-    check('tabs-render', /GENEL BAK|EVREN|DOCKER|SUNUCU/i.test(nav), nav.replace(/\n/g, '|').slice(0, 60));
+    check('tabs-render', /Özet|Evren|Pano|Daha/i.test(nav), nav.replace(/\n/g, '|').slice(0, 80));
     // Sol proje listesi (railItems)
     const rail = await js(`document.body.innerText.includes('PROJELER')`);
     check('project-list', rail);

@@ -424,6 +424,7 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
   @keyframes dash{to{stroke-dashoffset:-1000}}
   @keyframes slideIn{0%{opacity:0;transform:translateX(20px)}100%{opacity:1;transform:translateX(0)}}
   @keyframes popIn{0%{opacity:0;transform:scale(.96)}100%{opacity:1;transform:scale(1)}}
+  #appShell button:focus-visible,#appShell [tabindex]:focus-visible{outline:2px solid #61dcff;outline-offset:2px}
 </style>
 </helmet>
 <canvas id="bgGalaxy" style="position:fixed;inset:0;width:100vw;height:100vh;z-index:0"></canvas>
@@ -432,34 +433,44 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
   <button sc-camel-on-click="{{ toggleLeft }}" title="Sol paneli aç/kapat" style="position:fixed;left:var(--rail,246px);top:62px;transform:translateX(-50%);z-index:30;width:22px;height:44px;border:1px solid rgba(190,205,255,.16);background:rgba(9,13,26,.9);color:#8b96b8;cursor:pointer;font-size:10px;padding:0;transition:left .38s cubic-bezier(.4,0,.2,1)">{{ leftIcon }}</button>
   <button sc-camel-on-click="{{ toggleRight }}" title="Sağ paneli aç/kapat" style="position:fixed;right:var(--agents);top:62px;transform:translateX(50%);z-index:30;width:22px;height:44px;border:1px solid rgba(190,205,255,.16);background:rgba(9,13,26,.9);color:#8b96b8;cursor:pointer;font-size:10px;padding:0;transition:right .38s cubic-bezier(.4,0,.2,1)">{{ rightIcon }}</button>
 
-  <header style="grid-area:top;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid rgba(190,205,255,.12);background:linear-gradient(180deg,rgba(9,13,26,.92),rgba(5,8,18,.78));backdrop-filter:blur(14px)">
-    <div style="display:flex;align-items:center;gap:10px;min-width:340px">
+  <header style="grid-area:top;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid rgba(190,205,255,.12);background:linear-gradient(180deg,rgba(9,13,26,.92),rgba(5,8,18,.78));backdrop-filter:blur(14px);overflow:visible;z-index:25;position:relative">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
       <span style="width:11px;height:11px;background:#61dcff;box-shadow:0 0 12px #61dcff;transform:rotate(45deg);flex-shrink:0"></span>
       <span style="font-weight:600;letter-spacing:.14em;font-size:14px">GALAXY</span>
-      <sc-if value="{{ isPlanet }}" hint-placeholder-val="{{ false }}">
-        <button sc-camel-on-click="{{ back }}" title="Uzaya dön (evren haritası)" style="margin-left:4px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#8b96b8;background:rgba(190,205,255,.06);border:1px solid rgba(190,205,255,.16);border-radius:6px;width:28px;height:28px;cursor:pointer">‹</button>
+      <sc-if value="{{ showPlanetCrumb }}" hint-placeholder-val="{{ false }}">
+        <button sc-camel-on-click="{{ back }}" title="Gezegene dön / uzaya çık" style="margin-left:2px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#8b96b8;background:rgba(190,205,255,.06);border:1px solid rgba(190,205,255,.16);border-radius:6px;width:28px;height:28px;cursor:pointer">‹</button>
       </sc-if>
       <!-- Konum breadcrumb — nerede olduğun + tıkla: hızlı geçiş -->
-      <button sc-camel-on-click="{{ toggleLoc }}" title="Konum — tıkla: evren/gezegen değiştir" style="display:flex;align-items:center;gap:8px;margin-left:4px;padding:6px 12px;background:{{ locBtnBg }};border:1px solid {{ locBtnBorder }};border-radius:8px;cursor:pointer;max-width:340px">
+      <button sc-camel-on-click="{{ toggleLoc }}" title="Konum — tıkla: evren/gezegen değiştir" style="display:flex;align-items:center;gap:8px;margin-left:2px;padding:6px 10px;background:{{ locBtnBg }};border:1px solid {{ locBtnBorder }};border-radius:8px;cursor:pointer;max-width:280px;min-width:0">
         <span style="font-size:13px;flex-shrink:0">🌌</span>
-        <span data-noi18n style="font-size:12px;color:#dbe4ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">{{ locUniName }}</span>
-        <sc-if value="{{ isPlanet }}" hint-placeholder-val="{{ false }}">
-          <span style="color:#4d5677">›</span><span style="font-size:12px;flex-shrink:0">🪐</span><span data-noi18n style="font-size:12px;color:#61dcff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">{{ selName }}</span>
+        <span data-noi18n style="font-size:12px;color:#dbe4ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">{{ locUniName }}</span>
+        <sc-if value="{{ showPlanetCrumb }}" hint-placeholder-val="{{ false }}">
+          <span style="color:#4d5677">›</span><span style="font-size:12px;flex-shrink:0">🪐</span><span data-noi18n style="font-size:12px;color:#61dcff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">{{ selName }}</span>
         </sc-if>
         <span style="color:#8791b8;font-size:9px;margin-left:2px">▾</span>
       </button>
     </div>
-    <nav style="display:flex;gap:3px;background:rgba(4,6,12,.5);border:1px solid rgba(190,205,255,.14);border-radius:9px;padding:3px">
-      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+    <nav style="display:flex;gap:3px;align-items:center;background:rgba(4,6,12,.5);border:1px solid rgba(190,205,255,.14);border-radius:9px;padding:3px;position:relative;flex-shrink:0">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
         <button sc-camel-on-click="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
       </sc-for>
+      <button sc-camel-on-click="{{ toggleMore }}" title="Daha fazla — araçlar ve istasyon" style="{{ moreBtnStyle }}">Daha ▾</button>
+      <sc-if value="{{ moreOpen }}" hint-placeholder-val="{{ false }}">
+        <div sc-camel-on-click="{{ closeMore }}" style="position:fixed;inset:0;z-index:38"></div>
+        <div style="position:absolute;top:calc(100% + 6px);right:0;z-index:40;min-width:214px;padding:6px;border:1px solid rgba(190,205,255,.18);background:rgba(9,13,26,.96);backdrop-filter:blur(16px);border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.45)">
+          <sc-for list="{{ moreTabs }}" as="m" hint-placeholder-count="4">
+            <button sc-camel-on-click="{{ m.onClick }}" style="{{ m.style }}">{{ m.label }}</button>
+          </sc-for>
+          <div style="height:1px;background:rgba(190,205,255,.12);margin:6px 8px"></div>
+          <button sc-camel-on-click="{{ moreTools }}" title="Saat · takvim · hesap makinesi · hızlı ara" style="{{ moreToolsStyle }}"><span>İstasyon</span><span id="gx-clock" data-noi18n style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:#61dcff">{{ clockTop }}</span></button>
+          <button sc-camel-on-click="{{ moreHud }}" style="{{ moreHudStyle }}">HUD</button>
+        </div>
+      </sc-if>
     </nav>
-    <div style="display:flex;align-items:center;gap:10px;min-width:280px;justify-content:flex-end">
-      <div style="display:flex;border:1px solid rgba(148,170,255,.2);border-radius:10px;overflow:hidden;flex-shrink:0"><button sc-camel-on-click="{{ setKadet }}" title="Kadet — sadeleştirilmiş acemi modu (gelişmiş sekmeler gizli)" style="{{ kadetBtnStyle }}">🎓</button><button sc-camel-on-click="{{ setKomutan }}" title="Komutan — tam yoğunluklu uzman modu (tüm araçlar)" style="{{ komutanBtnStyle }}">★</button></div>
-      <button sc-camel-on-click="{{ toggleTools }}" title="İstasyon araçları — saat · takvim · hesap makinesi · hızlı ara" style="display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#dbe4ff;background:rgba(4,6,12,.5);border:1px solid {{ toolsBtnBorder }};padding:8px 12px;cursor:pointer;letter-spacing:.04em"><span style="color:#61dcff;font-size:12px">◷</span><span id="gx-clock" data-noi18n>{{ clockTop }}</span></button>
-      <button sc-camel-on-click="{{ openPalette }}" style="display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b96b8;background:rgba(4,6,12,.5);border:1px solid rgba(190,205,255,.16);padding:8px 14px;cursor:pointer"><span style="color:#61dcff">⌕</span>Ara<span style="margin-left:6px;padding:2px 6px;border:1px solid rgba(190,205,255,.18);font-size:10px">⌘K</span></button>
-      <button sc-camel-on-click="{{ toggleHud }}" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:{{ hudBtnBg }};border:1px solid {{ hudBtnBorder }};color:{{ hudBtnColor }};cursor:pointer;font-size:15px">🚀</button>
-      <button sc-camel-on-click="{{ openSettings }}" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;cursor:pointer;font-size:14px">⚙</button>
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end">
+      <div style="display:flex;border:1px solid rgba(148,170,255,.2);border-radius:10px;overflow:hidden;flex-shrink:0"><button sc-camel-on-click="{{ setKadet }}" title="Kadet — sadeleştirilmiş acemi modu (gelişmiş sekmeler gizli)" style="{{ kadetBtnStyle }}">Kadet</button><button sc-camel-on-click="{{ setKomutan }}" title="Komutan — tam yoğunluklu uzman modu (tüm araçlar)" style="{{ komutanBtnStyle }}">Komutan</button></div>
+      <button sc-camel-on-click="{{ openPalette }}" title="Komut paleti" style="display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b96b8;background:rgba(4,6,12,.5);border:1px solid rgba(190,205,255,.16);padding:7px 10px;cursor:pointer;border-radius:8px"><span style="color:#61dcff">⌕</span><span style="padding:2px 6px;border:1px solid rgba(190,205,255,.18);font-size:10px;border-radius:4px">⌘K</span></button>
+      <button sc-camel-on-click="{{ openSettings }}" title="Ayarlar" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;cursor:pointer;font-size:14px;border-radius:8px">⚙</button>
     </div>
   </header>
 
@@ -468,10 +479,13 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
       <div>
         <div style="display:flex;align-items:baseline;gap:8px;padding:16px 18px 10px"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#8791b8;text-transform:uppercase">Projeler</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#4d5677">{{ projCount }}</span><span data-noi18n style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9px;color:#4d5677;letter-spacing:.08em">SON AKTİVİTE ▾</span></div>
         <sc-for list="{{ railItems }}" as="p" hint-placeholder-count="6">
-          <button sc-camel-on-click="{{ p.onClick }}" style="{{ p.rowStyle }}">
+          <div sc-camel-on-click="{{ p.onClick }}" sc-camel-on-double-click="{{ p.onEnter }}" title="Tık: seç · çift tık: in" style="{{ p.rowStyle }}">
             <span style="{{ p.dotStyle }}"></span>
             <span style="flex:1;min-width:0;display:flex;flex-direction:column"><span data-noi18n style="{{ p.nameStyle }}">{{ p.name }}</span><span data-noi18n style="{{ p.metaStyle }}">{{ p.meta }}</span></span>
-          </button>
+            <sc-if value="{{ p.active }}" hint-placeholder-val="{{ false }}">
+              <button sc-camel-on-click="{{ p.onEnterClick }}" title="Gezegene in (Enter)" style="flex-shrink:0;padding:3px 8px;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;border:1px solid rgba(97,220,255,.4);background:rgba(97,220,255,.12);color:#61dcff;border-radius:6px;cursor:pointer">İn</button>
+            </sc-if>
+          </div>
         </sc-for>
         <sc-if value="{{ noProjects }}" hint-placeholder-val="{{ false }}"><div style="padding:14px 18px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6d78a0;line-height:1.6">Bu evrende git deposu bulunamadı.<br>Yalnız içinde <b style="color:#8791b8">.git</b> olan klasörler gezegen olur.</div></sc-if>
         <div style="margin:14px 18px;padding-top:14px;border-top:1px solid rgba(190,205,255,.08)">
@@ -608,7 +622,7 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
       <div style="position:absolute;inset:0">
         <div style="position:absolute;top:22px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.5em;color:#61dcff;text-transform:uppercase;opacity:.65;pointer-events:none">Aktif Geliştirme</div>
         <sc-for list="{{ planets }}" as="pl" hint-placeholder-count="6">
-          <button sc-camel-on-click="{{ pl.onClick }}" title="{{ pl.name }}" style="{{ pl.style }}">
+          <button sc-camel-on-click="{{ pl.onClick }}" sc-camel-on-double-click="{{ pl.onEnter }}" title="Tık: seç · çift tık: in" style="{{ pl.style }}">
             <sc-if value="{{ pl.warn }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-4px;right:2px;width:24px;height:24px;border-radius:50%;background:#ffc861;color:#211a05;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;box-shadow:0 0 12px #ffc861">!</span></sc-if>
           </button>
         </sc-for>
