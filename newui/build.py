@@ -8,5 +8,5 @@ m=re.search(r'(<script type="text/x-dc"[^>]*>)(.*?)(</script>)', page, re.S)
 page=page[:m.start(2)]+"\n"+comp+"\n"+page[m.end(2):]
 for f in ['three.js','react.js','react-dom.js','dc-runtime.js']:
     page=page.replace(f'src="{f}"', f'src="vendor/{f}"')
-open(os.path.join(d,'index.html'),'w').write(page)
+open(os.path.join(d,'index.html'),'w',encoding='utf-8').write(page)
 print("newui/index.html güncellendi:", len(page))
