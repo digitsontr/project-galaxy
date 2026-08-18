@@ -82,7 +82,27 @@
     "extraMetadata": {
       "main": "main.js"
     },
-    "asar": false
+    "asar": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Project-Galaxy-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Project Galaxy"
+    }
   },
   "dependencies": {
     "electron-updater": "^6.3.9",

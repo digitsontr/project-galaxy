@@ -55,7 +55,35 @@ jobs:
           body: |
             ## Project Galaxy ${{ github.ref_name }}
 
-            **Kurulum:** `.dmg`'yi indir, aç, `Project Galaxy`'yi **Applications**'a sürükle → çift tıkla.
-            İmzalı + Apple tarafından notarize edilmiştir — Gatekeeper uyarısı çıkmaz, direkt açılır. ✅
+            ### 🍎 macOS (Apple Silicon)
+            `.dmg`'yi indir, aç, `Project Galaxy`'yi **Applications**'a sürükle → çift tıkla.
+            İmzalı + Apple notarize'lı — Gatekeeper uyarısı çıkmaz, direkt açılır. ✅
 
-            > Uygulama içi otomatik güncelleme `.zip`'i kullanır; sen sadece `.dmg`'yi indir.
+            ### 🪟 Windows (x64)
+            `Project-Galaxy-Setup-*.exe`'yi indir, çalıştır, kurulum sihirbazını izle.
+            İlk açılışta Windows **"korudu"** derse → **Daha fazla bilgi → Yine de çalıştır** (imzasız derleme, tek seferlik).
+            Gömülü terminal için **Git for Windows** (bash) ve AI için **Claude Code** kurulu olmalı.
+
+            > Uygulama içi otomatik güncelleme macOS'ta `.zip`'i kullanır.
+
+  build-windows:
+    runs-on: windows-latest
+    needs: build-macos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bağımlılıkları kur
+        run: npm install --no-audit --no-fund
+      - name: Arayüzü derle
+        run: python newui/build.py
+      - name: Windows .exe installer (electron-builder)
+        run: npx --yes electron-builder --win --publish never
+      - name: Release'e .exe ekle
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe

@@ -51,7 +51,18 @@ function migrateLegacyData() {
 }
 
 // GUI'den açılınca PATH kısıtlı olur; node/claude için genişlet
-const ENV = { ...process.env, PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin:${process.env.HOME}/.local/bin` };
+// Platform-bağımsız PATH: alt süreçlerin (git, claude, docker) bulunması için yaygın konumlar eklenir.
+const HOME = process.env.HOME || process.env.USERPROFILE || '';
+const EXTRA_PATHS = process.platform === 'win32'
+  ? [
+      'C:\\Program Files\\Git\\bin', 'C:\\Program Files\\Git\\cmd',
+      'C:\\Program Files\\nodejs',
+      path.join(process.env.APPDATA || '', 'npm'),
+      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps'),
+      path.join(HOME, '.local', 'bin')
+    ]
+  : ['/opt/homebrew/bin', '/usr/local/bin', path.join(HOME, '.local', 'bin')];
+const ENV = { ...process.env, PATH: [process.env.PATH || process.env.Path || '', ...EXTRA_PATHS].filter(Boolean).join(path.delimiter) };
 
 // App Store (sandbox) sürümünde dış süreç başlatan özellikler devre dışıdır
 const MAS_BLOCKED = 'Bu özellik App Store sürümünde kullanılamıyor (sandbox, dış komut çalıştırmaya izin vermez). Ajanlar ve konsollar için uygulamanın doğrudan indirilen (DMG) sürümünü kullan.';
@@ -1517,7 +1528,7 @@ function streamClaude({ win, channel, runId, cwd, args }) {
   const send = (kind, text) => { if (!win.isDestroyed()) win.webContents.send(channel, { runId, kind, text }); };
   let child;
   try {
-    child = spawn(claudeBin(), args, { cwd, env: ENV });
+    child = spawn(claudeBin(), args, { cwd, env: ENV, shell: process.platform === "win32" });
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -1769,7 +1780,7 @@ function runClaudeJson(prompt, cwd) {
     if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
-      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
+      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });
     } catch (err) { return resolve({ error: err.message }); }
     let out = '';
     const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 90000);
@@ -1902,10 +1913,28 @@ function broadcastShell(msg) {
   }
 }
 
+// Yerel kabuk dosyası — Windows'ta Git for Windows'ın bash'i (aynı SHELL_SENTINEL protokolü çalışır).
+function localShellFile() {
+  if (process.platform !== 'win32') return '/bin/bash';
+  const cands = [
+    'C:\\Program Files\\Git\\bin\\bash.exe',
+    'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
+    'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe')
+  ];
+  for (const c of cands) { try { if (c && fs.existsSync(c)) return c; } catch (e) {} }
+  return null;
+}
 function ensureShell(shellId, cwd) {
   const existing = shells.get(shellId);
-  if (existing && !existing.child.killed && existing.child.exitCode === null) return existing;
-  const child = spawn('/bin/bash', ['--noprofile', '--norc'], { cwd, env: { ...ENV, PS1: '', TERM: 'dumb' } });
+  if (existing && existing.child && !existing.child.killed && existing.child.exitCode === null) return existing;
+  const shFile = localShellFile();
+  if (!shFile) {  // Windows'ta git-bash yok
+    broadcastShell({ id: shellId, kind: 'err', text: 'Gömülü terminal için Git for Windows (bash) gerekli. gitforwindows.org üzerinden kur ve uygulamayı yeniden aç.' });
+    broadcastShell({ id: shellId, kind: 'done', code: 1, cwd });
+    const stub = { child: null, cwd, noShell: true }; shells.set(shellId, stub); return stub;
+  }
+  const child = spawn(shFile, ['--noprofile', '--norc'], { cwd, env: { ...ENV, PS1: '', TERM: 'dumb' } });
   let buf = '';
   child.stdout.on('data', chunk => {
     buf += chunk.toString();
@@ -2004,6 +2033,7 @@ ipcMain.handle('galaxy:shellInput', (e, { shellId, cwd, cmd }) => {
   if (!cmd || !cmd.trim()) return { ok: false };
   if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
   const rec = ensureShell(shellId, cwd);
+  if (!rec || !rec.child) return { ok: false, error: 'kabuk yok' };
   try {
     rec.child.stdin.write(cmd + '\n' + `printf '\\003GALAXY_DONE %s %s\\n' "$?" "$PWD"` + '\n');
     return { ok: true };
@@ -2043,6 +2073,17 @@ app.on('before-quit', () => {
 ipcMain.handle('galaxy:openTerminal', (e, p) => {
   if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
   if (!p || !knownPaths.has(p)) return false;
+  if (process.platform === 'win32') {
+    const dir = String(p); const { exec } = require('child_process');
+    // Windows Terminal (wt) → yoksa cmd
+    exec(`start "" wt -d "${dir}"`, { env: ENV }, err => { if (err) exec(`start "" cmd /k cd /d "${dir}"`, { env: ENV }, () => {}); });
+    return true;
+  }
+  if (process.platform === 'linux') {
+    const { exec } = require('child_process'); const dir = String(p).replace(/"/g, '\\"');
+    exec(`x-terminal-emulator --working-directory="${dir}" || gnome-terminal --working-directory="${dir}" || xterm`, { env: ENV }, () => {});
+    return true;
+  }
   const cmd = `cd '${String(p).replace(/'/g, "'\\''")}'`;
   const esc = s => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const app = getSettings(loadData()).terminalApp;   // 'Terminal' | 'iTerm' (ayarlardan)
@@ -2071,7 +2112,7 @@ function runClaudeText(prompt, cwd) {
     if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
-      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
+      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });
     } catch (err) { return resolve({ error: err.message }); }
     let out = '';
     const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 240000);
@@ -2775,6 +2816,12 @@ ipcMain.handle('galaxy:dockerStatus', async () => {
 ipcMain.handle('galaxy:dockerStart', () => {
   if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
   return new Promise(resolve => {
+    if (process.platform === 'win32') {
+      const { exec } = require('child_process');
+      exec('start "" "%ProgramFiles%\\Docker\\Docker\\Docker Desktop.exe"', { env: ENV, timeout: 10000 }, err => resolve(err ? { ok: false, error: 'Docker Desktop açılamadı — kurulu olmayabilir.' } : { ok: true }));
+      return;
+    }
+    if (process.platform === 'linux') { const { exec } = require('child_process'); exec('systemctl --user start docker-desktop || true', { env: ENV }, () => resolve({ ok: true })); return; }
     execFile('open', ['-a', 'Docker'], { env: ENV, timeout: 10000 }, err => {
       resolve(err ? { ok: false, error: 'Docker Desktop açılamadı — kurulu olmayabilir.' } : { ok: true });
     });
@@ -2894,6 +2941,11 @@ ipcMain.handle('galaxy:dockerPrune', async (e, kind) => {
 ipcMain.handle('galaxy:openClaude', (e, p) => {
   if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
   if (!p || !knownPaths.has(p)) return false;
+  if (process.platform === 'win32') {
+    const dir = String(p); const { exec } = require('child_process');
+    exec(`start "" cmd /k "cd /d "${dir}" && claude"`, { env: ENV }, () => {});
+    return true;
+  }
   const cmd = `cd '${String(p).replace(/'/g, "'\\''")}' && claude`;
   const script = `tell application "Terminal"
     activate
