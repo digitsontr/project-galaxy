@@ -466,6 +466,16 @@ ipcMain.handle('galaxy:projectUnhide', (e, projectId) => {
   return { ok: true };
 });
 
+// Galaksiden gizle (klasöre dokunulmaz) — onay kartı renderer’da
+ipcMain.handle('galaxy:projectHide', (e, projectId) => {
+  if (!projectId) return { ok: false, error: 'Proje yok' };
+  const data = loadData();
+  data.ignored = data.ignored || [];
+  if (!data.ignored.includes(projectId)) data.ignored.push(projectId);
+  saveData(data);
+  return { ok: true, action: 'hidden' };
+});
+
 // ---------- kullanıcı ayarları (uyarı eşikleri vb.) ----------
 const DEFAULT_SETTINGS = { staleDays: 21, planPending: 5, claudePath: '', terminalApp: 'Terminal', sshTimeout: 8, focusMin: 25, assistantBio: '' };
 function getSettings(data) {
@@ -482,6 +492,22 @@ function getSettings(data) {
 }
 // Yapılandırılabilir tüketiciler için kısa yardımcılar (her çağrıda güncel ayarı okur)
 function claudeBin() { try { return getSettings(loadData()).claudePath || 'claude'; } catch (e) { return 'claude'; } }
+ipcMain.handle('galaxy:claudeCheck', async () => {
+  const bin = claudeBin();
+  try {
+    if (path.isAbsolute(bin)) {
+      try { fs.accessSync(bin, fs.constants.X_OK); return { ok: true, path: bin }; }
+      catch (e) { return { ok: false }; }
+    }
+    const cmd = process.platform === 'win32' ? 'where' : 'which';
+    return await new Promise(res => {
+      execFile(cmd, [bin], { timeout: 3000 }, (err, out) => {
+        const found = String(out || '').trim().split(/\r?\n/)[0] || '';
+        res({ ok: !err && !!found, path: found || null });
+      });
+    });
+  } catch (e) { return { ok: false }; }
+});
 
 // Proaktif uyarılar — deterministik, anında (Claude gerekmez)
 function buildAlerts(projects, st) {
@@ -1486,6 +1512,18 @@ ipcMain.handle('galaxy:gitPush', async (e, { projectId } = {}) => {
 ipcMain.handle('galaxy:gitPull', async (e, { projectId } = {}) => {
   const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };
   return execGit(g.proj.path, ['pull'], 120000);
+});
+ipcMain.handle('galaxy:gitInit', async (e, { projectId, path: pth } = {}) => {
+  let projPath = pth;
+  if (projectId) {
+    const scan = scanProjects();
+    const proj = (scan.projects || []).find(p => p.id === projectId);
+    if (proj && proj.path) projPath = proj.path;
+  }
+  if (!projPath || !knownPaths.has(projPath)) return { ok: false, error: 'Geçersiz klasör' };
+  if (isRemotePath(projPath)) return { ok: false, error: 'Uzak projede git init yok' };
+  if (fs.existsSync(path.join(projPath, '.git'))) return { ok: true, already: true };
+  return execGit(projPath, ['init']);
 });
 ipcMain.handle('galaxy:gitSwitch', async (e, { projectId, branch, create } = {}) => {
   const g = gitProj(projectId); if (g.error) return { ok: false, error: g.error };

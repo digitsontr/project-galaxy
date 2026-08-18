@@ -108,7 +108,7 @@ claude   # ilk çalıştırmada hesabınla giriş yapmanı ister
 
 Soldan sağa:
 
-- **GALAXY** logosu · gezegen modundayken **‹** (uzaya dön) düğmesi.
+- **GALAXY** logosu + **durum noktası** (hazır / çalışıyor / hata) · gezegen modundayken **‹** (uzaya dön) düğmesi.
 - **Konum breadcrumb'ı** — nerede olduğun her an bellidir: **🌌 Evren › 🪐 Gezegen ▾**. Tıkla → **hızlı geçiş anahtarı** açılır: üstte tüm **evrenler** (aktif olan işaretli), altta o evrenin **gezegenleri** (bulunduğun "buradasın" etiketiyle). Tek tıkla başka evrene/projeye ışınlan.
 - **Segmentli sekme çubuğu** — 7 sekme (aşağıda): aktif sekme dolgulu vurguyla belirgindir.
 - **🎓 Kadet / ★ Komutan** — yoğunluk anahtarı (aşağıda).
@@ -135,7 +135,7 @@ Soldan sağa:
 ### Uzay modu — galaksi haritası
 
 - **Galaksi görseli:** fareyle sürükle, tekerlekle yaklaş. WASD/oklar + / − ile de gezinilir.
-- **Sol panel — PROJELER:** aktif evrenin gezegenleri, **son aktiviteye göre sıralı** (en taze üstte). Her satır: durum noktası + proje adı + **dal ve son aktivite** (`main · 2g önce`). Başlıkta proje sayısı. Git deposu yoksa net bir boş-durum mesajı çıkar.
+- **Sol panel — PROJELER:** aktif evrenin gezegenleri, **son aktiviteye göre sıralı** (en taze üstte). Her satır: durum noktası + proje adı + **dal ve son aktivite** (`main · 2g önce`). Başlıkta proje sayısı. Evren boşsa **Evren bağla** tek CTA.
 - **Sağ istasyon:** 5 AI ajanın avatarları (üzerine gel → görev kartı, tıkla → sohbet).
 - **GALAXY HUD (alt):** 🚀 ile aç. Üç kart: **En Aktif Yıldız** (son 30 günde en çok commit alan projen), **Son Yapılanlar** (+ RAPOR arşivi), **Notlarım** (hızlı not ekle). Panel taşarsa iç kısmı kaydırılır; içerik asla kırpılmaz.
 
@@ -185,8 +185,8 @@ Ekranın **sağ alt köşesinde**, parçacıklardan oluşan parlayan bir **asist
 Sol paneldeki **⎇ GİT** sekmesi artık pasif bir liste değil, **canlı bir kontrol** paneli:
 
 - **Durum kartı:** hangi daldasın, **ahead/behind** (`↑2 ↓0`), ve "N değişiklik bekliyor / çalışma alanı temiz".
-- **Hızlı aksiyonlar:** **Commit…** (Git Merkezi'ni açar) · **⬆ Push** · **⬇ Pull** (tek tık, canlı geri bildirim).
-- **◷ Git Merkezi** butonu — tek net giriş; son commit tek satır özet. (Git deposu değilse `git init` yönlendirmesi.)
+- **Tek birincil CTA:** kirliyse **Commit…** (Git Merkezi durum), temiz+ahead ise **Push**, temiz+behind ise **Pull**, aksi **Güncel**. Push/pull/commit bitince yeşil **kanıt toast’ı** (~4 sn), örn. `main ← 2 commit`. Push öncesi uygulama içi onay kartı.
+- **Git Merkezi** ikinci satır, sönük. (Git deposu değilse **git init** tek düğmesi.)
 
 **Git Merkezi** dört sekmeli tam iş tezgahı:
 
@@ -304,7 +304,7 @@ Yedeklerden geri dönüş: ⌘K → Yedekler.
 - **Kodun ve notların diskinde:** tek veri dosyası `galaxy-data.json`, konum macOS’ta `~/Library/Application Support/ProjectGalaxy/`, Windows’ta `%APPDATA%\ProjectGalaxy\`. Uygulama kendi bulutunu işletmez; yedek `backups/` altında yereldir.
 - **Model çağrıları dışarı çıkar:** ajanlar ve dijital ikiz Claude Code CLI üzerinden çalışır (sohbet, web araması, dosya/terminal). “Hiçbir paket internete gitmez” iddiası yok — dürüst söz: **senin repoların yerelde kalır, dil modeli senin Claude hesabınla konuşur.**
 - Her gün otomatik yedek (`backups/`, 14 gün) + her değişiklikte sessiz **git commit** — `git log` ile zaman yolculuğu.
-- Proje silme iki aşamalı onaylıdır ve en kötü ihtimalle macOS Çöp Kutusu'na gider; kalıcı silme yoktur.
+- Gezegen kaldırma uygulama içi onay kartıyla **galaksiden gizler**; klasör diskte kalır (Gizlenenler’den geri alınır). Eski native üç seçenekli diyalog (`projectDelete`) hâlâ IPC’de durur ama arayüz gizlemeyi kullanır.
 - DB parolaları `safeStorage` ile şifrelenir; DB yazma işlemleri onaylı ve denetim günlüğüne yazılır.
 - SSH anahtarların uygulamaya kopyalanmaz — `~/.ssh` altındakiler doğrudan kullanılır; verilen anahtar dosyası yoksa ssh-agent'a düşülür.
 

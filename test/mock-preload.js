@@ -38,6 +38,11 @@ contextBridge.exposeInMainWorld('galaxy', {
     setTimeout(tick, 20); return { ok: true };
   },
   sttAvailable: async () => ({ ok: false }),
+  claudeCheck: async () => ({ ok: true, path: '/usr/local/bin/claude' }),
+  gitInit: async () => ({ ok: true }),
+  projectHide: async () => ({ ok: true, action: 'hidden' }),
+  syncReadme: async () => ({ ok: true, added: 0, plan: [] }),
+  gitPush: async () => ({ ok: true }), gitPull: async () => ({ ok: true }), gitCommit: async () => ({ ok: true }),
   __testNoBrief: true,
   asstHistoryGet: async () => ({ ok: true, messages: [] }),
   asstHistoryAppend: async () => ({ ok: true }),

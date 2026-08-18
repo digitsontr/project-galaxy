@@ -12,6 +12,7 @@ class Component extends DCLogic {
     agentInput:'', _agentBusy:false, consoleInput:'', _todos:null, todoInput:'', noteInput:'', linkInput:'', linkAdd:false,
     _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null,
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
+    _conBusy:false, _claudeOk:null, _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false,
     schAddOpen:false, _schResult:'', schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},
     consoleH:240, agentFormOpen:false, agentForm:{id:'',name:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''} };
@@ -110,7 +111,9 @@ class Component extends DCLogic {
     else if(k==='done'){ arr.push({t:'done',x:'── bitti ──'}); }
     else if(k==='exit'){ const c=(m.code!=null&&m.code!==0)?(' (kod '+m.code+')'):''; arr.push({t:'err',x:'── bağlantı kapandı'+c+' ──'}); }
     else { arr.push({t:'o',x:t}); }
-    this.setState({_cov:(this.state._cov||0)+1});
+    const ns={_cov:(this.state._cov||0)+1};
+    if(k==='done'||k==='exit'){ const con=this._con(this.sel&&this.sel.id); if(arr===con.cout||arr===con.bout) ns._conBusy=false; }
+    this.setState(ns);
     this._scrollBottom(this.state._srvTerm?'#ghud-srvterm-scroll':'#ghud-console-scroll');
   }
   // shellId / runId'den proje id'sini çıkar (mesaj hangi projeye ait)
@@ -147,17 +150,17 @@ class Component extends DCLogic {
     const p=this.sel, cwd=p&&p._path; const con=this._con(p&&p.id);
     // komut geçmişi — proje + sekme bazlı
     const hk=this.state.consoleTab==='bash'?'bhist':'chist'; if(con[hk][con[hk].length-1]!==text) con[hk].push(text); con[hk]=con[hk].slice(-100); this._histIdx=null;
-    this.setState({consoleInput:''});
+    this.setState({consoleInput:'',_conBusy:true});
     if(this.state.consoleTab==='bash'){
       con.bout.push({t:'in',x:'$ '+text});
       const sid='sh-'+(p&&p.id||'');   // PROJE BAZLI shell — her projenin kendi oturumu (cd/env kalıcı)
-      try{ if(window.galaxy&&window.galaxy.shellStart){ window.galaxy.shellStart({shellId:sid,cwd}); } if(window.galaxy&&window.galaxy.shellInput){ window.galaxy.shellInput({shellId:sid,cwd,cmd:text}); } else con.bout.push({t:'err',x:'(shell bu ortamda yok)'}); }catch(e){}
+      try{ if(window.galaxy&&window.galaxy.shellStart){ window.galaxy.shellStart({shellId:sid,cwd}); } if(window.galaxy&&window.galaxy.shellInput){ window.galaxy.shellInput({shellId:sid,cwd,cmd:text}); } else { con.bout.push({t:'err',x:'(shell bu ortamda yok)'}); this.setState({_conBusy:false}); } }catch(e){ this.setState({_conBusy:false}); }
     } else {
       con.cout.push({t:'in',x:'> '+text});
-      if(!cwd){ con.cout.push({t:'err',x:'önce bir projeye gir (klasör yolu gerekli)'}); }
+      if(!cwd){ con.cout.push({t:'err',x:'önce bir projeye gir (klasör yolu gerekli)'}); this.setState({_conBusy:false}); }
       else { const runId='c'+((this._cc=(this._cc||0)+1))+'-'+p.id;
         this._claudeSess=this._claudeSess||{}; const cont=!!this._claudeSess[p.id]; this._claudeSess[p.id]=true;
-        try{ if(window.galaxy&&window.galaxy.claudeRun){ window.galaxy.claudeRun({runId,cwd,prompt:text,continueSession:cont}); } else con.cout.push({t:'err',x:'(claude bu ortamda yok)'}); }catch(e){} }
+        try{ if(window.galaxy&&window.galaxy.claudeRun){ window.galaxy.claudeRun({runId,cwd,prompt:text,continueSession:cont}); } else { con.cout.push({t:'err',x:'(claude bu ortamda yok)'}); this.setState({_conBusy:false}); } }catch(e){ this.setState({_conBusy:false}); } }
     }
     this.setState({_cov:(this.state._cov||0)+1}); this._scrollBottom('#ghud-console-scroll');
   }
@@ -208,6 +211,11 @@ class Component extends DCLogic {
     'AKTİF':'ACTIVE','BEKLEMEDE':'PENDING','TAMAMLANDI':'DONE','ARŞİV':'ARCHIVE','KEŞFEDİLMEMİŞ':'UNEXPLORED','SÜRÜKLE:GEZ':'DRAG:PAN',
     'Docker çalışıyor':'Docker running','konteyner':'containers','çalışıyor':'running','imaj':'images','Yenile':'Refresh','Başlat':'Start','LOG':'LOG','SİL':'DELETE','Docker motoru durdu — başlatmak için ▸ tıkla':'Docker engine stopped — click ▸ to start','Henüz veritabanı bağlantısı yok.':'No database connection yet.','Postgres':'Postgres','MySQL':'MySQL','SQLite':'SQLite',
     'Bir bash komutu yaz — bu projenin klasöründe çalışır.':'Type a bash command — runs in this project folder.','Claude\'a bir şey yaz — bu projenin klasöründe çalışır, dosya okur/yazar.':'Type to Claude — runs in this project folder, reads/writes files.','Yeni evren':'New universe','Henüz uzak sunucu yok.':'No remote server yet.',
+    'Bu evrende henüz gezegen yok.':'No planets in this universe yet.','Evren bağla':'Bind universe','Bu klasör henüz git deposu değil.':'This folder is not a git repo yet.','git init':'git init',
+    'Henüz madde yok. README’deki işaret kutularını çek veya ilk maddeyi yaz.':'No items yet. Pull checkboxes from the README or type the first one.','README’den çek':'Pull from README','ilk madde yaz… (Enter)':'first item… (Enter)',
+    'Claude Code bulunamadı.':'Claude Code not found.','Konsol ve ajanlar CLI ister. Kur, sonra Ayarlar’dan yolu doğrula.':'Console and agents need the CLI. Install it, then confirm the path in Settings.',
+    'Güncel':'Up to date','Commit…':'Commit…','Git Merkezi':'Git Center','Gizle':'Hide','Push':'Push','Onayla ve çalıştır':'Confirm and run',
+    'Gezegeni gizle':'Hide planet','Veritabanı yazma':'Database write',
     // Git rehberi
     'Dallanma modeli — git\'i hiç bilmeyen biri için. Her nokta bir commit, kesikli oklar dallanma/birleşmedir.':'Branching model — for someone new to git. Each dot is a commit, dashed arrows are branch/merge.',
     'Temel Git Komutları · ne işe yarar':'Basic Git Commands · what they do','BAŞLANGIÇ & DURUM':'GETTING STARTED & STATUS','DEĞİŞİKLİKLERİ KAYDETME':'SAVING CHANGES','DALLANMA (BRANCH)':'BRANCHING','UZAK SUNUCU (REMOTE)':'REMOTE','GERİ ALMA':'UNDO','İNCELEME':'INSPECT','Feature-branch Akışı':'Feature-branch Flow',
@@ -377,6 +385,13 @@ class Component extends DCLogic {
     this._loadTodos();
     this._loadServers();
     this._loadReports();
+    this._probeClaude();
+  }
+  async _probeClaude(){
+    try{
+      if(window.galaxy&&window.galaxy.claudeCheck){ const r=await window.galaxy.claudeCheck(); this.setState({_claudeOk:!!(r&&r.ok)}); }
+      else this.setState({_claudeOk:true});
+    }catch(e){ this.setState({_claudeOk:true}); }
   }
   // ---------- Zamanlanmış görev raporları ----------
   async _loadReports(){ try{ if(window.galaxy&&window.galaxy.reports){ this.setState({_reports:(await window.galaxy.reports())||[]}); } }catch(e){} }
@@ -484,12 +499,16 @@ class Component extends DCLogic {
     ['📋 Pano · 📁 Dosyalar · ⌁ Konsol',['Pano: görev ekle, sürükle-bırak taşı, README ile senkron','Dosyalar: ağaç varsayılan, orta panelde önizleme; Yörünge isteğe bağlı; düzenle→kaydet, grep','Konsol: Bash + Claude (proje klasöründe), Tab tamamlama, ↑/↓ geçmiş, sürükle yükseklik']],
     ['⌘ Kısayollar',['⌘K — komut paleti / arama','F1 — bu rehber','⌘\\ — README gizle/göster','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
   ]; }
-  // Global bildirim (toast) — başarı/hata; ~3sn sonra kaybolur
-  toast(msg,kind){ if(!msg) return; const id=(this._toastN=(this._toastN||0)+1); this.setState({_toast:{msg,kind:kind||'ok'}}); clearTimeout(this._toastT); this._toastT=setTimeout(()=>{ if(this._toastN===id) this.setState({_toast:null}); },3200); }
-  // Global yıkıcı-işlem onayı: askConfirm(mesaj, fn)
-  askConfirm(msg,fn){ this.setState({_confirm:{msg,fn}}); }
+  // Global bildirim (toast) — başarı/hata; ~4sn sonra kaybolur
+  toast(msg,kind){ if(!msg) return; const id=(this._toastN=(this._toastN||0)+1); const ns={_toast:{msg,kind:kind||'ok'}};
+    if(kind==='err') ns._hubPulse='error'; this.setState(ns);
+    clearTimeout(this._toastT); this._toastT=setTimeout(()=>{ if(this._toastN===id) this.setState({_toast:null}); },4000);
+    if(kind==='err'){ clearTimeout(this._hubPulseT); this._hubPulseT=setTimeout(()=>this.setState({_hubPulse:null}),4000); } }
+  _pulseHub(kind){ this.setState({_hubPulse:kind||'error'}); clearTimeout(this._hubPulseT); this._hubPulseT=setTimeout(()=>this.setState({_hubPulse:null}),4000); }
+  // Global onay kartı: askConfirm(mesaj, fn, {title, detail, okLabel, kind:'danger'|'warn'})
+  askConfirm(msg,fn,opts){ opts=opts||{}; this.setState({_confirm:{msg,fn,title:opts.title||'',detail:opts.detail||'',okLabel:opts.okLabel||'Sil',kind:opts.kind||'danger'}}); }
   runConfirm(){ const c=this.state._confirm; this.setState({_confirm:null}); if(c&&c.fn){ try{ c.fn(); }catch(e){} } }
-  cancelConfirm(){ this.setState({_confirm:null}); }
+  cancelConfirm(){ this.setState({_confirm:null,_dbConfirm:null}); }
   // ---------- DOCKER ----------
   // Kadet (acemi) / Komutan (uzman) mod — Kadet'te gelişmiş sekmeler gizlenir
   _setUiMode(m){ const adv=['db','docker','zaman','servers']; const ns={uiMode:m, moreOpen:false}; if(m==='kadet'&&adv.includes(this.state.tab)){ ns.tab='genel'; ns.mode='space'; } this.setState(ns); try{ localStorage.setItem('gxUiMode',m); }catch(e){} }
@@ -551,6 +570,17 @@ class Component extends DCLogic {
     if(raw&&Array.isArray(raw.plan)&&raw.plan[i]!=null){ const it=raw.plan[i]; if(Array.isArray(it)){ it[1]=!it[1]; done=it[1]; } else { it.done=!it.done; done=it.done; } this._saveRaw(raw); }
     if(p.plan&&p.plan[i]){ if(done==null) done=!p.plan[i][1]; p.plan[i][1]=done; }
     this.setState({_nv:(this.state._nv||0)+1}); }
+  onPlanInput(e){ this.setState({planInput:(e&&e.target&&e.target.value)||''}); }
+  onPlanKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.addPlanItem(); } }
+  addPlanItem(){ const text=String(this.state.planInput||'').trim(); if(!text) return; const p=this.sel; const raw=this._rawProj();
+    if(raw){ raw.plan=raw.plan||[]; raw.plan.push(Array.isArray(raw.plan[0])||!raw.plan.length?[text,false]:{text,done:false}); this._saveRaw(raw); }
+    if(p){ p.plan=p.plan||[]; p.plan.push([text,false]); }
+    this.setState({planInput:'',_nv:(this.state._nv||0)+1}); }
+  async pullPlanFromReadme(){ const p=this.sel; if(!p||!p.id||!window.galaxy||!window.galaxy.syncReadme){ this.toast('✕ README senkronu yok','err'); return; }
+    try{ const r=await window.galaxy.syncReadme(p.id);
+      if(r&&r.ok){ if(r.plan) p.plan=this._mapPlan(r.plan); this.toast(r.added?('✓ '+r.added+' madde çekildi'):'✓ README tarandı'); await this._loadReal(); }
+      else this.toast('✕ '+((r&&r.error)||'çekilemedi'),'err');
+    }catch(e){ this.toast('✕ çekilemedi','err'); } }
   // Bağlantı ekle (BAĞLANTILAR sekmesi) — ad + URL/açıklama
   onLinkInput(e){ this.setState({linkInput:(e&&e.target&&e.target.value)||''}); }
   onLinkKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.addLink(); } else if(e.key==='Escape'){ this.setState({linkAdd:false,linkInput:''}); } }
@@ -572,7 +602,12 @@ class Component extends DCLogic {
   }
   // ---------- PROJE AKSİYONLARI ----------
   openProjectFolder(){ try{ const p=this.sel; if(p&&p._path&&window.galaxy.openFolder) window.galaxy.openFolder(p._path); }catch(e){} }
-  async removeProject(){ try{ const p=this.sel; if(p&&window.galaxy.projectDelete){ const r=await window.galaxy.projectDelete(p.id); if(r&&r.ok&&r.action&&r.action!=='cancel'){ this.setState({mode:'space', holdPlanet:false}); this._loadReal(); } } }catch(e){} }
+  async removeProject(){ const p=this.sel; if(!p) return;
+    this.askConfirm('"'+p.name+'" galaksiden gizlensin?', ()=>this._hideProject(),
+      {title:'Gezegeni gizle', detail:'Klasör diskte kalır. Gizlenenler listesinden geri alabilirsin.', okLabel:'Gizle', kind:'warn'}); }
+  async _hideProject(){ try{ const p=this.sel; const fn=(window.galaxy&&(window.galaxy.projectHide||window.galaxy.projectDelete));
+    if(p&&fn){ const r=await fn(p.id); if(r&&r.ok&&(!r.action||r.action!=='cancel')){ this.toast('✓ gizlendi'); this.setState({mode:'space', holdPlanet:false}); this._loadReal(); } }
+  }catch(e){} }
   // ---------- EVREN sil ----------
   async _universeDelete(id){ try{ if(window.galaxy.universeDelete){ await window.galaxy.universeDelete(id); this.toast('✓ evren kaldırıldı'); await this._loadReal(); const first=(this._unis&&this._unis[0]&&this._unis[0].id)||null; this._applyUni(first); this.setState({uniId:first,mode:'space',tab:'genel'}); } }catch(e){} }
   // ---------- YEDEKLER ----------
@@ -602,7 +637,9 @@ class Component extends DCLogic {
     // dbExec: SELECT + yazma (INSERT/UPDATE/DELETE) çalıştırır ve audit log'a yazar. Yazma → önce onay.
     const fn=(window.galaxy.dbExec||window.galaxy.dbQuery);
     try{ const r=await fn({id:this.state.dbSel,database:this.state.dbDatabase,sql});
-      if(r&&r.needConfirm){ this.setState({_dbConfirm:{sql:r.sql,danger:!!r.danger}}); return; }
+      if(r&&r.needConfirm){ this.setState({_dbConfirm:{sql:r.sql,danger:!!r.danger}});
+        this.askConfirm(r.danger?'Yıkıcı işlem — emin misin?':'Bu işlem veriyi değiştirecek.', ()=>this.confirmDbWrite(),
+          {title:'Veritabanı yazma', detail:r.sql, okLabel:'Onayla ve çalıştır', kind:r.danger?'danger':'warn'}); return; }
       this.setState({_dbresult:(r&&r.ok)?r:{error:(r&&r.error)||'sorgu hatası',fields:[],rows:[]}}); this._loadDbLog();
     }catch(e){ this.setState({_dbresult:{error:'sorgu hatası',fields:[],rows:[]}}); } }
   // Yazma/DDL onaylandı → confirm:true ile çalıştır
@@ -622,7 +659,9 @@ class Component extends DCLogic {
     this.setState({dbAgentBusy:true,_dbresult:null});
     try{ const r=await window.galaxy.dbAgent({id:this.state.dbSel,database:this.state.dbDatabase,request});
       this.setState({dbAgentBusy:false});
-      if(r&&r.needConfirm){ this.setState({_dbConfirm:{sql:r.sql,danger:!!r.danger,request:r.request},_dbresult:{sql:r.sql,fields:[],rows:[]}}); return; }
+      if(r&&r.needConfirm){ this.setState({_dbConfirm:{sql:r.sql,danger:!!r.danger,request:r.request},_dbresult:{sql:r.sql,fields:[],rows:[]}});
+        this.askConfirm(r.danger?'Yıkıcı işlem — emin misin?':'Bu işlem veriyi değiştirecek.', ()=>this.confirmDbWrite(),
+          {title:'Veritabanı yazma', detail:r.sql, okLabel:'Onayla ve çalıştır', kind:r.danger?'danger':'warn'}); return; }
       this.setState({_dbresult:(r&&r.ok)?r:{error:(r&&r.error)||'ajan hatası',sql:(r&&r.sql)||'',fields:[],rows:[]}}); this._loadDbLog();
     }catch(e){ this.setState({dbAgentBusy:false,_dbresult:{error:'ajan hatası',fields:[],rows:[]}}); } }
   async _schedDelete(id){ try{ await window.galaxy.scheduleDelete(id); this.toast('✓ görev silindi'); this.setState({_sched:(await window.galaxy.scheduleList())||[]}); }catch(e){} }
@@ -699,15 +738,24 @@ class Component extends DCLogic {
     }catch(e){ this.setState({_readmeBusy:false}); } }
   // --- Git aksiyonları ---
   async _gitDo(promise,okMsg){ this.setState({_gitBusy:true,_gitActionMsg:''});
-    try{ const r=await promise; this.setState({_gitBusy:false,_gitActionMsg:(r&&r.ok)?(okMsg||''):('✕ '+((r&&r.error)||'hata'))}); await this._loadGit(); return r; }
-    catch(e){ this.setState({_gitBusy:false,_gitActionMsg:'✕ hata'}); return {ok:false}; } }
+    try{ const r=await promise; const ok=!!(r&&r.ok); const msg=ok?(okMsg||''):('✕ '+((r&&r.error)||'hata'));
+      this.setState({_gitBusy:false,_gitActionMsg:msg});
+      if(ok&&okMsg) this.toast(okMsg); else if(!ok) this.toast(msg,'err');
+      await this._loadGit(); return r; }
+    catch(e){ this.setState({_gitBusy:false,_gitActionMsg:'✕ hata'}); this.toast('✕ hata','err'); return {ok:false}; } }
   gitStage(file){ const p=this.sel; if(p&&p.id) this._gitDo(window.galaxy.gitStage({projectId:p.id,file})); }
   gitUnstage(file){ const p=this.sel; if(p&&p.id) this._gitDo(window.galaxy.gitUnstage({projectId:p.id,file})); }
   gitStageAll(){ const p=this.sel; if(p&&p.id) this._gitDo(window.galaxy.gitStage({projectId:p.id})); }
   async gitCommit(){ const p=this.sel; const msg=String(this.state.gitMsg||'').trim(); if(!p||!p.id||!msg) return;
     const r=await this._gitDo(window.galaxy.gitCommit({projectId:p.id,message:msg}),'✓ commit yapıldı'); if(r&&r.ok) this.setState({gitMsg:''}); }
-  gitPush(){ const p=this.sel; if(p&&p.id) this._gitDo(window.galaxy.gitPush({projectId:p.id}),'✓ push edildi'); }
-  gitPull(){ const p=this.sel; if(p&&p.id) this._gitDo(window.galaxy.gitPull({projectId:p.id}),'✓ pull edildi'); }
+  gitPush(){ const p=this.sel; if(!p||!p.id) return; const g=this.state._git||{}; const ahead=g.ahead||0; const br=g.branch||p.branch||'dal';
+    this.askConfirm('"'+br+'" dalı uzağa gönderilsin mi?', ()=>{
+      this._gitDo(window.galaxy.gitPush({projectId:p.id}), '✓ '+br+' ← '+(ahead||1)+' commit');
+    }, {title:'Push', detail:ahead?(ahead+' commit gönderilecek.'):'Uzakla senkronla.', okLabel:'Push', kind:'warn'}); }
+  gitPull(){ const p=this.sel; if(!p||!p.id) return; const g=this.state._git||{}; const behind=g.behind||0; const br=g.branch||p.branch||'dal';
+    this._gitDo(window.galaxy.gitPull({projectId:p.id}), behind?('✓ '+br+' → '+behind+' commit'):'✓ pull edildi'); }
+  async gitInit(){ const p=this.sel; if(!p||!p.id||!window.galaxy||!window.galaxy.gitInit){ this.toast('✕ git init bu ortamda yok','err'); return; }
+    const r=await this._gitDo(window.galaxy.gitInit({projectId:p.id,path:p._path}),'✓ git deposu başlatıldı'); if(r&&r.ok) this._loadReal(); }
   gitSwitchBranch(branch){ const p=this.sel; if(p&&p.id&&branch) this._gitDo(window.galaxy.gitSwitch({projectId:p.id,branch}),'✓ '+branch); }
   async gitCreateBranch(){ const p=this.sel; const name=String(this.state.branchInput||'').trim(); if(!p||!p.id||!name) return;
     const r=await this._gitDo(window.galaxy.gitSwitch({projectId:p.id,branch:name,create:true}),'✓ dal oluşturuldu'); if(r&&r.ok) this.setState({branchInput:'',_branchAdd:false}); }
@@ -947,6 +995,14 @@ class Component extends DCLogic {
     const gitAhead=(_g&&_g.ahead)||0, gitBehind=(_g&&_g.behind)||0, gitHasUpstream=!!(_g&&_g.hasUpstream);
     const gitAB=(gitAhead||gitBehind)?[(gitAhead?'↑'+gitAhead:''),(gitBehind?'↓'+gitBehind:'')].filter(Boolean).join(' '):(gitHasUpstream?'güncel':'takipsiz');
     const gitStatusLine=gitDirtyCount>0?(gitDirtyCount+' değişiklik bekliyor'):'çalışma alanı temiz';
+    const gitPriBase='width:100%;padding:9px 0;cursor:pointer;font-family:\'Space Grotesk\',sans-serif;font-size:12px;border-radius:8px;margin-bottom:6px;';
+    const gitPriCyan=gitPriBase+'border:1px solid #61dcff;background:rgba(97,220,255,.1);color:#61dcff';
+    const gitPriGreen=gitPriBase+'border:1px solid #55e88b;background:rgba(85,232,139,.1);color:#55e88b';
+    const gitPriMuted=gitPriBase+'border:1px solid rgba(190,205,255,.18);background:transparent;color:#8b96b8;cursor:default';
+    let gitPrimaryLabel='Güncel', gitPrimaryTitle='Çalışma alanı güncel', gitPrimaryStyle=gitPriMuted, gitShowPullGhost=false, gitPrimaryFn=()=>{};
+    if(gitDirtyCount>0){ gitPrimaryLabel='Commit…'; gitPrimaryTitle='Değişiklikleri hazırla ve commit’le'; gitPrimaryStyle=gitPriGreen; gitPrimaryFn=()=>{this.setState({gitCenter:'durum'});this._loadGit();}; gitShowPullGhost=gitBehind>0; }
+    else if(gitAhead>0){ gitPrimaryLabel='⬆ Push'; gitPrimaryTitle='Push (uzağa gönder)'; gitPrimaryStyle=gitPriCyan; gitPrimaryFn=()=>this.gitPush(); gitShowPullGhost=gitBehind>0; }
+    else if(gitBehind>0){ gitPrimaryLabel='⬇ Pull'; gitPrimaryTitle='Pull (uzaktan indir)'; gitPrimaryStyle=gitPriCyan; gitPrimaryFn=()=>this.gitPull(); }
     const gitTopCommit=commits[0]||null;
     const isGitRepoSel=!!(_g||(sel&&sel._git));
     // --- Git istemci: staged/unstaged dosyalar + aksiyonlar ---
@@ -1129,6 +1185,8 @@ class Component extends DCLogic {
       isKayit: st.leftTab==='kayit', isAgac: st.leftTab==='agac', isGit: st.leftTab==='git',
       gitFiles, commits, gitBranchName, gitDirtyCount, hasGitFiles, noGitFiles:!hasGitFiles,
       gitAB, gitStatusLine, gitHasChangesLeft:gitDirtyCount>0, gitCleanLeft:gitDirtyCount===0,
+      gitPrimaryLabel, gitPrimaryTitle, gitPrimaryStyle, gitPrimaryFn, gitShowPullGhost,
+      gitInit:()=>this.gitInit(),
       gitTopCommitMsg:gitTopCommit?gitTopCommit.msg:'', gitTopCommitMeta:gitTopCommit?(gitTopCommit.hash+' · '+gitTopCommit.when):'', hasTopCommit:!!gitTopCommit,
       isGitRepoSel, notGitRepoSel:!isGitRepoSel,
       gitStatusColor: gitDirtyCount>0?'#ffc861':'#55e88b',
@@ -1230,6 +1288,7 @@ class Component extends DCLogic {
       projCount:'· '+((this.PROJECTS&&this.PROJECTS.length)||0), noProjects:!(this.PROJECTS&&this.PROJECTS.length),
       isClaude: st.consoleTab==='claude', isBash: st.consoleTab==='bash',
       claudeLines, bashLines, emptyClaude:claudeLines.length===0, emptyBash:bashLines.length===0,
+      claudeMissing:st._claudeOk===false, claudeReady:st._claudeOk!==false,
       consoleInput: st.consoleInput, onConsoleInput:(e)=>this.onConsoleInput(e), onConsoleKey:(e)=>this.onConsoleKey(e), sendConsole:()=>this.sendConsole(),
       consolePrompt: st.consoleTab==='bash'?'$':'›', focusConsole:()=>this._focusConsole(),
       consolePlaceholder: st.consoleTab==='bash'?'komut yaz, Enter ile çalıştır…':'Claude\'a yaz, Enter ile gönder…',
@@ -1273,7 +1332,8 @@ class Component extends DCLogic {
         }; })(),
       docNoMatch: !!(String(st.docQuery||'').trim() && (st._readme&&st._readme.content) && !this._mdLines(st._readme.content).some(ln=>ln.type!=='blank'&&(ln.segs||[]).map(s=>s.t).join('').toLowerCase().includes(String(st.docQuery).trim().toLowerCase()))),
       selName: sel.name, selDesc: sel.desc, selStage: sel.stage, selBranch: sel.branch, selProg: sel.prog,
-      selProgLabel:'%'+sel.prog, selPlanLabel: planLabel, selPlan,
+      selProgLabel:'%'+sel.prog, selPlanLabel: planLabel, selPlan, planEmpty:!sel.plan.length,
+      planInput:st.planInput||'', onPlanInput:(e)=>this.onPlanInput(e), onPlanKey:(e)=>this.onPlanKey(e), pullPlanFromReadme:()=>this.pullPlanFromReadme(),
       selStatusColor: sc.c, selStatusLabel: sc.l,
       selDotStyle:`width:10px;height:10px;border-radius:50%;background:${sc.c};box-shadow:0 0 8px ${sc.c}`,
       selBarStyle:`width:${sel.prog}%;height:100%;background:linear-gradient(90deg,${sc.c},#8ae7ff);box-shadow:0 0 10px ${sc.c};transition:width .6s`,
@@ -1358,7 +1418,13 @@ class Component extends DCLogic {
       // Global toast + yıkıcı-işlem onayı
       toastOpen:!!st._toast, toastMsg:(st._toast&&st._toast.msg)||'',
       toastStyle:`position:fixed;top:64px;right:22px;z-index:80;max-width:360px;padding:12px 16px;border:1px solid ${(st._toast&&st._toast.kind==='err')?'#ff6b7a':'#55e88b'};background:${(st._toast&&st._toast.kind==='err')?'rgba(40,12,16,.95)':'rgba(10,30,18,.95)'};color:${(st._toast&&st._toast.kind==='err')?'#ff9aa4':'#7bf0a8'};font-family:'JetBrains Mono',monospace;font-size:12px;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:slideIn .22s ease both`,
-      confirmOpen:!!st._confirm, confirmMsg:(st._confirm&&st._confirm.msg)||'', runConfirm:()=>this.runConfirm(), cancelConfirm:()=>this.cancelConfirm(),
+      confirmOpen:!!st._confirm, confirmMsg:(st._confirm&&st._confirm.msg)||'', confirmTitle:(st._confirm&&st._confirm.title)||'', confirmDetail:(st._confirm&&st._confirm.detail)||'',
+      hasConfirmTitle:!!(st._confirm&&st._confirm.title), hasConfirmDetail:!!(st._confirm&&st._confirm.detail),
+      confirmOkLabel:(st._confirm&&st._confirm.okLabel)||'Sil', runConfirm:()=>this.runConfirm(), cancelConfirm:()=>this.cancelConfirm(),
+      confirmCardStyle:`width:430px;max-width:90vw;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.45)':'rgba(255,107,122,.35)'};background:linear-gradient(172deg,${(st._confirm&&st._confirm.kind==='warn')?'rgba(20,14,10,.98),rgba(8,6,5,.99)':'rgba(20,12,14,.98),rgba(8,5,7,.99)'});box-shadow:0 30px 80px rgba(0,0,0,.6);padding:22px 24px;border-radius:14px`,
+      confirmOkStyle:`padding:8px 20px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'#ff9650':'#ff6b7a'};background:${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.14)':'rgba(255,107,122,.14)'};color:${(st._confirm&&st._confirm.kind==='warn')?'#ffb060':'#ff6b7a'}`,
+      hubTitle:(()=>{ const err=st._hubPulse==='error'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); return err?'hata':(work?'çalışıyor':'hazır'); })(),
+      hubDotStyle:(()=>{ const err=st._hubPulse==='error'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); const col=err?'#ff6b7a':(work?'#4684f6':'#61dcff'); return `display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};box-shadow:0 0 8px ${col};flex-shrink:0;${work&&!err?'animation:gxhubpulse 1.1s ease-in-out infinite;':''}`; })(),
       // Özellik rehberi
       guideOpen:!!st._guideOpen, openGuide:()=>this.openGuide(), closeGuide:()=>this.closeGuide(),
       guideSections:this._guideData().map(([title,items])=>({title, items:items.map(t=>({t}))})),
@@ -1439,8 +1505,9 @@ class Component extends DCLogic {
     if(!A._greeted){ A._greeted=true; this._asstSay('assistant','Selam! Ben senin dijital ikizin. İstersen sohbet ederiz, istersen bir işini hallederim — “Core SDK’ya git”, “commit et”, “terminalde npm test çalıştır” ya da aklına takılan herhangi bir şeyi yaz.',{speak:false}); }
     setTimeout(()=>{ try{ A.textEl.focus(); }catch(e){} },80); }
   _asstClose(){ const A=this._asst; if(!A) return; A.open=false; A.panel.style.height='0'; A.panel.style.opacity='0'; A.panel.style.pointerEvents='none'; try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){} }
-  _asstSetState(s){ const A=this._asst; if(!A) return; A.state=s; const lbl={idle:'hazır — bir komut ver',listening:'dinliyorum…',working:'çalışıyorum…',speaking:'yanıtlıyorum…'}[s]||''; const col={idle:'#61dcff',listening:'#55e88b',working:'#4684f6',speaking:'#8ae7ff'}[s]||'#61dcff';
-    if(A.statusEl) A.statusEl.textContent=lbl; if(A.dotEl){ A.dotEl.style.background=col; A.dotEl.style.boxShadow='0 0 10px '+col; } if(A.canvas){ A.canvas.parentNode.style.filter='drop-shadow(0 0 20px '+col+'88)'; } }
+  _asstSetState(s){ const A=this._asst; if(!A) return; const prev=A.state; A.state=s; const lbl={idle:'hazır — bir komut ver',listening:'dinliyorum…',working:'çalışıyorum…',speaking:'yanıtlıyorum…'}[s]||''; const col={idle:'#61dcff',listening:'#55e88b',working:'#4684f6',speaking:'#8ae7ff'}[s]||'#61dcff';
+    if(A.statusEl) A.statusEl.textContent=lbl; if(A.dotEl){ A.dotEl.style.background=col; A.dotEl.style.boxShadow='0 0 10px '+col; } if(A.canvas){ A.canvas.parentNode.style.filter='drop-shadow(0 0 20px '+col+'88)'; }
+    if(s==='working'||prev==='working') this.setState({_hubTick:(this.state._hubTick||0)+1}); }
   _asstSay(role,text,opts){ const A=this._asst; if(!A) return; opts=opts||{};
     const row=document.createElement('div'); const me=role==='user';
     row.style.cssText='max-width:88%;align-self:'+(me?'flex-end':'flex-start')+';font-size:13px;line-height:1.5;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-word;'
