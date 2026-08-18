@@ -46,7 +46,7 @@ macOS · Windows · Electron · Claude Code · v2.3.13</p>
 Diskinde onlarca proje klasörü var: kimi yarım, kimi bitmiş, kiminde ne kaldığını hatırlamıyorsun bile. Project Galaxy bu klasörleri **yaşayan bir evrene** çevirir ve üstüne günlük geliştirme için ihtiyacın olan araçları (terminal, Claude, git, DB, Docker, uzak sunucu, zamanlayıcı) **tek pencerede** toplar:
 
 - Her git deposu bir **gezegen** olur — rengi durumunu, halkası ilerlemesini, konumu son aktivitesini gösterir.
-- Gezegene "inersin": dosyaların yörüngede döner, README'si sağında, planın solunda, altta **projeye özel, kalıcı** bir terminal (bash + Claude) çalışır.
+- Gezegene "inersin": solda **Ağaç**, ortada dosya önizlemesi (isteğe bağlı **Yörünge**), sağda daraltılabilir README, altta **projeye özel, kalıcı** bir terminal (bash + Claude).
 - **5 kişisel AI ajanın** (CTO, PM, Dokümantasyoncu, Kod Denetçisi, Koç) projelerinin gerçek durumunu görerek rapor verir, README yazar, hesap sorar.
 - Notların, todo'ların, günlüğün — hepsi projelere bağlanır ve README dosyalarına **senin onayınla** işlenir.
 - Verilerin hiçbir sunucuya gitmez — her şey diskinde, git + yedeklerle güvende.
@@ -144,13 +144,13 @@ Soldan sağa:
 <p align="center"><img src="assets/guide/gezegen-anatomi.jpg" alt="Gezegen modu anatomisi" width="900"></p>
 <p align="center"><img src="docs/gezegen-modu.png" alt="Gezegen modu — gerçek ekran" width="900"></p>
 
-- **Orta — dosya yörüngesi:** klasör = halkalı uydu (tıkla → içine dal), dosya = türüne göre renkli (kod mavi, doküman sarı, görsel pembe). Tıklayınca **uygulama içinde** açılır: kod, markdown, resim, PDF, video.
-- **Sol panel, üç sekme:**
-  - **KAYIT** — durum, ilerleme çubuğu, plan checklist'i (çift tıkla düzenle), notlar, **odak kronometresi** (süresi Ayarlar'dan), onaylı proje kaldırma, klasörü aç.
-  - **AĞAÇ** — tam dosya ağacı.
-  - **⎇ GİT** — canlı git paneli (aşağıda).
-- **Sağ panel:** README her zaman açık, render'lı; içinde arama.
-- **Alt konsol:** projeye özel, kalıcı terminal (aşağıda).
+- **Orta — atölye:** varsayılan **Dosya** görünümü; soldaki ağaçtan tıklanan dosya burada açılır (kod, markdown, resim, PDF, video). **Yörünge** anahtarı eski uydu haritasını geri getirir (klasör = halkalı uydu, dosya = türe göre renk).
+- **Sol panel, üç sekme (varsayılan Ağaç):**
+  - **Ağaç** — tam dosya ağacı + projede ara (grep).
+  - **Kayıt** — durum, ilerleme, plan checklist'i (**tek tıkla** tamam/beklemede), notlar, **odak kronometresi** (süresi Ayarlar'dan), onaylı proje kaldırma, klasörü aç.
+  - **Git** — canlı git paneli (aşağıda).
+- **Sağ panel:** README; **‹** veya **⌘\\** ile gizlenir, dikey şeritten geri açılır. İçinde ara.
+- **Alt konsol:** projeye özel, kalıcı terminal; üst kenarından sürükleyerek yükseklik (en az 240px, hatırlanır).
 
 ### Konsol — kalıcı bash + Claude oturumları
 
@@ -289,7 +289,9 @@ Yedeklerden geri dönüş: ⌘K → Yedekler.
 | **ESC** | Katman katman geri (araçlar → switcher → paneller → uzay) |
 | **Enter** | Gönder/çalıştır · **Shift+Enter** yeni satır · **⌘Enter** commit |
 | **⌘⇧G** | Her yerden hızlı not |
-| **Çift tık** | Gezegene in · plan maddesi düzenle |
+| **⌘\\** | Gezegende README gizle / göster |
+| **Çift tık** | Haritada gezegene in |
+| **Tek tık** | Plan maddesi tamam / beklemede |
 | **↑ ↓** | Bash komut geçmişi · **Tab** tamamlama · **⌫** üst klasör |
 | **WASD / oklar, + / −, ⌂** | Uzayda gezinme |
 

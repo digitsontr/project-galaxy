@@ -27,6 +27,7 @@ function staticChecks() {
       check('tag-balance:' + tag, o === c, o + '/' + c);
     }
     check('index-nonempty', h.length > 50000, h.length + ' bytes');
+    check('workshop-stage', /Bir dosya seç/.test(h) && /Yörünge/.test(h) && !/belgede ara/.test(h), '');
   } catch (e) { check('static-read', false, e.message); }
 }
 

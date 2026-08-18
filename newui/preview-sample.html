@@ -496,10 +496,10 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
     </sc-if>
     <sc-if value="{{ isPlanet }}" hint-placeholder-val="{{ false }}">
       <div style="padding:16px 18px;animation:fadeUp .35s ease both">
-        <div style="display:flex;gap:14px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid rgba(190,205,255,.08);padding-bottom:12px;margin-bottom:14px">
+        <div style="display:flex;gap:14px;border-bottom:1px solid rgba(190,205,255,.08);padding-bottom:12px;margin-bottom:14px">
           <sc-for list="{{ leftTabs }}" as="lt" hint-placeholder-count="3"><button sc-camel-on-click="{{ lt.onClick }}" style="{{ lt.style }}">{{ lt.label }}</button></sc-for>
         </div>
-        <sc-if value="{{ isKayit }}" hint-placeholder-val="{{ true }}">
+        <sc-if value="{{ isKayit }}" hint-placeholder-val="{{ false }}">
           <div>
             <div data-noi18n style="font-size:18px;font-weight:600;color:#dbe4ff;margin-bottom:6px">{{ selName }}</div>
             <div style="font-size:12px;color:#8b96b8;line-height:1.5;margin-bottom:16px">{{ selStage }}</div>
@@ -514,10 +514,10 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
             </div>
             <sc-if value="{{ isPlan }}" hint-placeholder-val="{{ true }}">
               <div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8791b8;text-transform:uppercase;margin-bottom:12px">{{ selPlanLabel }} — çift tık düzenle</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8791b8;text-transform:uppercase;margin-bottom:12px">{{ selPlanLabel }} — tıkla: tamam</div>
                 <div style="display:flex;flex-direction:column;gap:11px">
                   <sc-for list="{{ selPlan }}" as="pi" hint-placeholder-count="5">
-                    <div data-noi18n sc-camel-on-double-click="{{ pi.onToggle }}" title="Çift tık: tamam/beklemede" style="display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer;{{ pi.textColor }}"><span style="{{ pi.boxStyle }}">{{ pi.check }}</span>{{ pi.text }}</div>
+                    <div data-noi18n sc-camel-on-click="{{ pi.onToggle }}" title="Tıkla: tamam / beklemede" style="display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer;{{ pi.textColor }}"><span style="{{ pi.boxStyle }}">{{ pi.check }}</span>{{ pi.text }}</div>
                   </sc-for>
                 </div>
               </div>
@@ -554,7 +554,7 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
             </sc-if>
           </div>
         </sc-if>
-        <sc-if value="{{ isAgac }}" hint-placeholder-val="{{ false }}">
+        <sc-if value="{{ isAgac }}" hint-placeholder-val="{{ true }}">
           <div style="animation:fadeUp .25s ease both;max-height:100%;overflow:auto">
             <div style="display:flex;gap:6px;margin-bottom:10px"><input data-noi18n value="{{ grepQuery }}" placeholder="projede ara… (Enter)" sc-camel-on-input="{{ onGrepInput }}" sc-camel-on-key-down="{{ onGrepKey }}" style="flex:1;background:rgba(10,15,32,.6);border:1px solid rgba(190,205,255,.16);color:#dbe4ff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 8px;outline:none" /><button sc-camel-on-click="{{ openNewFile }}" title="Yeni dosya" style="background:none;border:1px solid rgba(85,232,139,.3);color:#55e88b;padding:0 9px;cursor:pointer;font-size:13px">+</button></div>
             <sc-if value="{{ newFileOpen }}" hint-placeholder-val="{{ false }}"><input data-noi18n value="{{ newFileInput }}" placeholder="yol/ad.js (Enter) · klasör için sonuna /" sc-camel-on-input="{{ onNewFileInput }}" sc-camel-on-key-down="{{ onNewFileKey }}" style="width:100%;box-sizing:border-box;margin-bottom:10px;background:rgba(10,15,32,.6);border:1px solid rgba(85,232,139,.3);color:#dbe4ff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 8px;outline:none" /></sc-if>
@@ -811,13 +811,47 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
     <sc-if value="{{ isPlanet }}" hint-placeholder-val="{{ false }}">
       <div style="position:absolute;inset:0;display:flex;animation:fadeUp .4s ease both">
         <div style="flex:1;display:flex;flex-direction:column;min-width:0">
-          <div style="flex:1;position:relative;overflow:hidden">
-            <svg sc-camel-view-box="0 0 400 340" sc-camel-preserve-aspect-ratio="xMidYMid meet" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><ellipse cx="200" cy="170" rx="155" ry="88" fill="none" stroke="rgba(97,220,255,.26)"></ellipse><ellipse cx="200" cy="170" rx="112" ry="58" fill="none" stroke="rgba(97,220,255,.18)"></ellipse></svg>
-            <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:104px;height:104px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#dffbff,#61dcff 46%,#1a6b8f 100%);box-shadow:0 0 48px rgba(97,220,255,.5),inset -6px -9px 26px rgba(0,0,0,.45);animation:floatOrb 7s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-size:11px;color:#04121c;font-weight:600">proje kökü</div>
-            <sc-if value="{{ fsInSub }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ fsUp }}" style="position:absolute;left:18px;top:14px;z-index:6;background:rgba(13,18,36,.85);border-radius:14px;border:1px solid rgba(97,220,255,.3);color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 12px;cursor:pointer">◂ üst klasör  <span style="color:#8b96b8">{{ fsCrumb }}</span></button></sc-if>
-            <sc-for list="{{ files }}" as="f" hint-placeholder-count="5"><button sc-camel-on-click="{{ f.onClick }}" title="Aç" style="{{ f.style }}"></button></sc-for>
-            <sc-for list="{{ files }}" as="f" hint-placeholder-count="5"><div data-noi18n style="{{ f.labelStyle }}">{{ f.name }}</div></sc-for>
-            <div style="position:absolute;top:14px;left:14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#8791b8;border:1px solid rgba(190,205,255,.16);padding:6px 10px">belgede ara…</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(190,205,255,.1);flex-shrink:0">
+            <button sc-camel-on-click="{{ setStageFile }}" style="{{ stageFileStyle }}">Dosya</button>
+            <button sc-camel-on-click="{{ setStageOrbit }}" style="{{ stageOrbitStyle }}">Yörünge</button>
+            <sc-if value="{{ previewInline }}" hint-placeholder-val="{{ false }}">
+              <span data-noi18n style="margin-left:8px;min-width:0;flex:1;font-family:'JetBrains Mono',monospace;font-size:11px;color:#dbe4ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ previewName }}<span style="color:#8791b8">{{ previewMeta }}</span></span>
+              <span data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#ff6b7a">{{ editMsg }}</span>
+              <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ saveEdit }}" style="background:rgba(85,232,139,.12);border:1px solid #55e88b;color:#55e88b;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;cursor:pointer">{{ editSaveLabel }}</button><button sc-camel-on-click="{{ cancelEdit }}" style="background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;cursor:pointer">İptal</button></sc-if>
+              <sc-if value="{{ showStartEdit }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ startEdit }}" style="background:rgba(97,220,255,.08);border:1px solid #61dcff;color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;cursor:pointer">✎ Düzenle</button></sc-if>
+              <button sc-camel-on-click="{{ openPreviewExternal }}" style="background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;cursor:pointer">↗</button>
+              <button sc-camel-on-click="{{ closePreview }}" title="Kapat (Esc)" style="background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;width:26px;height:26px;cursor:pointer;flex-shrink:0">✕</button>
+            </sc-if>
+          </div>
+          <div style="flex:1;position:relative;overflow:hidden;min-height:0">
+            <sc-if value="{{ showOrbit }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0">
+                <svg sc-camel-view-box="0 0 400 340" sc-camel-preserve-aspect-ratio="xMidYMid meet" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><ellipse cx="200" cy="170" rx="155" ry="88" fill="none" stroke="rgba(97,220,255,.26)"></ellipse><ellipse cx="200" cy="170" rx="112" ry="58" fill="none" stroke="rgba(97,220,255,.18)"></ellipse></svg>
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:104px;height:104px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#dffbff,#61dcff 46%,#1a6b8f 100%);box-shadow:0 0 48px rgba(97,220,255,.5),inset -6px -9px 26px rgba(0,0,0,.45);animation:floatOrb 7s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-size:11px;color:#04121c;font-weight:600">proje kökü</div>
+                <sc-if value="{{ fsInSub }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ fsUp }}" style="position:absolute;left:18px;top:14px;z-index:6;background:rgba(13,18,36,.85);border-radius:14px;border:1px solid rgba(97,220,255,.3);color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 12px;cursor:pointer">◂ üst klasör  <span style="color:#8b96b8">{{ fsCrumb }}</span></button></sc-if>
+                <sc-for list="{{ files }}" as="f" hint-placeholder-count="5"><button sc-camel-on-click="{{ f.onClick }}" title="Aç" style="{{ f.style }}"></button></sc-for>
+                <sc-for list="{{ files }}" as="f" hint-placeholder-count="5"><div data-noi18n style="{{ f.labelStyle }}">{{ f.name }}</div></sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ previewEmpty }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px">
+                <div style="font-size:16px;font-weight:600;color:#dbe4ff">Bir dosya seç</div>
+                <div style="font-size:13px;color:#8b96b8;max-width:360px;text-align:center;line-height:1.5">Soldaki Ağaç’tan bir dosyaya tıkla — içerik burada açılır.</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ previewInline }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;overflow:auto;min-height:0">
+                <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><textarea data-noi18n value="{{ editContent }}" sc-camel-on-input="{{ onEditContent }}" spellcheck="false" style="width:100%;height:100%;box-sizing:border-box;margin:0;padding:16px 20px;background:rgba(6,9,18,.6);border:none;resize:none;outline:none;color:#dbe4ff;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.65"></textarea></sc-if>
+                <sc-if value="{{ pvLoading }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8791b8;font-family:'JetBrains Mono',monospace;font-size:13px"><span class="pg-spin"></span>yükleniyor…</div></sc-if>
+                <sc-if value="{{ pvText }}" hint-placeholder-val="{{ true }}"><sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"></sc-if><pre data-noi18n style="margin:0;padding:16px 20px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.65;color:#dbe4ff;white-space:pre-wrap;word-break:break-word">{{ previewText }}</pre></sc-if>
+                <sc-if value="{{ pvImage }}" hint-placeholder-val="{{ false }}"><div style="height:100%;padding:20px;background-image:url({{ previewUrl }});background-size:contain;background-repeat:no-repeat;background-position:center"></div></sc-if>
+                <sc-if value="{{ pvPdf }}" hint-placeholder-val="{{ false }}"><iframe src="{{ previewUrl }}" style="width:100%;height:100%;border:none;background:#fff"></iframe></sc-if>
+                <sc-if value="{{ pvVideo }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px"><video src="{{ previewUrl }}" controls style="max-width:100%;max-height:100%"></video></div></sc-if>
+                <sc-if value="{{ pvAudio }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px"><audio src="{{ previewUrl }}" controls style="width:80%"></audio></div></sc-if>
+                <sc-if value="{{ pvBinary }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;height:100%;color:#8b96b8;font-family:'JetBrains Mono',monospace;font-size:13px"><span>Bu dosya app içinde önizlenemiyor.</span><button sc-camel-on-click="{{ openPreviewExternal }}" style="background:rgba(97,220,255,.08);border:1px solid #61dcff;color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 14px;cursor:pointer">↗ Harici uygulamada aç</button></div></sc-if>
+                <sc-if value="{{ pvError }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ff6b7a;font-family:'JetBrains Mono',monospace;font-size:13px">Dosya okunamadı.</div></sc-if>
+              </div>
+            </sc-if>
           </div>
           <div sc-camel-on-mouse-down="{{ onConsoleResize }}" title="Sürükle: konsolu büyüt/küçült" style="height:9px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;background:rgba(97,220,255,.06);border-top:1px solid rgba(97,220,255,.22);flex-shrink:0"><span style="width:34px;height:3px;border-radius:2px;background:rgba(190,205,255,.35)"></span></div>
           <div style="background:linear-gradient(180deg,rgba(8,11,22,.92),rgba(4,6,12,.9));padding:0 16px 12px;height:{{ consoleH }};display:flex;flex-direction:column;flex-shrink:0;box-shadow:inset 0 8px 20px rgba(0,0,0,.35)">
@@ -840,8 +874,9 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
             <div class="gx-console-field" sc-camel-on-click="{{ focusConsole }}" style="display:flex;gap:8px;align-items:center;margin-top:8px;background:rgba(10,14,28,.7);border:1px solid rgba(190,205,255,.16);border-radius:8px;padding:9px 8px 9px 12px;cursor:text"><span style="color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1">{{ consolePrompt }}</span><input id="ghud-console-input" value="{{ consoleInput }}" placeholder="{{ consolePlaceholder }}" sc-camel-on-input="{{ onConsoleInput }}" sc-camel-on-key-down="{{ onConsoleKey }}" style="flex:1;background:none;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:13px;color:#dbe4ff" /><span class="gx-caret"></span><button sc-camel-on-click="{{ sendConsole }}" title="Gönder (Enter)" style="border:1px solid #61dcff;background:rgba(97,220,255,.12);color:#61dcff;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:5px">Gönder <span style="opacity:.7">↵</span></button></div>
           </div>
         </div>
+        <sc-if value="{{ readmeOpen }}" hint-placeholder-val="{{ true }}">
         <div style="width:300px;flex-shrink:0;border-left:1px solid rgba(190,205,255,.12);background:rgba(9,13,26,.55);backdrop-filter:blur(10px);overflow-y:auto;padding:18px">
-          <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8791b8;border-bottom:1px solid rgba(190,205,255,.06);padding-bottom:12px;margin-bottom:14px"><span style="color:#dbe4ff">README</span><input data-noi18n value="{{ docQuery }}" placeholder="ara…" sc-camel-on-input="{{ onDocSearch }}" style="background:rgba(10,15,32,.6);border:1px solid rgba(190,205,255,.16);color:#dbe4ff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 10px;outline:none;width:130px;text-transform:none;letter-spacing:0" /></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8791b8;border-bottom:1px solid rgba(190,205,255,.06);padding-bottom:12px;margin-bottom:14px"><span style="color:#dbe4ff">README</span><span style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0"><input data-noi18n value="{{ docQuery }}" placeholder="ara…" sc-camel-on-input="{{ onDocSearch }}" style="background:rgba(10,15,32,.6);border:1px solid rgba(190,205,255,.16);color:#dbe4ff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 10px;outline:none;width:110px" /><button sc-camel-on-click="{{ toggleReadme }}" title="README’yi gizle (⌘\\)" style="background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;width:24px;height:24px;cursor:pointer;padding:0">‹</button></span></div>
           <sc-if value="{{ hasRealReadme }}" hint-placeholder-val="{{ false }}"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8791b8;margin-bottom:12px">{{ readmeName }}</div><div style="font-size:13px;color:#8b96b8;line-height:1.55"><sc-for list="{{ readmeLines }}" as="ln" hint-placeholder-count="5"><div style="{{ ln.lineStyle }}"><span data-noi18n style="color:#8791b8">{{ ln.bullet }}</span><sc-for list="{{ ln.segs }}" as="sg" hint-placeholder-count="1"><span data-noi18n style="{{ sg.style }}">{{ sg.t }}</span></sc-for></div></sc-for></div><sc-if value="{{ docNoMatch }}" hint-placeholder-val="{{ false }}"><div data-noi18n style="color:#8791b8;font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 0">eşleşme yok</div></sc-if></sc-if>
          <sc-if value="{{ noRealReadme }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;border:1px dashed rgba(97,220,255,.3);background:rgba(97,220,255,.04)"><span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b96b8">Bu projede README yok. Aşağıdaki önizlemeyi dosyaya yaz:</span><button sc-camel-on-click="{{ createReadme }}" style="border:1px solid #61dcff;background:rgba(97,220,255,.1);color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 14px;cursor:pointer;white-space:nowrap">{{ createReadmeLabel }}</button></div>
           <div data-noi18n style="font-size:15px;font-weight:600;color:#dbe4ff;margin-bottom:8px"># {{ selName }}</div>
@@ -851,6 +886,10 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
           <div style="font-size:13px;font-weight:600;color:#dbe4ff;margin:16px 0 8px">## Günlük</div>
           <div data-noi18n style="font-size:13px;color:#8b96b8;line-height:1.6">{{ selLastActivity }}</div></sc-if>
         </div>
+        </sc-if>
+        <sc-if value="{{ readmeClosed }}" hint-placeholder-val="{{ false }}">
+          <button sc-camel-on-click="{{ toggleReadme }}" title="README’yi aç (⌘\\)" style="width:28px;flex-shrink:0;border:none;border-left:1px solid rgba(190,205,255,.12);background:rgba(9,13,26,.55);color:#8b96b8;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;writing-mode:vertical-rl;transform:rotate(180deg);padding:14px 0">README</button>
+        </sc-if>
       </div>
     </sc-if>
   </main>
@@ -1104,7 +1143,7 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
           <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8791b8">{{ previewRel }}{{ previewMeta }}</span>
           <span data-noi18n style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:#ff6b7a">{{ editMsg }}</span>
           <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ saveEdit }}" style="background:rgba(85,232,139,.12);border:1px solid #55e88b;color:#55e88b;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 14px;cursor:pointer;white-space:nowrap">{{ editSaveLabel }}</button><button sc-camel-on-click="{{ cancelEdit }}" style="background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 14px;cursor:pointer">İptal</button></sc-if>
-          <sc-if value="{{ pvEditable }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"></sc-if><button sc-camel-on-click="{{ startEdit }}" style="background:rgba(97,220,255,.08);border:1px solid #61dcff;color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 14px;cursor:pointer;white-space:nowrap">✎ Düzenle</button></sc-if>
+          <sc-if value="{{ showStartEdit }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ startEdit }}" style="background:rgba(97,220,255,.08);border:1px solid #61dcff;color:#61dcff;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 14px;cursor:pointer;white-space:nowrap">✎ Düzenle</button></sc-if>
           <button sc-camel-on-click="{{ openPreviewExternal }}" style="background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 14px;cursor:pointer;white-space:nowrap">↗ Harici</button>
           <button sc-camel-on-click="{{ previewDelete }}" title="Dosyayı sil" style="background:none;border:1px solid rgba(255,107,122,.3);color:#ff6b7a;font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 10px;cursor:pointer">🗑</button>
           <button sc-camel-on-click="{{ closePreview }}" style="background:none;border:1px solid rgba(190,205,255,.16);color:#8b96b8;width:30px;height:30px;cursor:pointer;flex-shrink:0">✕</button>
@@ -1320,7 +1359,7 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
 </x-dc>
 <script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:800}}">
 class Component extends DCLogic {
-  state = { mode:'space', tab:'genel', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'kayit', warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500 };
+  state = { mode:'space', tab:'genel', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'agac', orbitView:false, readmeOpen:true, consoleH:240, warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500 };
 
   NOTES = { haci:['Yol tarifi v1\'de yok — sonraya','Kalıcı oturum: ilk girişten sonra login istenmez','Vital mock verisi sadece nabza indirilecek'], sales:['DuckDuckGo araması — API key gerektirmiyor','Web UI: python web_app.py'], core:['flux ile aynı kod tabanı','Son commit: Aralık 2025'], kyc:['Canlılık testi TurkTrust SDK ile'] };
   LINKS = { haci:[['PAP/BleBracelet','Bileklik firmware','#c77bff'],['KYC TurkTrust','Kimlik doğrulama','#61dcff']], sales:[['Core SDK','Ortak biyometri','#ffc861']], core:[['Flux','Aynı kod tabanı','#8a8fa8']], kyc:[['Hacı Takip','Kimlik modülü','#61dcff']] };
@@ -1408,14 +1447,14 @@ class Component extends DCLogic {
       labelStyle:`position:absolute;left:${f.x}%;top:calc(${f.y}% + ${f.s/2+8}px);transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:11px;color:${f.glow?f.c:'#8b96b8'};white-space:nowrap` }));
 
     const planLabel=`${sel.plan.filter(x=>x[1]).length}/${sel.plan.length}`;
-    const selPlan=sel.plan.map(([text,done])=>({ text, done,
+    const selPlan=sel.plan.map(([text,done])=>({ text, done, onToggle:()=>this.setState({}),
       textColor:`color:${done?'#55e88b':'#8b96b8'}`,
       boxStyle:`width:14px;height:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border:1px solid ${done?'#55e88b':'rgba(190,205,255,.3)'};background:${done?'rgba(85,232,139,.13)':'transparent'};color:#55e88b`,
       check:done?'✓':'',
       md:`[${done?'x':' '}] ${text}`, mdColor:`color:${done?'#55e88b':'#ffc861'}` }));
 
-    const leftDef=[['kayit','KAYIT'],['agac','AĞAÇ'],['git','⎇ GİT']];
-    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this.setState({leftTab:id}),style:`background:none;border:none;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${st.leftTab===id?'#61dcff':'#4d5677'}`}));
+    const leftDef=[['agac','Ağaç'],['kayit','Kayıt'],['git','Git']];
+    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this.setState({leftTab:id}),style:`background:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;color:${st.leftTab===id?'#61dcff':'#8791b8'}`}));
 
     const consoleTabs=[['claude','⌁ CLAUDE'],['bash','▮ BASH']].map(([id,label])=>({id,label,onClick:()=>this.setState({consoleTab:id}),style:`padding:4px 10px;cursor:pointer;background:${st.consoleTab===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.consoleTab===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.consoleTab===id?'#61dcff':'#8b96b8'}`}));
 
@@ -1487,6 +1526,13 @@ class Component extends DCLogic {
       gcDurum: st.gitCenter==='durum', gcTakim: st.gitCenter==='takim', gcGecmis: st.gitCenter==='gecmis', gcRehber: st.gitCenter==='rehber',
       gitCenterTabs: [['durum','DURUM'],['takim','TAKIM AKIŞI'],['gecmis','GEÇMİŞ'],['rehber','GIT FLOW REHBERİ']].map(([id,label])=>({label,style:`padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:${st.gitCenter===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.gitCenter===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.gitCenter===id?'#61dcff':'#8b96b8'}`,onClick:()=>this.setState({gitCenter:id})})),
       isSpace: space, isPlanet: st.mode==='planet',
+      showOrbit: !!st.orbitView, previewEmpty: !st.orbitView && !st._preview, previewInline: !st.orbitView && !!st._preview,
+      setStageFile:()=>this.setState({orbitView:false}), setStageOrbit:()=>this.setState({orbitView:true}),
+      stageFileStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${!st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${!st.orbitView?'#61dcff':'#8b96b8'}`,
+      stageOrbitStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${st.orbitView?'#61dcff':'#8b96b8'}`,
+      readmeOpen: st.readmeOpen!==false, readmeClosed: st.readmeOpen===false, toggleReadme:()=>this.setState({readmeOpen:this.state.readmeOpen===false}),
+      consoleH:(st.consoleH||240)+'px', onConsoleResize:()=>{},
+      showStartEdit:false, previewOpen:false,
       viewGalaxy: space&&isEvren, viewPano: space&&st.tab==='pano', viewDb: space&&st.tab==='db', viewZaman: space&&st.tab==='zaman',
       board, schedule,
       agentsW: st.agentId?'368px':'64px', dockH: st.hudOpen?'196px':'40px',

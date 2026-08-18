@@ -1,6 +1,6 @@
 
 class Component extends DCLogic {
-  state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'kayit', warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500,
+  state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'agac', orbitView:false, readmeOpen:true, warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500,
     toolsOpen:false, calcExpr:'', calMonthOffset:0, toolFind:'', _clockTick:0, locOpen:false, moreOpen:false, holdPlanet:false,
     loaded:false, uniId:null, _docker:null, _sched:null, _db:null, _git:null, _preview:null, _prevLoading:false, _fsCwd:'', _reports:null, _reportView:null, query:'',
     gitMsg:'', branchInput:'', _branchAdd:false, _gitBusy:false, _gitActionMsg:'', _gitDiff:null,
@@ -14,7 +14,7 @@ class Component extends DCLogic {
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     leftCollapsed:false, rightCollapsed:false,
     schAddOpen:false, _schResult:'', schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},
-    consoleH:180, agentFormOpen:false, agentForm:{id:'',name:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''} };
+    consoleH:240, agentFormOpen:false, agentForm:{id:'',name:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''} };
 
   NOTES = { haci:['Yol tarifi v1\'de yok — sonraya','Kalıcı oturum: ilk girişten sonra login istenmez','Vital mock verisi sadece nabza indirilecek'], sales:['DuckDuckGo araması — API key gerektirmiyor','Web UI: python web_app.py'], core:['flux ile aynı kod tabanı','Son commit: Aralık 2025'], kyc:['Canlılık testi TurkTrust SDK ile'] };
   LINKS = { haci:[['PAP/BleBracelet','Bileklik firmware','#c77bff'],['KYC TurkTrust','Kimlik doğrulama','#61dcff']], sales:[['Core SDK','Ortak biyometri','#ffc861']], core:[['Flux','Aynı kod tabanı','#8a8fa8']], kyc:[['Hacı Takip','Kimlik modülü','#61dcff']] };
@@ -59,10 +59,15 @@ class Component extends DCLogic {
         if(this.state.palette||this.state.moreOpen||this.state.toolsOpen||this.state._confirm||this.state.gitCenter||this.state.agentId) return;
         if(this.state.mode==='space' && this.sel && this.sel.id){ e.preventDefault(); this.enter(); }
       }
-      else if (e.key==='Escape'){ if (this._asst&&this._asst.open) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
+      else if ((e.metaKey||e.ctrlKey) && (e.key==='\\' || e.code==='Backslash')){ if(this.state.mode==='planet'){ e.preventDefault(); this.toggleReadme(); } }
+      else if (e.key==='Escape'){ if (this._asst&&this._asst.open) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state._preview) this.closePreview(); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
     };
     window.addEventListener('keydown', this._key);
     try{ if(localStorage.getItem('gxUiMode')==='kadet') this.state.uiMode='kadet'; }catch(e){}
+    try{ const h=parseInt(localStorage.getItem('gxConsoleH'),10); if(h>=240) this.state.consoleH=Math.min(640,h); }catch(e){}
+    try{ if(localStorage.getItem('gxOrbitView')==='1') this.state.orbitView=true; }catch(e){}
+    try{ if(localStorage.getItem('gxReadmeOpen')==='0') this.state.readmeOpen=false; }catch(e){}
+    try{ const lt=localStorage.getItem('gxLeftTab'); if(lt==='kayit'||lt==='agac'||lt==='git') this.state.leftTab=lt; }catch(e){}
     this._waitThree(0);
     this._loadReal();
     // Dil tercihi (tr/en) — ayarlardan gelir; UI metinleri buna göre çevrilir.
@@ -170,10 +175,14 @@ class Component extends DCLogic {
   }
   _scrollBottom(sel){ try{ setTimeout(()=>{ const el=document.querySelector(sel); if(el) el.scrollTop=el.scrollHeight; },40); }catch(e){} }
   _focusConsole(){ this._scrollBottom('#ghud-console-scroll'); try{ setTimeout(()=>{ const i=document.querySelector('#ghud-console-input'); if(i) i.focus(); },70); }catch(e){} }
-  onConsoleResize(e){ if(e&&e.preventDefault)e.preventDefault(); const startY=(e&&e.clientY)||0, startH=this.state.consoleH||180;
-    const mv=(ev)=>{ this.setState({consoleH:Math.max(120,Math.min(640,startH+(startY-ev.clientY)))}); };
-    const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+  onConsoleResize(e){ if(e&&e.preventDefault)e.preventDefault(); const startY=(e&&e.clientY)||0, startH=this.state.consoleH||240;
+    let last=startH;
+    const mv=(ev)=>{ last=Math.max(240,Math.min(640,startH+(startY-ev.clientY))); this.setState({consoleH:last}); };
+    const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); try{ localStorage.setItem('gxConsoleH',String(last)); }catch(err){} };
     document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up); }
+  _setLeftTab(id){ this.setState({leftTab:id}); try{ localStorage.setItem('gxLeftTab',id); }catch(e){} }
+  toggleReadme(){ const on=!this.state.readmeOpen; this.setState({readmeOpen:on}); try{ localStorage.setItem('gxReadmeOpen',on?'1':'0'); }catch(e){} }
+  setOrbitView(on){ this.setState({orbitView:!!on}); try{ localStorage.setItem('gxOrbitView',on?'1':'0'); }catch(e){} }
   // ---------- i18n (tr↔en) — render sonrası DOM cümle değişimi ----------
   _enMapObj(){ return {
     'GENEL BAKIŞ':'OVERVIEW','EVREN':'UNIVERSE','PANO':'BOARD','DOCKER':'DOCKER','ZAMANLAYICI':'SCHEDULER','SUNUCULAR':'SERVERS','DB':'DB',
@@ -186,7 +195,7 @@ class Component extends DCLogic {
     'Pano':'Board','Bekliyor':'To Do','Devam':'In Progress','Tamam':'Done','Yeni görev ekle (Enter)…':'Add a task (Enter)…',
     'Zamanlayıcı · Otomatik Görevler':'Scheduler · Automated Tasks','Yeni otomatik görev (Enter)…':'New automated task (Enter)…','ÇALIŞTIR':'RUN','AKTİF':'ACTIVE','DURDU':'STOPPED',
     'Sunucular · Uzak Evrenler':'Servers · Remote Universes','SSH ile uzak bir sunucu bağla; klasörleri yerel evrenler gibi galakside gezilir.':'Connect a remote server via SSH; its folders are browsed in the galaxy like local universes.','⟳ Tara':'⟳ Scan','Ad (ör. Prod Sunucu)':'Name (e.g. Prod Server)',
-    'İLERLEME':'PROGRESS','PLAN':'PLAN','NOTLAR':'NOTES','BAĞLANTILAR':'LINKS','ODAK':'FOCUS','KAYIT':'RECORD','AĞAÇ':'TREE','GİT':'GIT','📁 Klasörü Aç':'📁 Open Folder','Kaldır':'Remove','Hızlı not ekle… (Enter)':'Quick note… (Enter)','Gezegene İn ▸':'Land on Planet ▸','UZAY':'SPACE','README':'README','komut / istem yaz, Enter\'a bas…':'type a command / prompt, press Enter…','proje kökü':'project root','belgede ara…':'search in doc…','Yapılacaklar':'To Do','Günlük':'Log','ÇİFT TIK DÜZENLE':'DOUBLE-CLICK TO EDIT',
+    'İLERLEME':'PROGRESS','PLAN':'PLAN','NOTLAR':'NOTES','BAĞLANTILAR':'LINKS','ODAK':'FOCUS','KAYIT':'RECORD','AĞAÇ':'TREE','GİT':'GIT','Ağaç':'Tree','Kayıt':'Record','Git':'Git','Yörünge':'Orbit','Dosya':'File','📁 Klasörü Aç':'📁 Open Folder','Kaldır':'Remove','Hızlı not ekle… (Enter)':'Quick note… (Enter)','Gezegene İn ▸':'Land on Planet ▸','UZAY':'SPACE','README':'README','komut / istem yaz, Enter\'a bas…':'type a command / prompt, press Enter…','proje kökü':'project root','Yapılacaklar':'To Do','Günlük':'Log','ÇİFT TIK DÜZENLE':'DOUBLE-CLICK TO EDIT','Tıkla: tamam / beklemede':'Click: done / pending','tıkla: tamam':'click: done','Bir dosya seç':'Pick a file','Soldaki Ağaç’tan bir dosyaya tıkla — içerik burada açılır.':'Click a file in the Tree on the left — it opens here.','README’yi gizle (⌘\\)':'Hide README (⌘\\)','README’yi aç (⌘\\)':'Show README (⌘\\)',
     'BAĞLAM: Tüm evren':'CONTEXT: All universes','Sil':'Delete','Durum ver':'Give status','Yeni ajan ekle':'Add new agent',
     'GİT MERKEZİ':'GIT CENTER','DURUM':'STATUS','TAKIM AKIŞI':'TEAM FLOW','GEÇMİŞ':'HISTORY','GIT FLOW REHBERİ':'GIT FLOW GUIDE','Temel Git Komutları · ne işe yarar':'Basic Git Commands · what they do','Feature-branch Akışı':'Feature-branch Flow',
     'Proje ara ya da komut…':'Search projects or command…','Ayarlar':'Settings','Yedekler':'Backups','Git Flow Rehberi':'Git Flow Guide',
@@ -472,8 +481,8 @@ class Component extends DCLogic {
     ['🖥 Uzak Sunucular (SSH)',['Sunucu ekle: anahtar seçici (agent/varsayılan + ~/.ssh anahtarların)','Uzak klasör tanımla → galakside evren olur (Düzenle → Uzak klasörler)','⌁ Uzak terminal — sunucuda komut çalıştır (Tab tamamlama, geçmiş)','Uzak dosya önizleme']],
     ['🤖 AI Ajanları',['Sağ İSTASYON rayından ajan seç → sohbet (Claude, proje klasöründe çalışır)','Hazır komutlar tek tıkla; ajan ekle/düzenle/sil','Genel bakışta ajan TÜM evrene, gezegen içinde o projeye odaklanır']],
     ['⏰ Zamanlayıcı',['Otomatik görev kur (haftalık/günlük, saat + ajan seç)','Telafi: app o an kapalıysa, açıldığında geçmiş görevi çalıştırır','Üretilen raporları HUD\'dan (🚀) görüntüle']],
-    ['📋 Pano · 📁 Dosyalar · ⌁ Konsol',['Pano: görev ekle, sürükle-bırak taşı, README ile senkron','Dosyalar: ağaç/gezegen görünümü, önizleme (metin/md/resim/pdf), düzenle→kaydet, oluştur/sil, projede ara (grep)','Konsol: Bash + Claude (proje klasöründe), Tab tamamlama, ↑/↓ geçmiş']],
-    ['⌘ Kısayollar',['⌘K — komut paleti / arama','F1 — bu rehber','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine çift tık → tamam/beklemede']],
+    ['📋 Pano · 📁 Dosyalar · ⌁ Konsol',['Pano: görev ekle, sürükle-bırak taşı, README ile senkron','Dosyalar: ağaç varsayılan, orta panelde önizleme; Yörünge isteğe bağlı; düzenle→kaydet, grep','Konsol: Bash + Claude (proje klasöründe), Tab tamamlama, ↑/↓ geçmiş, sürükle yükseklik']],
+    ['⌘ Kısayollar',['⌘K — komut paleti / arama','F1 — bu rehber','⌘\\ — README gizle/göster','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
   ]; }
   // Global bildirim (toast) — başarı/hata; ~3sn sonra kaybolur
   toast(msg,kind){ if(!msg) return; const id=(this._toastN=(this._toastN||0)+1); this.setState({_toast:{msg,kind:kind||'ok'}}); clearTimeout(this._toastT); this._toastT=setTimeout(()=>{ if(this._toastN===id) this.setState({_toast:null}); },3200); }
@@ -536,7 +545,7 @@ class Component extends DCLogic {
   onNoteKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.addNote(); } }
   _rawProj(){ const p=this.sel; return ((this._scan&&this._scan.projects)||[]).find(x=>x.id===(p&&p.id)); }
   _saveRaw(raw){ try{ if(raw&&window.galaxy&&window.galaxy.save){ window.galaxy.save({id:raw.id,name:raw.name,group:raw.group,status:raw.status,stage:raw.stage,progress:raw.progress,plan:raw.plan,notes:raw.notes,desc:raw.desc,links:raw.links}); } }catch(e){} }
-  // Plan maddesini çift-tıkla tamam/beklemede yap (README + backend'e senkron yazılır)
+  // Plan maddesini tek tıkla tamam/beklemede yap (README + backend'e senkron yazılır)
   _togglePlan(i){ const p=this.sel; if(!p) return; const raw=this._rawProj();
     let done=null;
     if(raw&&Array.isArray(raw.plan)&&raw.plan[i]!=null){ const it=raw.plan[i]; if(Array.isArray(it)){ it[1]=!it[1]; done=it[1]; } else { it.done=!it.done; done=it.done; } this._saveRaw(raw); }
@@ -739,7 +748,8 @@ class Component extends DCLogic {
     this.setState({_fv:(this.state._fv||0)+1});
   }
   // Tıklama: klasörse drill-in (gezegen görünümü), dosyaysa app-içi önizleme
-  _openFsNode(rel,dir){ if(dir){ this.setState({_fsCwd:rel},()=>this._rebuildPlanets()); } else { this.openPreview(rel); } }
+  _openFsNode(rel,dir){ if(dir){ this.setState({_fsCwd:rel},()=>this._rebuildPlanets()); } else { this._openFilePreview(rel); } }
+  _openFilePreview(rel){ this.setOrbitView(false); this.openPreview(rel); }
   _fsUp(){ const cwd=this.state._fsCwd||''; if(!cwd) return; const parent=cwd.split('/').slice(0,-1).join('/'); this.setState({_fsCwd:parent},()=>this._rebuildPlanets()); }
   async openPreview(rel){
     const root=(this.sel&&this.sel._path)||''; if(!root||!rel) return;
@@ -765,7 +775,7 @@ class Component extends DCLogic {
   async fileDelete(rel){ const root=(this.sel&&this.sel._path)||''; if(!root||!rel||!window.galaxy||!window.galaxy.fileDelete) return;
     try{ await window.galaxy.fileDelete({root,rel}); if(this.state._preview&&this.state._preview.rel===rel) this.closePreview(); await this._loadGit(); }catch(e){} }
   async fileCreate(){ const root=(this.sel&&this.sel._path)||''; const rel=String(this.state.newFileInput||'').trim(); if(!root||!rel||!window.galaxy||!window.galaxy.fileCreate) return;
-    try{ const r=await window.galaxy.fileCreate({root,rel}); if(r&&r.ok){ this.setState({newFileInput:'',_newFileOpen:false}); await this._loadGit(); if(!/\/$/.test(rel)) this.openPreview(rel); } else this.setState({_fsMsg:(r&&r.error)||'oluşturulamadı'}); }catch(e){} }
+    try{ const r=await window.galaxy.fileCreate({root,rel}); if(r&&r.ok){ this.setState({newFileInput:'',_newFileOpen:false}); await this._loadGit(); if(!/\/$/.test(rel)) this._openFilePreview(rel); } else this.setState({_fsMsg:(r&&r.error)||'oluşturulamadı'}); }catch(e){} }
   onNewFileInput(e){ this.setState({newFileInput:(e&&e.target&&e.target.value)||''}); }
   onNewFileKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.fileCreate(); } else if(e.key==='Escape') this.setState({_newFileOpen:false}); }
   // --- Projede ara (grep) ---
@@ -860,8 +870,8 @@ class Component extends DCLogic {
       check:done?'✓':'',
       md:`[${done?'x':' '}] ${text}`, mdColor:`color:${done?'#55e88b':'#ffc861'}` }));
 
-    const leftDef=[['kayit','KAYIT'],['agac','AĞAÇ'],['git','⎇ GİT']];
-    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this.setState({leftTab:id}),style:`background:none;border:none;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${st.leftTab===id?'#61dcff':'#8791b8'}`}));
+    const leftDef=[['agac','Ağaç'],['kayit','Kayıt'],['git','Git']];
+    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this._setLeftTab(id),style:`background:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;color:${st.leftTab===id?'#61dcff':'#8791b8'}`}));
 
     const consoleTabs=[['claude','⌁ CLAUDE'],['bash','▮ BASH']].map(([id,label])=>({id,label,onClick:()=>{this.setState({consoleTab:id});this._focusConsole();},style:`padding:4px 10px;cursor:pointer;background:${st.consoleTab===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.consoleTab===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.consoleTab===id?'#61dcff':'#8b96b8'}`}));
     const _outSt=t=>(t==='in'?'color:#8b96b8':t==='tool'?'color:#61dcff':t==='err'?'color:#ff6b7a':t==='done'?'color:#55e88b':'color:#dbe4ff')+';white-space:pre-wrap';
@@ -1223,7 +1233,12 @@ class Component extends DCLogic {
       consoleInput: st.consoleInput, onConsoleInput:(e)=>this.onConsoleInput(e), onConsoleKey:(e)=>this.onConsoleKey(e), sendConsole:()=>this.sendConsole(),
       consolePrompt: st.consoleTab==='bash'?'$':'›', focusConsole:()=>this._focusConsole(),
       consolePlaceholder: st.consoleTab==='bash'?'komut yaz, Enter ile çalıştır…':'Claude\'a yaz, Enter ile gönder…',
-      consoleH:(st.consoleH||180)+'px', onConsoleResize:(e)=>this.onConsoleResize(e),
+      consoleH:(st.consoleH||240)+'px', onConsoleResize:(e)=>this.onConsoleResize(e),
+      showOrbit: !!st.orbitView, previewEmpty: !st.orbitView && !st._preview, previewInline: !st.orbitView && !!st._preview,
+      setStageFile:()=>this.setOrbitView(false), setStageOrbit:()=>this.setOrbitView(true),
+      stageFileStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${!st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${!st.orbitView?'#61dcff':'#8b96b8'}`,
+      stageOrbitStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${st.orbitView?'#61dcff':'#8b96b8'}`,
+      readmeOpen: st.readmeOpen!==false, readmeClosed: st.readmeOpen===false, toggleReadme:()=>this.toggleReadme(),
       agentOpen: !!activeRaw, activeAgent: active, activeMsgs,
       agentInput: st.agentInput, onAgentInput:(e)=>this.onAgentInput(e), onAgentKey:(e)=>this.onAgentKey(e), sendAgent:()=>this.sendAgent(), agentBusy: st._agentBusy,
       agentAdd:()=>this.openAgentAdd(), agentDelete:()=>this.askConfirm('"'+((this.AGENTS.find(a=>a.id===st.agentId)||{}).name||'ajan')+'" ajanını sil?',()=>this._agentDelete(st.agentId)), agentEdit:()=>this.openAgentEdit(),
@@ -1262,7 +1277,7 @@ class Component extends DCLogic {
       selStatusColor: sc.c, selStatusLabel: sc.l,
       selDotStyle:`width:10px;height:10px;border-radius:50%;background:${sc.c};box-shadow:0 0 8px ${sc.c}`,
       selBarStyle:`width:${sel.prog}%;height:100%;background:linear-gradient(90deg,${sc.c},#8ae7ff);box-shadow:0 0 10px ${sc.c};transition:width .6s`,
-      treeList: this._flatTree(this._treeNodes||[], '', 0).slice(0,140).map(t=>({name:(t.dir?'▸ ':'· ')+t.name, onClick:()=>this._openFsNode(t.path,t.dir), style:`padding:3px 0 3px ${t.depth*18}px;cursor:pointer;color:${t.dir?'#61dcff':'#8b96b8'};white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px`})),
+      treeList: this._flatTree(this._treeNodes||[], '', 0).slice(0,140).map(t=>{ const on=!!(st._preview&&st._preview.rel===t.path); return {name:(t.dir?'▸ ':'· ')+t.name, onClick:()=>this._openFsNode(t.path,t.dir), style:`padding:3px 6px 3px ${t.depth*18+6}px;cursor:pointer;color:${on?'#dbe4ff':(t.dir?'#61dcff':'#8b96b8')};background:${on?'rgba(97,220,255,.08)':'transparent'};border-radius:4px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px`}; }),
       hasTree: (this._treeNodes&&this._treeNodes.length)>0, noTree: !(this._treeNodes&&this._treeNodes.length),
       enter:()=>this.enter(), back:()=>this.back(),
       openProjectFolder:()=>this.openProjectFolder(), removeProject:()=>this.removeProject(),
@@ -1294,7 +1309,7 @@ class Component extends DCLogic {
       dbConfirmTitle:(st._dbConfirm&&st._dbConfirm.danger)?'⚠ Yıkıcı işlem — emin misin?':'Bu işlem veriyi değiştirecek — onayla',
       confirmDbWrite:()=>this.confirmDbWrite(), cancelDbWrite:()=>this.cancelDbWrite(),
       // ---- dosya önizleme popup ----
-      previewOpen:!!st._preview, closePreview:()=>this.closePreview(), openPreviewExternal:()=>this.openPreviewExternal(),
+      previewOpen:!!st._preview && st.mode!=='planet', closePreview:()=>this.closePreview(), openPreviewExternal:()=>this.openPreviewExternal(),
       previewName:(st._preview&&st._preview.name)||'', previewRel:(st._preview&&st._preview.rel)||'',
       previewMeta:(st._preview&&st._preview.size!=null)?('  ·  '+(st._preview.size<1024?st._preview.size+' B':(st._preview.size/1024<1024?(st._preview.size/1024).toFixed(1)+' KB':(st._preview.size/1048576).toFixed(1)+' MB'))):'',
       pvText:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown')&&!st._editMode),
@@ -1309,6 +1324,7 @@ class Component extends DCLogic {
       previewText:(st._preview&&st._preview.content)||'', previewUrl:(st._preview&&st._preview.url)||'',
       // dosya düzenleme
       pvEditable:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown')), editMode:!!st._editMode,
+      showStartEdit:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown')&&!st._editMode),
       startEdit:()=>this.startEdit(), saveEdit:()=>this.saveEdit(), cancelEdit:()=>this.cancelEdit(),
       editContent:st._editContent, onEditContent:(e)=>this.onEditContent(e), editBusy:!!st._editBusy,
       editSaveLabel:st._editBusy?'…':'Kaydet', editMsg:st._editMsg||'',
@@ -1316,7 +1332,7 @@ class Component extends DCLogic {
       // projede ara + yeni dosya
       grepQuery:st.grepQuery, onGrepInput:(e)=>this.onGrepInput(e), onGrepKey:(e)=>this.onGrepKey(e), runGrep:()=>this.runGrep(), grepBusy:!!st._grepBusy,
       grepResults:((st._grep)||[]).map(m=>({file:m.file,line:m.line,text:m.text, label:m.file+':'+m.line,
-        onClick:()=>this.openPreview(m.file), style:`padding:5px 8px;cursor:pointer;border-bottom:1px solid rgba(190,205,255,.05)`,
+        onClick:()=>this._openFilePreview(m.file), style:`padding:5px 8px;cursor:pointer;border-bottom:1px solid rgba(190,205,255,.05)`,
         locStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:#61dcff`, textStyle:`font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b96b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis`})),
       hasGrep:!!(st._grep&&st._grep.length), grepEmpty:!!(st._grep&&st._grep.length===0),
       newFileOpen:!!st._newFileOpen, openNewFile:()=>this.setState({_newFileOpen:true,newFileInput:''}), newFileInput:st.newFileInput,
@@ -1566,11 +1582,11 @@ class Component extends DCLogic {
       case 'open_universe':{ const u=this._asstFindUni(arg); if(u){ this.selectUni(u.id); return '“'+u.name+'” evrenini açtım.'; } return arg?('“'+arg+'” diye bir evren bulamadım.'):null; }
       case 'open_project':{ const p=this._asstFindProject(arg); if(p){ this._gotoProject(p.id); return '“'+p.name+'” gezegenine indim.'; } return arg?('“'+arg+'” diye bir proje bulamadım.'):null; }
       case 'open_tab':{ const map={genel:'Genel Bakış',evren:'Evren',pano:'Pano',db:'Veritabanı',docker:'Docker',zaman:'Zamanlayıcı',servers:'Sunucular'}; if(map[arg]){ this._openTab(arg); return map[arg]+' sekmesini açtım.'; } return null; }
-      case 'open_git': if(!inProj) return 'Git için önce bir projeye girmem gerek.'; this.setState({leftTab:'git',gitCenter:'durum'}); return 'Git Merkezi’ni açtım.';
+      case 'open_git': if(!inProj) return 'Git için önce bir projeye girmem gerek.'; this._setLeftTab('git'); this.setState({gitCenter:'durum'}); return 'Git Merkezi’ni açtım.';
       case 'back': this.back&&this.back(); return 'Uzaya döndüm.';
       case 'git_push': if(!inProj) return 'Push için bir projeye girmem gerek.'; this.gitPush&&this.gitPush(); return 'Push ediyorum.';
       case 'git_pull': if(!inProj) return 'Pull için bir projeye girmem gerek.'; this.gitPull&&this.gitPull(); return 'Pull ediyorum.';
-      case 'git_commit': if(!inProj) return 'Commit için bir projeye girmem gerek.'; this.setState({leftTab:'git',gitCenter:'durum'}); if(arg) this.setState({gitMsg:arg}); return 'Git Merkezi’ni açtım'+(arg?(', commit mesajı: “'+arg+'”.'):'.');
+      case 'git_commit': if(!inProj) return 'Commit için bir projeye girmem gerek.'; this._setLeftTab('git'); this.setState({gitCenter:'durum'}); if(arg) this.setState({gitMsg:arg}); return 'Git Merkezi’ni açtım'+(arg?(', commit mesajı: “'+arg+'”.'):'.');
       case 'run': if(!inProj) return 'Terminal için bir projeye girmem gerek.'; this._asstRunBash(arg); return null;
       case 'open_folder': this.openProjectFolder&&this.openProjectFolder(); return 'Klasörü Finder’da açtım.';
       case 'open_terminal': try{ if(this.sel&&this.sel._path&&window.galaxy.openTerminal) window.galaxy.openTerminal(this.sel._path); }catch(e){} return 'Terminali açtım.';
@@ -1595,7 +1611,7 @@ class Component extends DCLogic {
     if(/\b(push|gönder)\b/.test(n)){ return this._asstReply(this._asstDoAction('git_push')); }
     if(/\b(pull|çek)\b/.test(n)){ return this._asstReply(this._asstDoAction('git_pull')); }
     if(/\bcommit\b/.test(n)){ const msg=text.replace(/.*commit\s*(et|le|leyelim)?\s*:?/i,'').trim(); return this._asstReply(this._asstDoAction('git_commit',msg)); }
-    if(/(git )?(durum|status)/.test(n) && this.state.mode==='planet'){ this.setState({leftTab:'git'}); const g=this.state._git; return this._asstReply(((g&&g.branch)||'?')+' dalındasın, '+((g&&g.dirty)||0)+' bekleyen değişiklik var.'); }
+    if(/(git )?(durum|status)/.test(n) && this.state.mode==='planet'){ this._setLeftTab('git'); const g=this.state._git; return this._asstReply(((g&&g.branch)||'?')+' dalındasın, '+((g&&g.dirty)||0)+' bekleyen değişiklik var.'); }
     // 5) klasör / terminal / ayarlar
     if(/(klasör|finder).*(aç|göster)|(aç|göster).*(klasör|finder)/.test(n)&&this.state.mode==='planet'){ return this._asstReply(this._asstDoAction('open_folder')); }
     if(/(gerçek |sistem )?terminal.*(aç)|(aç).*terminal/.test(n)&&this.state.mode==='planet'){ return this._asstReply(this._asstDoAction('open_terminal')); }
