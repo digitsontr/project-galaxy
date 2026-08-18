@@ -2,7 +2,7 @@
 class Component extends DCLogic {
   state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'agac', orbitView:false, readmeOpen:true, warping:false, gitCenter:null, addUni:false, uniSource:'ssh', settings:false, kayitSub:'plan', focusRunning:false, focusSec:1500,
     toolsOpen:false, calcExpr:'', calMonthOffset:0, toolFind:'', _clockTick:0, locOpen:false, moreOpen:false, holdPlanet:false, asstOpen:false, asstInput:'',
-    loaded:false, uniId:null, _docker:null, _sched:null, _db:null, _git:null, _preview:null, _prevLoading:false, _fsCwd:'', _reports:null, _reportView:null, query:'',
+    loaded:false, uniId:null, _docker:null, _sched:null, _db:null, _git:null, _preview:null, _prevLoading:false, _fsCwd:'', _reports:null, _reportView:null, query:'', paletteIdx:0,
     gitMsg:'', branchInput:'', _branchAdd:false, _gitBusy:false, _gitActionMsg:'', _gitDiff:null,
     _editMode:false, _editContent:'', _editBusy:false, _editMsg:'', newFileInput:'', _newFileOpen:false, _fsMsg:'', grepQuery:'', _grep:null, _grepBusy:false,
     dockerTab:'containers', _dstatus:null, _images:null, _dlog:null,
@@ -50,18 +50,35 @@ class Component extends DCLogic {
     { name:'config.json', c:'#55e88b', x:47, y:80, s:32 },
   ];
 
+  _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
+  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen); }
+  _reduced(){ try{ return !!(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
+  _float(sec){ return this._reduced()?'':`animation:floatOrb ${sec}s ease-in-out infinite`; }
+  _pulse(){ return this._reduced()?'':'animation:pulseGlow 1.6s ease-in-out infinite'; }
+  _railIds(){ return (this.PROJECTS||[]).slice().sort((a,b)=>(a._stale||0)-(b._stale||0)).map(p=>p.id); }
+  _railMove(dir){ const ids=this._railIds(); if(!ids.length) return; let i=ids.indexOf(this.state.selId); if(i<0) i=0; this.select(ids[(i+dir+ids.length)%ids.length]); }
+  _paletteMove(dir){ const n=this._paletteLen||0; if(!n) return; const i=((this.state.paletteIdx||0)+dir+n)%n; this.setState({paletteIdx:i}); }
+  _paletteGo(){ const fn=this._paletteFns&&this._paletteFns[this.state.paletteIdx||0]; if(fn) fn(); }
   componentDidMount(){
     this._key = (e) => {
-      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); this.setState({palette:true, moreOpen:false}); }
+      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); this.setState({palette:true, moreOpen:false, paletteIdx:0, query:''}); }
       else if (e.key==='F1'){ e.preventDefault(); this.setState({_guideOpen:!this.state._guideOpen}); }
       else if (e.key==='Enter' && !e.metaKey && !e.ctrlKey && !e.altKey){
-        const t=(e.target&&e.target.tagName)||'';
-        if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable)) return;
-        if(this.state.palette||this.state.moreOpen||this.state.toolsOpen||this.state._confirm||this.state.gitCenter||this.state.agentId||this.state.asstOpen) return;
+        if(this._inForm(e)) return;
+        if(this.state.palette){ e.preventDefault(); this._paletteGo(); return; }
+        if(this._overlayOpen()) return;
         if(this.state.mode==='space' && this.sel && this.sel.id){ e.preventDefault(); this.enter(); }
       }
+      else if ((e.key==='ArrowDown'||e.key==='ArrowUp') && this.state.palette){ e.preventDefault(); this._paletteMove(e.key==='ArrowDown'?1:-1); }
+      else if (!e.metaKey && !e.ctrlKey && !e.altKey && (e.key==='j'||e.key==='k'||e.key==='J'||e.key==='K')){
+        const t=(e.target&&e.target.tagName)||'';
+        if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||(e.target&&e.target.isContentEditable)) return;
+        if(this.state.palette){ e.preventDefault(); this._paletteMove(e.key.toLowerCase()==='j'?1:-1); return; }
+        if(this._overlayOpen()) return;
+        if(this.state.mode==='space'){ e.preventDefault(); this._railMove(e.key.toLowerCase()==='j'?1:-1); }
+      }
       else if ((e.metaKey||e.ctrlKey) && (e.key==='\\' || e.code==='Backslash')){ if(this.state.mode==='planet'){ e.preventDefault(); this.toggleReadme(); } }
-      else if (e.key==='Escape'){ if (this.state.asstOpen||(this._asst&&this._asst.open)) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false}); else if (this.state._preview) this.closePreview(); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
+      else if (e.key==='Escape'){ if (this.state.asstOpen||(this._asst&&this._asst.open)) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false,query:'',paletteIdx:0}); else if (this.state._preview) this.closePreview(); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
     };
     window.addEventListener('keydown', this._key);
     try{ if(localStorage.getItem('gxUiMode')==='kadet') this.state.uiMode='kadet'; }catch(e){}
@@ -217,6 +234,15 @@ class Component extends DCLogic {
     'Galaxy Asistanı':'Galaxy Assistant','hazır — bir komut ver':'ready — give a command','çalışıyorum…':'working…','Bir şey yaz…':'Write something…','Yeni sohbet':'New chat',
     'Güncel':'Up to date','Commit…':'Commit…','Git Merkezi':'Git Center','Gizle':'Hide','Push':'Push','Onayla ve çalıştır':'Confirm and run',
     'Gezegeni gizle':'Hide planet','Veritabanı yazma':'Database write',
+    'Evrenler':'Universes','⌘K ile de hızlı geçiş yapabilirsin':'⌘K also jumps you quickly','buradasın':'you are here',
+    'özellik rehberi · her şeyi buradan yönet':'feature guide · manage everything from here',
+    'Yörünge bağları — ilişkili projeler':'Orbit links — related projects','Odak kronometresi':'Focus timer','Son commit':'Latest commit',
+    'eşleşme yok':'no matches','Dosya listesi yükleniyor…':'Loading file list…','Tablo boş.':'Table is empty.',
+    'Konteyner yok — ne çalışan ne durmuş.':'No containers — none running or stopped.','Uzak Terminal':'Remote Terminal',
+    'Gönder':'Send','Kapat':'Close','Gezegene dön / uzaya çık':'Back to planet / to space','Komut paleti':'Command palette',
+    'Henüz rapor yok — zamanlayıcıdan bir görev çalışınca burada listelenir.':'No reports yet — they appear here when a scheduler task runs.',
+    'aç ▸':'open ▸','Göster':'Show','İlerleme':'Progress','Gizlenenler':'Hidden',
+    'İlk commit için burada git init çalıştır.':'Run git init here for the first commit.',
     // Git rehberi
     'Dallanma modeli — git\'i hiç bilmeyen biri için. Her nokta bir commit, kesikli oklar dallanma/birleşmedir.':'Branching model — for someone new to git. Each dot is a commit, dashed arrows are branch/merge.',
     'Temel Git Komutları · ne işe yarar':'Basic Git Commands · what they do','BAŞLANGIÇ & DURUM':'GETTING STARTED & STATUS','DEĞİŞİKLİKLERİ KAYDETME':'SAVING CHANGES','DALLANMA (BRANCH)':'BRANCHING','UZAK SUNUCU (REMOTE)':'REMOTE','GERİ ALMA':'UNDO','İNCELEME':'INSPECT','Feature-branch Akışı':'Feature-branch Flow',
@@ -233,7 +259,13 @@ class Component extends DCLogic {
     'Durum okuması:':'Status:','Commit\'lenmemiş dosyalar':'Uncommitted files','✓ Temiz — commit\'lenecek dosya yok.':'✓ Clean — nothing to commit.','Bu depoda henüz commit yok.':'No commits in this repository yet.',
     'Katkı dağılımı':'Contribution breakdown','Son işlemler · kim yaptı':'Recent operations · who','Henüz commit yok — takım akışı grafiği için önce commit üret.':'No commits yet — make a commit first to see the team-flow graph.',
     'Tipik feature akışı · 6 adım':'Typical feature flow · 6 steps',
-    '↗ Harici uygulamada aç':'↗ Open in external app','yükleniyor…':'loading…','Bu dosya app içinde önizlenemiyor.':'This file can\'t be previewed in-app.','Dosya okunamadı.':'Could not read file.','◂ üst klasör':'◂ parent folder'
+    '↗ Harici uygulamada aç':'↗ Open in external app','yükleniyor…':'loading…','Bu dosya app içinde önizlenemiyor.':'This file can\'t be previewed in-app.','Dosya okunamadı.':'Could not read file.','◂ üst klasör':'◂ parent folder',
+    'Üst nav: Özet / Evren / Pano — DB · Docker · Zaman · SSH Daha menüsünde':'Top nav: Overview / Universe / Board — DB · Docker · Time · SSH under More',
+    'Sol ray: tek tık seçer (inmez); çift tık, İn veya Enter ile in':'Left rail: single click selects (does not land); double-click, In or Enter to land',
+    'j / k ile listede gez, Enter in':'j / k moves the list, Enter lands',
+    '⌘K — komut paleti / arama (↑↓ seç, Enter çalıştır)':'⌘K — command palette / search (↑↓ select, Enter run)',
+    'j / k — uzayda gezegen seç (Enter = in)':'j / k — select a planet in space (Enter = land)',
+    'Esc — katman katman geri':'Esc — back layer by layer'
   }; }
   _applyLang(){
     const en=this._lang==='en'; const map=en?(this._enMap||(this._enMap=this._enMapObj())):null;
@@ -263,7 +295,7 @@ class Component extends DCLogic {
       last=re.lastIndex; }
     if(last<s.length) out.push({t:s.slice(last),style:'color:inherit'});
     if(!out.length) out.push({t:s||' ',style:'color:inherit'}); return out; }
-  _mdLines(text){ const st=(t)=>({h1:'font-size:15px;font-weight:700;color:#dbe4ff;margin:12px 0 6px',h2:'font-size:14px;font-weight:600;color:#dbe4ff;margin:12px 0 5px;border-bottom:1px solid rgba(190,205,255,.12);padding-bottom:4px',h3:'font-size:13px;font-weight:600;color:#8ae7ff;margin:10px 0 4px',li:'padding-left:16px;position:relative;margin:3px 0',task:'margin:3px 0;color:#8b96b8',p:'margin:5px 0',blank:'height:6px'}[t]||'margin:5px 0');
+  _mdLines(text){ const st=(t)=>({h1:'font-size:15px;font-weight:700;color:#dbe4ff;margin:12px 0 6px',h2:'font-size:14px;font-weight:600;color:#dbe4ff;margin:12px 0 5px;border-bottom:1px solid rgba(190,205,255,.12);padding-bottom:4px',h3:'font-size:13px;font-weight:600;color:#8ae7ff;margin:10px 0 4px',li:'padding-left:16px;position:relative;margin:3px 0',task:'margin:3px 0;color:#9aa3c2',p:'margin:5px 0',blank:'height:6px'}[t]||'margin:5px 0');
     return String(text||'').split('\n').map(ln=>{ let type='p',content=ln,bullet='';
       if(!ln.trim()) return {type:'blank',lineStyle:st('blank'),bullet:'',segs:[{t:'',style:''}]};
       if(/^###\s/.test(ln)){type='h3';content=ln.replace(/^###\s/,'');}
@@ -375,10 +407,13 @@ class Component extends DCLogic {
     this.setState({uniId:p.universe||this.state.uniId, selId:pid, tab:'evren', mode:'planet', holdPlanet:true, moreOpen:false, palette:false, query:'', _fsCwd:'', _preview:null});
     this._loadGit();
   }
-  onSearch(e){ this.setState({query:(e&&e.target&&e.target.value)||''}); }
-  onSearchKey(e){ if(e.key==='Enter'){ const q=String(this.state.query||'').toLocaleLowerCase('tr').replace(/ı/g,'i');
-    const all=this._allProjects||this.PROJECTS; const hit=all.find(p=>!q||String(p.name).toLocaleLowerCase('tr').replace(/ı/g,'i').includes(q));
-    if(hit) this._gotoProject(hit.id); } else if(e.key==='Escape'){ this.setState({palette:false,query:''}); } }
+  onSearch(e){ this.setState({query:(e&&e.target&&e.target.value)||'', paletteIdx:0}); }
+  onSearchKey(e){
+    if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this._paletteGo(); }
+    else if(e.key==='ArrowDown'){ e.preventDefault&&e.preventDefault(); this._paletteMove(1); }
+    else if(e.key==='ArrowUp'){ e.preventDefault&&e.preventDefault(); this._paletteMove(-1); }
+    else if(e.key==='Escape'){ this.setState({palette:false,query:'',paletteIdx:0}); }
+  }
   async _loadSecondary(){
     this._loadDocker();
     try{ if(window.galaxy.scheduleList){ this.setState({_sched:(await window.galaxy.scheduleList())||[]}); } }catch(e){}
@@ -490,7 +525,7 @@ class Component extends DCLogic {
   openGuide(){ this.setState({_guideOpen:true}); }
   closeGuide(){ this.setState({_guideOpen:false}); }
   _guideData(){ return [
-    ['🌌 Galaksi & Projeler',['Projelerin gezegen, klasör grupların yıldız sistemi olarak görselleşir','Üst nav: GENEL BAKIŞ / EVREN / PANO / DB / DOCKER / ZAMANLAYICI / SUNUCULAR','Sol raydan projeye tıkla → "Gezegene İn" ile detaya gir','README yoksa tek tıkla oluştur; sağ panelde README + arama']],
+    ['🌌 Galaksi & Projeler',['Projelerin gezegen, klasör grupların yıldız sistemi olarak görselleşir','Üst nav: Özet / Evren / Pano — DB · Docker · Zaman · SSH Daha menüsünde','Sol ray: tek tık seçer (inmez); çift tık, İn veya Enter ile in','j / k ile listede gez, Enter in']],
     ['⛁ Veritabanı',['Bağlantı ekle: Postgres · MySQL · SQLite (parola safeStorage ile şifreli)','Tabloya tıkla → ilk 100 satır tablo halinde','Hücreyi düzenle → satır sonunda Kaydet (PK\'ye göre güvenli UPDATE)','Satır Ekle (+ satır), Sil (onaylı), sırala (başlığa tıkla), sayfalama, CSV dışa aktar','SQL çalıştır — yazma/DDL onay ister; 🤖 AI ajanı: doğal dille sorgu üretir','Tüm işlemler İşlem Günlüğü\'ne yazılır']],
     ['⎇ Git İstemcisi',['Dosyaları stage/unstage et, commit mesajı yaz → Commit','Push / Pull, dal değiştir/oluştur','Dosyaya tıkla → renkli diff görüntüleyici','Geçmiş + takım katkı grafiği (kim ne kadar commit\'lemiş)','Git Flow rehberi (adım adım)']],
     ['🐳 Docker',['Konteyner: başlat / durdur / ⟳ yeniden başlat / 🗑 kaldır','Canlı log akışı, konteyner içine terminal','İmaj yönetimi + silme, prune']],
@@ -498,7 +533,7 @@ class Component extends DCLogic {
     ['🤖 AI Ajanları',['Sağ İSTASYON rayından ajan seç → uzman sohbeti (Claude, proje klasöründe çalışır)','Hazır komutlar tek tıkla; ajan ekle/düzenle/sil','Ajan açıkken ikiz noktaya iner — aynı anda tek sohbet']],
     ['⏰ Zamanlayıcı',['Otomatik görev kur (haftalık/günlük, saat + ajan seç)','Telafi: app o an kapalıysa, açıldığında geçmiş görevi çalıştırır','Üretilen raporları HUD\'dan (🚀) görüntüle']],
     ['📋 Pano · 📁 Dosyalar · ⌁ Konsol',['Pano: görev ekle, sürükle-bırak taşı, README ile senkron','Dosyalar: ağaç varsayılan, orta panelde önizleme; Yörünge isteğe bağlı; düzenle→kaydet, grep','Konsol: Bash + Claude (proje klasöründe), Tab tamamlama, ↑/↓ geçmiş, sürükle yükseklik']],
-    ['⌘ Kısayollar',['⌘K — komut paleti / arama','F1 — bu rehber','⌘\\ — README gizle/göster','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
+    ['⌘ Kısayollar',['⌘K — komut paleti / arama (↑↓ seç, Enter çalıştır)','j / k — uzayda gezegen seç (Enter = in)','F1 — bu rehber','⌘\\ — README gizle/göster','Esc — katman katman geri','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
   ]; }
   // Global bildirim (toast) — başarı/hata; ~4sn sonra kaybolur
   toast(msg,kind){ if(!msg) return; const id=(this._toastN=(this._toastN||0)+1); const ns={_toast:{msg,kind:kind||'ok'}};
@@ -768,8 +803,8 @@ class Component extends DCLogic {
     try{ const r=await window.galaxy.gitDiff({projectId:p.id,file,staged}); this.setState({_gitDiff:{file,content:(r&&r.ok)?(r.out||'(değişiklik yok)'):('hata: '+((r&&r.error)||''))}}); }
     catch(e){ this.setState({_gitDiff:{file,content:'okunamadı'}}); } }
   closeGitDiff(){ this.setState({_gitDiff:null}); }
-  _diffLines(text){ return String(text||'').split('\n').slice(0,2000).map(l=>{ let c='#8b96b8';
-    if(/^\+\+\+|^---/.test(l)) c='#8b96b8'; else if(l[0]==='+') c='#55e88b'; else if(l[0]==='-') c='#ff6b7a'; else if(/^@@/.test(l)) c='#61dcff'; else if(/^diff |^index /.test(l)) c='#8791b8';
+  _diffLines(text){ return String(text||'').split('\n').slice(0,2000).map(l=>{ let c='#9aa3c2';
+    if(/^\+\+\+|^---/.test(l)) c='#9aa3c2'; else if(l[0]==='+') c='#55e88b'; else if(l[0]==='-') c='#ff6b7a'; else if(/^@@/.test(l)) c='#61dcff'; else if(/^diff |^index /.test(l)) c='#9aa3c2';
     return {t:l||' ',style:`color:${c};white-space:pre;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5`}; }); }
   async _loadGit(){
     const p=this.sel; if(!p) return;
@@ -882,12 +917,12 @@ class Component extends DCLogic {
     const primaryIds=['genel','evren','pano'];
     const moreIds=['db','docker','zaman','servers'];
     const tabDef=tabDefAll.filter(([id])=>primaryIds.includes(id));
-    const tabBtn=(active)=>`font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;padding:6px 12px;cursor:pointer;border-radius:8px;border:none;background:${active?'rgba(97,220,255,.16)':'transparent'};box-shadow:${active?'inset 0 0 0 1px rgba(97,220,255,.5)':'none'};color:${active?'#61dcff':'#8b96b8'};transition:background .15s,color .15s`;
+    const tabBtn=(active)=>`font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;padding:6px 12px;cursor:pointer;border-radius:8px;border:none;background:${active?'rgba(97,220,255,.16)':'transparent'};box-shadow:${active?'inset 0 0 0 1px rgba(97,220,255,.5)':'none'};color:${active?'#61dcff':'#9aa3c2'};transition:background .15s,color .15s`;
     const tabs=tabDef.map(([id,label])=>({id,label,style:tabBtn(st.tab===id),onClick:()=>this._openTab(id)}));
     const moreItem=(active)=>`display:flex;align-items:center;width:100%;text-align:left;padding:8px 12px;cursor:pointer;border:none;border-radius:7px;background:${active?'rgba(97,220,255,.12)':'transparent'};color:${active?'#61dcff':'#c3cbe6'};font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:.01em`;
     const moreTabs=kadet?[]:tabDefAll.filter(([id])=>moreIds.includes(id)).map(([id,label])=>({id,label,style:moreItem(st.tab===id),onClick:()=>this._openTab(id)}));
     const moreActive=moreIds.includes(st.tab)||!!st.moreOpen;
-    const modeBtn=(on)=>`padding:6px 10px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;border:none;background:${on?'rgba(97,220,255,.16)':'transparent'};color:${on?'#61dcff':'#8b96b8'};transition:background .15s`;
+    const modeBtn=(on)=>`padding:6px 10px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;border:none;background:${on?'rgba(97,220,255,.16)':'transparent'};color:${on?'#61dcff':'#9aa3c2'};transition:background .15s`;
 
     const relT=(d)=>{ d=d||0; if(d<=0) return 'bugün'; if(d===1) return 'dün'; if(d<7) return d+'g önce'; if(d<31) return Math.max(1,Math.floor(d/7))+'h önce'; if(d<365) return Math.floor(d/30)+'ay önce'; return Math.floor(d/365)+'y önce'; };
     // Tazelik sırasına göre (en son dokunulan üstte) — anlamlı: dal + son aktivite; "!" gürültüsü kaldırıldı
@@ -898,32 +933,32 @@ class Component extends DCLogic {
       rowStyle:`display:flex;align-items:center;gap:11px;width:100%;padding:8px 18px;cursor:pointer;background:${active?'rgba(97,220,255,.07)':'transparent'};border:none;border-left:2px solid ${active?'#61dcff':'transparent'};text-align:left`,
       dotStyle:`width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${col};${active?`box-shadow:0 0 8px ${col}`:''}`,
       nameStyle:`font-size:13px;color:${active?'#dbe4ff':'#c3cbe6'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`,
-      metaStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:${stale?'#8a7a55':(active?'#8791b8':'#6d78a0')};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px`,
+      metaStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:${stale?'#8a7a55':(active?'#9aa3c2':'#6d78a0')};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px`,
       active, onClick:()=>this.select(p.id), onEnter:()=>this.enter(),
       onEnterClick:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.enter(); } }; });
 
     const planets=this.PROJECTS.filter(p=>p.orbit).map(p=>{ const col=statusColor(p.status); const active=p.id===st.selId; return {
       id:p.id, name:p.name, warn:!!p.warn, progLabel:'%'+p.prog,
-      style:`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);width:${p.size}px;height:${p.size}px;border-radius:50%;border:none;cursor:pointer;padding:0;background:${this.planetBg(col)};box-shadow:0 0 ${active?60:42}px ${this.rgba(col,active?.7:.45)},inset -7px -10px 30px rgba(0,0,0,.45)${active?`,0 0 0 3px ${this.rgba(col,.5)}`:''};animation:floatOrb ${5+p.size/30}s ease-in-out infinite`,
+      style:`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);width:${p.size}px;height:${p.size}px;border-radius:50%;border:none;cursor:pointer;padding:0;background:${this.planetBg(col)};box-shadow:0 0 ${active?60:42}px ${this.rgba(col,active?.7:.45)},inset -7px -10px 30px rgba(0,0,0,.45)${active?`,0 0 0 3px ${this.rgba(col,.5)}`:''};${this._float(5+p.size/30)}`,
       labelStyle:`position:absolute;left:${p.x}%;top:calc(${p.y}% + ${p.size/2+16}px);transform:translateX(-50%);font-size:13px;color:#dbe4ff;pointer-events:none;white-space:nowrap`,
       onClick:()=>this.select(p.id), onEnter:()=>this.enter() }; });
 
     const files=this.FILES.map(f=>({ name:f.name, onClick:()=>this._openFsNode(f._rel,f._dir),
-      style:`position:absolute;left:${f.x}%;top:${f.y}%;transform:translate(-50%,-50%);width:${f.s}px;height:${f.s}px;border-radius:50%;border:none;padding:0;cursor:pointer;background:${this.planetBg(f.c)};box-shadow:0 0 ${f.glow?24:16}px ${this.rgba(f.c,.5)}${f.glow?';animation:pulseGlow 1.6s ease-in-out infinite':''};color:${f.c}`,
-      labelStyle:`position:absolute;left:${f.x}%;top:calc(${f.y}% + ${f.s/2+8}px);transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:11px;color:${f.glow?f.c:'#8b96b8'};white-space:nowrap` }));
+      style:`position:absolute;left:${f.x}%;top:${f.y}%;transform:translate(-50%,-50%);width:${f.s}px;height:${f.s}px;border-radius:50%;border:none;padding:0;cursor:pointer;background:${this.planetBg(f.c)};box-shadow:0 0 ${f.glow?24:16}px ${this.rgba(f.c,.5)}${f.glow?';'+this._pulse():''};color:${f.c}`,
+      labelStyle:`position:absolute;left:${f.x}%;top:calc(${f.y}% + ${f.s/2+8}px);transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:11px;color:${f.glow?f.c:'#9aa3c2'};white-space:nowrap` }));
 
     const planLabel=`${sel.plan.filter(x=>x[1]).length}/${sel.plan.length}`;
     const selPlan=sel.plan.map(([text,done],i)=>({ text, done, onToggle:()=>this._togglePlan(i),
-      textColor:`color:${done?'#55e88b':'#8b96b8'}`,
+      textColor:`color:${done?'#55e88b':'#9aa3c2'}`,
       boxStyle:`width:14px;height:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border:1px solid ${done?'#55e88b':'rgba(190,205,255,.3)'};background:${done?'rgba(85,232,139,.13)':'transparent'};color:#55e88b`,
       check:done?'✓':'',
       md:`[${done?'x':' '}] ${text}`, mdColor:`color:${done?'#55e88b':'#ffc861'}` }));
 
     const leftDef=[['agac','Ağaç'],['kayit','Kayıt'],['git','Git']];
-    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this._setLeftTab(id),style:`background:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;color:${st.leftTab===id?'#61dcff':'#8791b8'}`}));
+    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this._setLeftTab(id),style:`background:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;color:${st.leftTab===id?'#61dcff':'#9aa3c2'}`}));
 
-    const consoleTabs=[['claude','⌁ CLAUDE'],['bash','▮ BASH']].map(([id,label])=>({id,label,onClick:()=>{this.setState({consoleTab:id});this._focusConsole();},style:`padding:4px 10px;cursor:pointer;background:${st.consoleTab===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.consoleTab===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.consoleTab===id?'#61dcff':'#8b96b8'}`}));
-    const _outSt=t=>(t==='in'?'color:#8b96b8':t==='tool'?'color:#61dcff':t==='err'?'color:#ff6b7a':t==='done'?'color:#55e88b':'color:#dbe4ff')+';white-space:pre-wrap';
+    const consoleTabs=[['claude','⌁ CLAUDE'],['bash','▮ BASH']].map(([id,label])=>({id,label,onClick:()=>{this.setState({consoleTab:id});this._focusConsole();},style:`padding:4px 10px;cursor:pointer;background:${st.consoleTab===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.consoleTab===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.consoleTab===id?'#61dcff':'#9aa3c2'}`}));
+    const _outSt=t=>(t==='in'?'color:#9aa3c2':t==='tool'?'color:#61dcff':t==='err'?'color:#ff6b7a':t==='done'?'color:#55e88b':'color:#dbe4ff')+';white-space:pre-wrap';
     const _curCon=this._con(sel&&sel.id);   // seçili projenin konsolu (proje bazlı)
     const claudeLines=(_curCon.cout||[]).map(l=>({text:l.x,style:_outSt(l.t)}));
     const bashLines=(_curCon.bout||[]).map(l=>({text:l.x,style:_outSt(l.t)}));
@@ -932,12 +967,12 @@ class Component extends DCLogic {
       btnStyle:`position:relative;width:44px;height:44px;border-radius:50%;cursor:pointer;padding:0;background:url('${a.avatar}') center/cover,#0a0e1a;border:2px solid ${on?a.color:this.rgba(a.color,.4)};box-shadow:0 0 ${on?18:10}px ${this.rgba(a.color,on?.6:.25)}`,
       onClick:()=>{ if(this._asst) this._asst.open=false; this.setState({agentId:on?null:a.id, asstOpen:false}); } }; });
     const activeRaw=this.AGENTS.find(a=>a.id===st.agentId)||null;
-    const activePresets=((activeRaw&&activeRaw.presets)||[]).map(p=>({label:p.label,onClick:()=>this.sendPreset(p.ask),style:`text-align:left;width:100%;padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid rgba(190,205,255,.16);color:#8b96b8;background:rgba(13,18,36,.5);border-radius:14px`}));
+    const activePresets=((activeRaw&&activeRaw.presets)||[]).map(p=>({label:p.label,onClick:()=>this.sendPreset(p.ask),style:`text-align:left;width:100%;padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid rgba(190,205,255,.16);color:#9aa3c2;background:rgba(13,18,36,.5);border-radius:14px`}));
     const activeDesc=activeRaw?(activeRaw.role||''):''; const hasActivePresets=activePresets.length>0;
     const active=activeRaw?{...activeRaw,avatarStyle:`width:38px;height:38px;flex-shrink:0;background:url('${activeRaw.avatar}') center/cover,#0a0e1a;border:1px solid ${this.rgba(activeRaw.color,.5)}`}:{avatarStyle:'',color:'#61dcff',name:'',role:'',prompt:''};
     const activeMsgs=(activeRaw?activeRaw.msgs:[]).map(([who,text])=>{ const isU=who==='u'; return { text, isUser:isU, notUser:!isU, lines:isU?[]:this._mdLines(text),
       wrapStyle:`display:flex;${isU?'justify-content:flex-end':''}`,
-      bubbleStyle:`max-width:88%;font-size:13px;line-height:1.5;padding:10px 13px;${isU?'background:rgba(97,220,255,.1);border:1px solid rgba(97,220,255,.25);color:#dbe4ff':`background:rgba(13,18,36,.7);border-radius:14px;border-left:2px solid ${activeRaw?activeRaw.color:'#61dcff'};color:#8b96b8`}` }; });
+      bubbleStyle:`max-width:88%;font-size:13px;line-height:1.5;padding:10px 13px;${isU?'background:rgba(97,220,255,.1);border:1px solid rgba(97,220,255,.25);color:#dbe4ff':`background:rgba(13,18,36,.7);border-radius:14px;border-left:2px solid ${activeRaw?activeRaw.color:'#61dcff'};color:#9aa3c2`}` }; });
 
     // ARAMA — gerçek projeler (tüm evrenler) + komutlar, query'ye göre filtrelenir.
     const q=trFold(st.query||'');
@@ -949,13 +984,16 @@ class Component extends DCLogic {
     const searchable = realMode ? (this._allProjects||this.PROJECTS) : this.PROJECTS;
     const projRes=searchable.filter(p=>!q||trFold(p.name).includes(q)).slice(0,8).map(p=>({icon:'●',ic:statusColor(p.status),label:p.name,hint:'↵ GİT',fn:()=>this._gotoProject(p.id)}));
     const cmdRes=cmds.filter(c=>!q||trFold(c.label).includes(q));
-    const paletteResults=[...projRes,...cmdRes].map((r,i)=>({ icon:r.icon, label:r.label, hint:r.hint,
+    const palAll=[...projRes,...cmdRes];
+    this._paletteFns=palAll.map(r=>r.fn); this._paletteLen=palAll.length;
+    const palIdx=Math.max(0, Math.min(st.paletteIdx||0, Math.max(0,palAll.length-1)));
+    const paletteResults=palAll.map((r,i)=>({ icon:r.icon, label:r.label, hint:r.hint,
       iconStyle:`color:${r.ic};width:18px;text-align:center`,
-      style:`display:flex;align-items:center;gap:12px;width:100%;padding:11px 18px;cursor:pointer;background:${i===0?'rgba(97,220,255,.06)':'transparent'};border:none;border-left:2px solid ${i===0?'#61dcff':'transparent'};text-align:left;color:#dbe4ff`,
+      style:`display:flex;align-items:center;gap:12px;width:100%;padding:11px 18px;cursor:pointer;background:${i===palIdx?'rgba(97,220,255,.06)':'transparent'};border:none;border-left:2px solid ${i===palIdx?'#61dcff':'transparent'};text-align:left;color:#dbe4ff`,
       onClick:r.fn }));
 
     // KANBAN — gerçek todo'lar; kartı başka sütuna sürükle → durum değişir (kalıcı).
-    const _todoCols=[['todo','Bekliyor','#8b96b8'],['doing','Devam','#61dcff'],['done','Tamam','#55e88b']];
+    const _todoCols=[['todo','Bekliyor','#9aa3c2'],['doing','Devam','#61dcff'],['done','Tamam','#55e88b']];
     const _todos = realMode ? (st._todos||[]) : [{id:'1',text:'Örnek görev',status:'todo'},{id:'2',text:'Devam eden iş',status:'doing'},{id:'3',text:'Biten iş',status:'done'}];
     const board=_todoCols.map(([status,title,cc])=>{ const items=_todos.filter(t=>(t.status||(t.done?'done':'todo'))===status);
       return { title, count:items.length,
@@ -972,8 +1010,8 @@ class Component extends DCLogic {
       : [{when:'Her sabah 09:00',task:'ATLAS durum raporu',next:'yarın 09:00',on:true,id:null},{when:'Pazartesi 10:00',task:'NAVIGATOR standup',next:'Pzt 10:00',on:true,id:null},{when:'Her gün 18:00',task:'DOCUMENTOR README kontrolü',next:'bugün 18:00',on:false,id:null}];
     const schedule=schRaw.map(s=>({ when:s.when, task:s.task, next:s.next, state:s.on?'AKTİF':'DURDU', hasId:!!s.id,
       onRun:s.id?()=>this._schedRun(s.id):(()=>{}), onDelete:s.id?()=>this.askConfirm('"'+(s.name||'görev')+'" zamanlanmış görevini sil?',()=>this._schedDelete(s.id)):(()=>{}),
-      dotStyle:`width:9px;height:9px;border-radius:50%;background:${s.on?'#55e88b':'#8791b8'};${s.on?'box-shadow:0 0 8px #55e88b':''}`,
-      pillStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;padding:5px 10px;border:1px solid ${s.on?'rgba(85,232,139,.35)':'rgba(190,205,255,.16)'};color:${s.on?'#55e88b':'#8b96b8'}` }));
+      dotStyle:`width:9px;height:9px;border-radius:50%;background:${s.on?'#55e88b':'#9aa3c2'};${s.on?'box-shadow:0 0 8px #55e88b':''}`,
+      pillStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;padding:5px 10px;border:1px solid ${s.on?'rgba(85,232,139,.35)':'rgba(190,205,255,.16)'};color:${s.on?'#55e88b':'#9aa3c2'}` }));
 
     const _g = realMode ? st._git : null;
     const gitFilesDef=(_g && _g.dirtyFiles && _g.dirtyFiles.length)
@@ -999,7 +1037,7 @@ class Component extends DCLogic {
     const gitPriBase='width:100%;padding:9px 0;cursor:pointer;font-family:\'Space Grotesk\',sans-serif;font-size:12px;border-radius:8px;margin-bottom:6px;';
     const gitPriCyan=gitPriBase+'border:1px solid #61dcff;background:rgba(97,220,255,.1);color:#61dcff';
     const gitPriGreen=gitPriBase+'border:1px solid #55e88b;background:rgba(85,232,139,.1);color:#55e88b';
-    const gitPriMuted=gitPriBase+'border:1px solid rgba(190,205,255,.18);background:transparent;color:#8b96b8;cursor:default';
+    const gitPriMuted=gitPriBase+'border:1px solid rgba(190,205,255,.18);background:transparent;color:#9aa3c2;cursor:default';
     let gitPrimaryLabel='Güncel', gitPrimaryTitle='Çalışma alanı güncel', gitPrimaryStyle=gitPriMuted, gitShowPullGhost=false, gitPrimaryFn=()=>{};
     if(gitDirtyCount>0){ gitPrimaryLabel='Commit…'; gitPrimaryTitle='Değişiklikleri hazırla ve commit’le'; gitPrimaryStyle=gitPriGreen; gitPrimaryFn=()=>{this.setState({gitCenter:'durum'});this._loadGit();}; gitShowPullGhost=gitBehind>0; }
     else if(gitAhead>0){ gitPrimaryLabel='⬆ Push'; gitPrimaryTitle='Push (uzağa gönder)'; gitPrimaryStyle=gitPriCyan; gitPrimaryFn=()=>this.gitPush(); gitShowPullGhost=gitBehind>0; }
@@ -1012,14 +1050,14 @@ class Component extends DCLogic {
     const fRow=(f,staged)=>({ path:f.path, label:f.label,
       badgeStyle:`font-size:10px;letter-spacing:.05em;padding:2px 6px;border:1px solid ${this.rgba(fColor(f.label),.4)};color:${fColor(f.label)};text-transform:uppercase;flex-shrink:0`,
       rowStyle:`display:flex;align-items:center;gap:9px;padding:4px 0;font-family:'JetBrains Mono',monospace;font-size:12px`,
-      nameStyle:`color:#8b96b8;flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:none;text-align:left;font-family:'JetBrains Mono',monospace;font-size:12px;padding:0`,
+      nameStyle:`color:#9aa3c2;flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:none;text-align:left;font-family:'JetBrains Mono',monospace;font-size:12px;padding:0`,
       onDiff:()=>this.gitViewDiff(f.path,staged),
       onStage:()=>this.gitStage(f.path), onUnstage:()=>this.gitUnstage(f.path) });
     const stagedArr=_gf.filter(f=>f.staged), unstagedArr=_gf.filter(f=>f.unstaged);
     const gitStagedList=stagedArr.map(f=>fRow(f,true)), gitUnstagedList=unstagedArr.map(f=>fRow(f,false));
     const gitBranchList=((_g&&_g.branches)||[]).map(b=>({name:b, current:b===gitBranchName,
       onClick:()=>this.gitSwitchBranch(b),
-      style:`padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${b===gitBranchName?'#61dcff':'rgba(190,205,255,.16)'};color:${b===gitBranchName?'#61dcff':'#8b96b8'};background:${b===gitBranchName?'rgba(97,220,255,.08)':'transparent'};white-space:nowrap`}));
+      style:`padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${b===gitBranchName?'#61dcff':'rgba(190,205,255,.16)'};color:${b===gitBranchName?'#61dcff':'#9aa3c2'};background:${b===gitBranchName?'rgba(97,220,255,.08)':'transparent'};white-space:nowrap`}));
     const _gitDiff=st._gitDiff;
     // Takım akışı: commit'leri yazara göre topla
     const authMap={}; commitSrc.forEach(([,,,who])=>{ const a=who||'?'; authMap[a]=(authMap[a]||0)+1; });
@@ -1033,7 +1071,7 @@ class Component extends DCLogic {
       barWrapStyle:`height:6px;border-radius:3px;background:rgba(190,205,255,.08);margin-top:6px;overflow:hidden` }; });
     const hasAuthors=authors.length>0;
 
-    const srcTab=(on)=>`flex:1;padding:9px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:${on?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${on?'#61dcff':'rgba(190,205,255,.16)'};color:${on?'#61dcff':'#8b96b8'}`;
+    const srcTab=(on)=>`flex:1;padding:9px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:${on?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${on?'#61dcff':'rgba(190,205,255,.16)'};color:${on?'#61dcff':'#9aa3c2'}`;
     const serverSrc = (realMode && st._db && st._db.length)
       ? st._db.map(s=>{ const c=s.type==='postgres'?'#61dcff':(s.type==='mysql'?'#ffc861':'#55e88b');
           return [s.name||s.host||'DB', [s.host,s.type].filter(Boolean).join(' · ')||(s.host||''), c, 'kayıtlı', s.type||'veritabanı']; })
@@ -1055,19 +1093,19 @@ class Component extends DCLogic {
     // DB — bağlantı listesi + ekleme formu + gerçek şema
     const dbConns=(realMode?(st._db||[]):[{id:'x',name:'Yerel PG',type:'postgres',host:'localhost'}]).map(c=>{ const on=c.id===st.dbSel;
       return {id:c.id,name:c.name,type:c.type||'',
-        style:`display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid ${on?'#61dcff':'rgba(190,205,255,.16)'};color:${on?'#61dcff':'#8b96b8'};background:${on?'rgba(97,220,255,.08)':'transparent'}`,
+        style:`display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid ${on?'#61dcff':'rgba(190,205,255,.16)'};color:${on?'#61dcff':'#9aa3c2'};background:${on?'rgba(97,220,255,.08)':'transparent'}`,
         onClick:()=>this.dbSelectConn(c.id), onDelete:(e)=>{if(e&&e.stopPropagation)e.stopPropagation();this.askConfirm('"'+(c.name||'bağlantı')+'" veritabanı bağlantısını sil?',()=>this.dbDeleteConn(c.id));}}; });
     const dbHasConns=dbConns.length>0;
     const dbf=st.dbForm||{};
-    const dbTypeBtn=t=>`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;border:1px solid ${dbf.type===t?'#61dcff':'rgba(190,205,255,.16)'};color:${dbf.type===t?'#61dcff':'#8b96b8'};background:${dbf.type===t?'rgba(97,220,255,.08)':'transparent'}`;
+    const dbTypeBtn=t=>`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;border:1px solid ${dbf.type===t?'#61dcff':'rgba(190,205,255,.16)'};color:${dbf.type===t?'#61dcff':'#9aa3c2'};background:${dbf.type===t?'rgba(97,220,255,.08)':'transparent'}`;
     const dbdbs=(st._dbdbs||[]).map(d=>({name:d,onClick:()=>this.dbPickDatabase(d),
-      style:`padding:5px 11px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${d===st.dbDatabase?'#61dcff':'rgba(190,205,255,.16)'};color:${d===st.dbDatabase?'#61dcff':'#8b96b8'};background:${d===st.dbDatabase?'rgba(97,220,255,.08)':'transparent'}`}));
+      style:`padding:5px 11px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${d===st.dbDatabase?'#61dcff':'rgba(190,205,255,.16)'};color:${d===st.dbDatabase?'#61dcff':'#9aa3c2'};background:${d===st.dbDatabase?'rgba(97,220,255,.08)':'transparent'}`}));
     const _sch=st._dbschema;
     const dbSchemaTables=((_sch&&_sch.tables)||[]).map((t,i)=>{ const c=['#61dcff','#c77bff','#ffc861','#55e88b'][i%4];
       return {name:t.name, onClick:()=>this.dbOpenTable(t.name),
         headStyle:`font-family:'JetBrains Mono',monospace;font-size:12px;color:${c};padding:8px 14px;border-bottom:1px solid ${this.rgba(c,.25)};background:${this.rgba(c,.06)};cursor:pointer;display:flex;align-items:center;justify-content:space-between`,
         boxStyle:`border:1px solid ${this.rgba(c,.35)};background:rgba(13,18,36,.85);border-radius:14px;cursor:pointer`,
-        columns:((t.columns)||[]).map(cl=>({txt:(cl.pk?'🔑 ':'')+cl.name+' · '+(cl.type||''), style:`color:${cl.pk?'#ffc861':'#8b96b8'}`}))}; });
+        columns:((t.columns)||[]).map(cl=>({txt:(cl.pk?'🔑 ':'')+cl.name+' · '+(cl.type||''), style:`color:${cl.pk?'#ffc861':'#9aa3c2'}`}))}; });
     // Tablo veri editörü grid
     const _td=st._dbTableData; const _edits=st._dbEdits||{};
     const dbHasPk=!!(_td&&_td.pk&&_td.pk.length);
@@ -1077,7 +1115,7 @@ class Component extends DCLogic {
           return { value:val, onInput:(e)=>this.onCellInput(ri,col,e), readOnly:isPk&&dbHasPk,
             style:`width:100%;box-sizing:border-box;min-width:${isPk?'56px':'130px'};background:${has?'rgba(97,220,255,.1)':'transparent'};border:1px solid ${has?'#61dcff':'rgba(190,205,255,.08)'};color:${isPk?'#ffc861':'#dbe4ff'};font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 7px;outline:none${(isPk&&dbHasPk)?';opacity:.7':''}` }; }),
         onSave:()=>this.dbSaveRow(ri), onAskDelete:()=>this.askDeleteRow(ri), onDoDelete:()=>this.dbDoDeleteRow(ri), onCancelDelete:()=>this.cancelDeleteRow(),
-        saveStyle:`padding:4px 10px;cursor:${dirty?'pointer':'default'};font-family:'JetBrains Mono',monospace;font-size:10px;border:1px solid ${dirty?'#55e88b':'rgba(190,205,255,.12)'};background:${dirty?'rgba(85,232,139,.1)':'transparent'};color:${dirty?'#55e88b':'#8791b8'};white-space:nowrap`,
+        saveStyle:`padding:4px 10px;cursor:${dirty?'pointer':'default'};font-family:'JetBrains Mono',monospace;font-size:10px;border:1px solid ${dirty?'#55e88b':'rgba(190,205,255,.12)'};background:${dirty?'rgba(85,232,139,.1)':'transparent'};color:${dirty?'#55e88b':'#9aa3c2'};white-space:nowrap`,
         saveLabel:busy?'…':'Kaydet' }; });
     const dbTableColHdr=((_td&&_td.fields)||[]).map(f=>({name:f+(st._dbOrderBy===f?(st._dbOrderDir==='desc'?' ▼':' ▲'):''), isPk:(_td&&_td.pk||[]).includes(f), onSort:()=>this.dbSort(f),
       style:`text-align:left;padding:7px 8px;cursor:pointer;min-width:${(_td&&_td.pk||[]).includes(f)?'56px':'130px'};font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:${(_td&&_td.pk||[]).includes(f)?'#ffc861':'#61dcff'};border-bottom:1px solid rgba(190,205,255,.16);white-space:nowrap`}));
@@ -1099,7 +1137,7 @@ class Component extends DCLogic {
          {name:'Arşiv',path:'~/Archive',planets:9,systems:3,active:0,color:'#8a8fa8',id:null}];
     const universes=uniSrc.map(u=>{ const c=u.color; return {name:u.name,path:u.path,planets:u.planets,systems:u.systems,active:u.active,
       cardStyle:`display:flex;flex-direction:column;justify-content:space-between;min-height:150px;box-sizing:border-box;text-align:left;cursor:pointer;border:1px solid ${this.rgba(c,.34)};background:linear-gradient(160deg,${this.rgba(c,.12)},rgba(9,13,26,.86));padding:22px;border-radius:16px;box-shadow:0 0 30px ${this.rgba(c,.1)},inset 0 0 0 1px rgba(255,255,255,.02)`,
-      orbStyle:`width:52px;height:52px;border-radius:50%;background:${this.planetBg(c)};box-shadow:0 0 24px ${this.rgba(c,.5)};animation:floatOrb ${5+u.planets/3}s ease-in-out infinite`,
+      orbStyle:`width:52px;height:52px;border-radius:50%;background:${this.planetBg(c)};box-shadow:0 0 24px ${this.rgba(c,.5)};${this._float(5+u.planets/3)}`,
       accent:c, hasId:!!u.id, onClick:()=> u.id ? this.selectUni(u.id) : this.setState({tab:'evren'}),
       onDelete:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); if(u.id) this.askConfirm('"'+(u.name||'evren')+'" evrenini kaldır? (klasörler diskte kalır)',()=>this._universeDelete(u.id)); } }; });
 
@@ -1137,7 +1175,7 @@ class Component extends DCLogic {
       srvSetName:(e)=>this.srvFormSet('name',e.target.value), srvSetHost:(e)=>this.srvFormSet('host',e.target.value), srvSetUser:(e)=>this.srvFormSet('user',e.target.value), srvSetPort:(e)=>this.srvFormSet('port',e.target.value), srvSetKey:(e)=>this.srvFormSet('key',e.target.value),
       // ~/.ssh anahtar seçici çipleri (Varsayılan/agent + mevcut anahtarlar)
       sshKeyChips:(()=>{ const cur=(st.srvForm&&st.srvForm.key)||''; const chip=(name,val,sel)=>({name,onClick:()=>this.srvFormSet('key',val),
-        style:`padding:5px 11px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${sel?'#61dcff':'rgba(190,205,255,.16)'};color:${sel?'#61dcff':'#8b96b8'};background:${sel?'rgba(97,220,255,.08)':'transparent'}`});
+        style:`padding:5px 11px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${sel?'#61dcff':'rgba(190,205,255,.16)'};color:${sel?'#61dcff':'#9aa3c2'};background:${sel?'rgba(97,220,255,.08)':'transparent'}`});
         const list=[chip('Agent / varsayılan','',!cur)];
         for(const k of (st._sshKeys||[])){ const b=cur===k.name||cur===k.path; list.push(chip(k.name,k.name,b)); }
         return list; })(),
@@ -1151,13 +1189,13 @@ class Component extends DCLogic {
       noContainers: realMode && dRunning && !containers.length,
       dockerStatusText, dockerRunning:dRunning, dockerNotRunning:realMode&&ds&&ds.installed!==false&&!ds.running&&!ds.mas,
       isDockContainers: st.dockerTab!=='images', isDockImages: st.dockerTab==='images',
-      dockContStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid ${st.dockerTab!=='images'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.dockerTab!=='images'?'#61dcff':'#8b96b8'};background:${st.dockerTab!=='images'?'rgba(97,220,255,.08)':'transparent'}`,
-      dockImgStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid ${st.dockerTab==='images'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.dockerTab==='images'?'#61dcff':'#8b96b8'};background:${st.dockerTab==='images'?'rgba(97,220,255,.08)':'transparent'}`,
+      dockContStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid ${st.dockerTab!=='images'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.dockerTab!=='images'?'#61dcff':'#9aa3c2'};background:${st.dockerTab!=='images'?'rgba(97,220,255,.08)':'transparent'}`,
+      dockImgStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid ${st.dockerTab==='images'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.dockerTab==='images'?'#61dcff':'#9aa3c2'};background:${st.dockerTab==='images'?'rgba(97,220,255,.08)':'transparent'}`,
       setDockContainers:()=>this.setState({dockerTab:'containers'}), setDockImages:()=>this.setState({dockerTab:'images'}),
       dockerRefresh:()=>this._loadDocker(), dockerStartEngine:()=>this._dockerStartEngine(),
       dockerPruneImg:()=>this._dockerPrune('image'),
       dlogOpen:!!st._dlog, dlogName:(st._dlog&&st._dlog.name)||'', closeDlog:()=>this.closeDlog(),
-      dlogLines:(this._dlogLines||[]).map(l=>({t:l||' ', style:`white-space:pre-wrap;word-break:break-word;color:${/^\$ /.test(l)?'#61dcff':(/error|hata|exception|fatal/i.test(l)?'#ff6b7a':'#8b96b8')}`})),
+      dlogLines:(this._dlogLines||[]).map(l=>({t:l||' ', style:`white-space:pre-wrap;word-break:break-word;color:${/^\$ /.test(l)?'#61dcff':(/error|hata|exception|fatal/i.test(l)?'#ff6b7a':'#9aa3c2')}`})),
       dockExec:st.dockExec||'', onDockExec:(e)=>this.onDockExec(e), onDockExecKey:(e)=>this.onDockExecKey(e), dockerExecRun:()=>this.dockerExecRun(),
       // DB
       dbConns, dbHasConns, dbAddOpen:st.dbAddOpen, openDbAdd:()=>this.setState({dbAddOpen:true,_dbtest:''}), closeDbAdd:()=>this.setState({dbAddOpen:false}),
@@ -1204,7 +1242,7 @@ class Component extends DCLogic {
       hasCommits, noCommits:!hasCommits, authors, hasAuthors, noAuthors:!hasAuthors,
       gitClean:gitDirtyCount===0, gitHasChanges:gitDirtyCount>0,
       isPlan: st.kayitSub==='plan', isNotlar: st.kayitSub==='notlar', isBaglanti: st.kayitSub==='baglanti', isOdak: st.kayitSub==='odak',
-      kayitTabs: [['plan','PLAN'],['notlar','NOTLAR'],['baglanti','BAĞLANTILAR'],['odak','ODAK']].map(([id,label])=>({label,onClick:()=>this.setState({kayitSub:id}),style:`background:none;border:none;cursor:pointer;padding:0 0 4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1.5px solid ${st.kayitSub===id?'#61dcff':'transparent'};color:${st.kayitSub===id?'#61dcff':'#8791b8'}`})),
+      kayitTabs: [['plan','PLAN'],['notlar','NOTLAR'],['baglanti','BAĞLANTILAR'],['odak','ODAK']].map(([id,label])=>({label,onClick:()=>this.setState({kayitSub:id}),style:`background:none;border:none;cursor:pointer;padding:0 0 4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1.5px solid ${st.kayitSub===id?'#61dcff':'transparent'};color:${st.kayitSub===id?'#61dcff':'#9aa3c2'}`})),
       selNotes: noteArr.map(t=>({t})),
       selLinks: linkArr.map(([name,desc,c])=>({name,desc,dotStyle:`width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;box-shadow:0 0 8px ${c}`})),
       hasNotes: noteArr.length>0, hasLinks: linkArr.length>0,
@@ -1218,7 +1256,7 @@ class Component extends DCLogic {
         const star=allP.slice().sort((a,b)=>(((b._git&&b._git.activity30)||0)-((a._git&&a._git.activity30)||0))||((b.prog||0)-(a.prog||0)))[0]||sel;
         const act=(star&&star._git&&star._git.activity30)||0;
         const recent=commits.slice(0,3).map(c=>({when:(c.when||'').slice(5,10)||(c.when||''),text:c.msg,
-          whenStyle:"font-family:'JetBrains Mono',monospace;color:#8791b8;margin-right:6px"}));
+          whenStyle:"font-family:'JetBrains Mono',monospace;color:#9aa3c2;margin-right:6px"}));
         const notes=noteArr.slice(0,3);
         return { hudStarName:(star&&star.name)||'—', hudStarMeta:act?(act+' commit / 30g'):((star&&star.stage)||''),
           hudRecent:recent, hasHudRecent:recent.length>0,
@@ -1228,8 +1266,8 @@ class Component extends DCLogic {
           const date=m?m[1]:''; const title=m?m[2]:String(fn).replace(/\.md$/,'');
           return { name:fn, title, when:date, onClick:()=>this.openReport(fn),
             style:`display:flex;gap:10px;align-items:baseline;padding:5px 0;cursor:pointer`,
-            whenStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:#8791b8;flex-shrink:0`,
-            titleStyle:`font-size:12px;color:#8b96b8` }; });
+            whenStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:#9aa3c2;flex-shrink:0`,
+            titleStyle:`font-size:12px;color:#9aa3c2` }; });
         const rv=st._reportView;
         return { reportList:reps, hasReports:reps.length>0, noReports:reps.length===0,
           reportViewOpen:!!rv, reportViewName:(rv&&rv.name)||'', reportViewLoading:!!(rv&&rv.content==null),
@@ -1241,7 +1279,7 @@ class Component extends DCLogic {
       gitCenterOpen: !!st.gitCenter,
       openGitCenter:()=>{this.setState({gitCenter:'durum'});this._loadGit();}, openGitFlow:()=>this.setState({gitCenter:'rehber'}), closeGitCenter:()=>this.setState({gitCenter:null}),
       gcDurum: st.gitCenter==='durum', gcTakim: st.gitCenter==='takim', gcGecmis: st.gitCenter==='gecmis', gcRehber: st.gitCenter==='rehber',
-      gitCenterTabs: [['durum','DURUM'],['takim','TAKIM AKIŞI'],['gecmis','GEÇMİŞ'],['rehber','GIT FLOW REHBERİ']].map(([id,label])=>({label,style:`padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:${st.gitCenter===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.gitCenter===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.gitCenter===id?'#61dcff':'#8b96b8'}`,onClick:()=>this.setState({gitCenter:id})})),
+      gitCenterTabs: [['durum','DURUM'],['takim','TAKIM AKIŞI'],['gecmis','GEÇMİŞ'],['rehber','GIT FLOW REHBERİ']].map(([id,label])=>({label,style:`padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:${st.gitCenter===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.gitCenter===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.gitCenter===id?'#61dcff':'#9aa3c2'}`,onClick:()=>this.setState({gitCenter:id})})),
       isSpace: space, isPlanet: st.mode==='planet',
       showPlanetCrumb: st.mode==='planet' || !!st.holdPlanet,
       moreOpen: !!st.moreOpen, moreTabs,
@@ -1268,9 +1306,9 @@ class Component extends DCLogic {
       locPlanets: (this._allProjects||[]).filter(p=>p.universe===st.uniId).map(p=>{
         const cur=p.id===st.selId && (st.mode==='planet' || !!st.holdPlanet);
         return { name:p.name,
-          dot:`display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${(({active:'#55e88b',paused:'#ffc861',waiting:'#8791b8'})[p.status])||'#61dcff'}`,
+          dot:`display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${(({active:'#55e88b',paused:'#ffc861',waiting:'#9aa3c2'})[p.status])||'#61dcff'}`,
           rowStyle:`display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 12px;cursor:pointer;background:${cur?'rgba(97,220,255,.1)':'transparent'};border:none;border-left:2px solid ${cur?'#61dcff':'transparent'}`,
-          nameStyle:`font-size:12px;color:${cur?'#dbe4ff':'#8b96b8'}`, cur, curMark: cur?'buradasın':'',
+          nameStyle:`font-size:12px;color:${cur?'#dbe4ff':'#9aa3c2'}`, cur, curMark: cur?'buradasın':'',
           onClick:()=>{ this._gotoProject(p.id); this.setState({locOpen:false}); } };
       }),
       hasLocPlanets: (this._allProjects||[]).some(p=>p.universe===st.uniId),
@@ -1282,7 +1320,7 @@ class Component extends DCLogic {
       toggleLeft:()=>this.setState({leftCollapsed:!st.leftCollapsed}), toggleRight:()=>this.setState({rightCollapsed:!st.rightCollapsed}),
       leftIcon: st.leftCollapsed?'▶':'◀', rightIcon: st.rightCollapsed?'◀':'▶',
       hudOpen: st.hudOpen, hudArrow: st.hudOpen?'▾':'▴',
-      hudBtnBg: st.hudOpen?'rgba(97,220,255,.08)':'transparent', hudBtnBorder: st.hudOpen?'#61dcff':'rgba(190,205,255,.16)', hudBtnColor: st.hudOpen?'#61dcff':'#8b96b8',
+      hudBtnBg: st.hudOpen?'rgba(97,220,255,.08)':'transparent', hudBtnBorder: st.hudOpen?'#61dcff':'rgba(190,205,255,.16)', hudBtnColor: st.hudOpen?'#61dcff':'#9aa3c2',
       tabs, railItems, planets, files, leftTabs, consoleTabs, agents,
       kadetBtnStyle:modeBtn(kadet), komutanBtnStyle:modeBtn(!kadet),
       setKadet:()=>this._setUiMode('kadet'), setKomutan:()=>this._setUiMode('komutan'),
@@ -1296,8 +1334,8 @@ class Component extends DCLogic {
       consoleH:(st.consoleH||240)+'px', onConsoleResize:(e)=>this.onConsoleResize(e),
       showOrbit: !!st.orbitView, previewEmpty: !st.orbitView && !st._preview, previewInline: !st.orbitView && !!st._preview,
       setStageFile:()=>this.setOrbitView(false), setStageOrbit:()=>this.setOrbitView(true),
-      stageFileStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${!st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${!st.orbitView?'#61dcff':'#8b96b8'}`,
-      stageOrbitStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${st.orbitView?'#61dcff':'#8b96b8'}`,
+      stageFileStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${!st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${!st.orbitView?'#61dcff':'#9aa3c2'}`,
+      stageOrbitStyle:`padding:5px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.02em;border:none;border-radius:7px;background:${st.orbitView?'rgba(97,220,255,.16)':'transparent'};color:${st.orbitView?'#61dcff':'#9aa3c2'}`,
       readmeOpen: st.readmeOpen!==false, readmeClosed: st.readmeOpen===false, toggleReadme:()=>this.toggleReadme(),
       agentOpen: !!activeRaw, activeAgent: active, activeMsgs,
       agentInput: st.agentInput, onAgentInput:(e)=>this.onAgentInput(e), onAgentKey:(e)=>this.onAgentKey(e), sendAgent:()=>this.sendAgent(), agentBusy: st._agentBusy,
@@ -1322,7 +1360,7 @@ class Component extends DCLogic {
       // README YOK + GİZLENENLER (gerçek veriye bağlı, tıklanınca açılır liste)
       ...(()=>{ const uniP=(this._allProjects||[]).filter(p=>p.universe===st.uniId);
         const noR=uniP.filter(p=>!p._readme); const hid=(this._scan&&this._scan.ignored)||[];
-        const rowS=`font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b96b8;cursor:pointer;padding:3px 0 3px 14px`;
+        const rowS=`font-family:'JetBrains Mono',monospace;font-size:11px;color:#9aa3c2;cursor:pointer;padding:3px 0 3px 14px`;
         return {
           noReadmeLabel:'⚠ README YOK ('+noR.length+')', hasNoReadme:noR.length>0, noReadmeOpen:!!st._showNoReadme,
           toggleNoReadme:()=>this.setState({_showNoReadme:!st._showNoReadme}),
@@ -1338,7 +1376,7 @@ class Component extends DCLogic {
       selStatusColor: sc.c, selStatusLabel: sc.l,
       selDotStyle:`width:10px;height:10px;border-radius:50%;background:${sc.c};box-shadow:0 0 8px ${sc.c}`,
       selBarStyle:`width:${sel.prog}%;height:100%;background:linear-gradient(90deg,${sc.c},#8ae7ff);box-shadow:0 0 10px ${sc.c};transition:width .6s`,
-      treeList: this._flatTree(this._treeNodes||[], '', 0).slice(0,140).map(t=>{ const on=!!(st._preview&&st._preview.rel===t.path); return {name:(t.dir?'▸ ':'· ')+t.name, onClick:()=>this._openFsNode(t.path,t.dir), style:`padding:3px 6px 3px ${t.depth*18+6}px;cursor:pointer;color:${on?'#dbe4ff':(t.dir?'#61dcff':'#8b96b8')};background:${on?'rgba(97,220,255,.08)':'transparent'};border-radius:4px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px`}; }),
+      treeList: this._flatTree(this._treeNodes||[], '', 0).slice(0,140).map(t=>{ const on=!!(st._preview&&st._preview.rel===t.path); return {name:(t.dir?'▸ ':'· ')+t.name, onClick:()=>this._openFsNode(t.path,t.dir), style:`padding:3px 6px 3px ${t.depth*18+6}px;cursor:pointer;color:${on?'#dbe4ff':(t.dir?'#61dcff':'#9aa3c2')};background:${on?'rgba(97,220,255,.08)':'transparent'};border-radius:4px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px`}; }),
       hasTree: (this._treeNodes&&this._treeNodes.length)>0, noTree: !(this._treeNodes&&this._treeNodes.length),
       enter:()=>this.enter(), back:()=>this.back(),
       openProjectFolder:()=>this.openProjectFolder(), removeProject:()=>this.removeProject(),
@@ -1347,10 +1385,10 @@ class Component extends DCLogic {
       schSetHour:(e)=>this.schFormSet('hour',e.target.value), schSetMinute:(e)=>this.schFormSet('minute',e.target.value),
       schSetDaily:()=>this.schFormSet('type','daily'), schSetWeekly:()=>this.schFormSet('type','weekly'),
       schIsDaily:st.schForm.type==='daily', schIsWeekly:st.schForm.type==='weekly',
-      schTypeDailyStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.type==='daily'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.schForm.type==='daily'?'#61dcff':'#8b96b8'};background:${st.schForm.type==='daily'?'rgba(97,220,255,.08)':'transparent'}`,
-      schTypeWeeklyStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.type==='weekly'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.schForm.type==='weekly'?'#61dcff':'#8b96b8'};background:${st.schForm.type==='weekly'?'rgba(97,220,255,.08)':'transparent'}`,
-      schDays:[['1','Pzt'],['2','Sal'],['3','Çar'],['4','Per'],['5','Cum'],['6','Cmt'],['7','Paz']].map(([v,l])=>({label:l,onClick:()=>this.schFormSet('weekday',v),style:`padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.weekday===v?'#61dcff':'rgba(190,205,255,.16)'};color:${st.schForm.weekday===v?'#61dcff':'#8b96b8'};background:${st.schForm.weekday===v?'rgba(97,220,255,.08)':'transparent'}`})),
-      schAgents:this.AGENTS.map(a=>({name:a.name,onClick:()=>this.schFormSet('agentId',a.id),style:`padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.agentId===a.id?a.color:'rgba(190,205,255,.16)'};color:${st.schForm.agentId===a.id?a.color:'#8b96b8'};background:transparent`})),
+      schTypeDailyStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.type==='daily'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.schForm.type==='daily'?'#61dcff':'#9aa3c2'};background:${st.schForm.type==='daily'?'rgba(97,220,255,.08)':'transparent'}`,
+      schTypeWeeklyStyle:`padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.type==='weekly'?'#61dcff':'rgba(190,205,255,.16)'};color:${st.schForm.type==='weekly'?'#61dcff':'#9aa3c2'};background:${st.schForm.type==='weekly'?'rgba(97,220,255,.08)':'transparent'}`,
+      schDays:[['1','Pzt'],['2','Sal'],['3','Çar'],['4','Per'],['5','Cum'],['6','Cmt'],['7','Paz']].map(([v,l])=>({label:l,onClick:()=>this.schFormSet('weekday',v),style:`padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.weekday===v?'#61dcff':'rgba(190,205,255,.16)'};color:${st.schForm.weekday===v?'#61dcff':'#9aa3c2'};background:${st.schForm.weekday===v?'rgba(97,220,255,.08)':'transparent'}`})),
+      schAgents:this.AGENTS.map(a=>({name:a.name,onClick:()=>this.schFormSet('agentId',a.id),style:`padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid ${st.schForm.agentId===a.id?a.color:'rgba(190,205,255,.16)'};color:${st.schForm.agentId===a.id?a.color:'#9aa3c2'};background:transparent`})),
       saveSchedule:()=>this.saveSchedule(), schResult:st._schResult||'', hasSchResult:!!st._schResult,
       dbSql:st.dbSql, onDbSql:(e)=>this.onDbSql(e), onDbSqlKey:(e)=>this.onDbSqlKey(e), runDbQuery:()=>this.runDbQuery(),
       dbAsk:st.dbAsk, onDbAsk:(e)=>this.onDbAsk(e), onDbAskKey:(e)=>this.onDbAskKey(e), runDbAgent:()=>this.runDbAgent(),
@@ -1394,14 +1432,14 @@ class Component extends DCLogic {
       grepQuery:st.grepQuery, onGrepInput:(e)=>this.onGrepInput(e), onGrepKey:(e)=>this.onGrepKey(e), runGrep:()=>this.runGrep(), grepBusy:!!st._grepBusy,
       grepResults:((st._grep)||[]).map(m=>({file:m.file,line:m.line,text:m.text, label:m.file+':'+m.line,
         onClick:()=>this._openFilePreview(m.file), style:`padding:5px 8px;cursor:pointer;border-bottom:1px solid rgba(190,205,255,.05)`,
-        locStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:#61dcff`, textStyle:`font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b96b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis`})),
+        locStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:#61dcff`, textStyle:`font-family:'JetBrains Mono',monospace;font-size:11px;color:#9aa3c2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis`})),
       hasGrep:!!(st._grep&&st._grep.length), grepEmpty:!!(st._grep&&st._grep.length===0),
       newFileOpen:!!st._newFileOpen, openNewFile:()=>this.setState({_newFileOpen:true,newFileInput:''}), newFileInput:st.newFileInput,
       onNewFileInput:(e)=>this.onNewFileInput(e), onNewFileKey:(e)=>this.onNewFileKey(e), fileCreate:()=>this.fileCreate(),
       // ---- gezegen klasör drill ----
       fsCwd:st._fsCwd||'', fsInSub:!!st._fsCwd, fsUp:()=>this._fsUp(),
       fsCrumb:st._fsCwd?('/ '+st._fsCwd):'',
-      openPalette:()=>this.setState({palette:true,query:''}), closePalette:()=>this.setState({palette:false,query:''}), stop:(e)=>{e.stopPropagation&&e.stopPropagation();},
+      openPalette:()=>this.setState({palette:true,query:'',paletteIdx:0}), closePalette:()=>this.setState({palette:false,query:'',paletteIdx:0}), stop:(e)=>{e.stopPropagation&&e.stopPropagation();},
       // İstasyon araçları (saat · takvim · hesap makinesi · hızlı ara)
       toolsOpen: st.toolsOpen, toggleTools:()=>this.toggleTools(), closeTools:()=>this.closeTools(),
       toolsBtnBorder: st.toolsOpen?'#61dcff':'rgba(190,205,255,.16)',
@@ -1412,7 +1450,7 @@ class Component extends DCLogic {
       calcEq:()=>this.calcEq(), calcClear:()=>this.calcClear(), calcBack:()=>this.calcBack(),
       calcKeys:['7','8','9','/','4','5','6','*','1','2','3','-','0','.','%','+'].map(k=>({k,onClick:()=>this.calcPush(k)})),
       toolFind:st.toolFind||'', onToolFind:(e)=>this.onToolFind(e),
-      toolFindRes:this._toolFindHits().map(p=>({name:p.name,group:p.group||'',dot:'display:inline-block;width:8px;height:8px;border-radius:50%;background:'+((({active:'#55e88b',paused:'#ffc861',waiting:'#8791b8'})[p.status])||'#61dcff'),onClick:()=>this.toolGo(p.id)})),
+      toolFindRes:this._toolFindHits().map(p=>({name:p.name,group:p.group||'',dot:'display:inline-block;width:8px;height:8px;border-radius:50%;background:'+((({active:'#55e88b',paused:'#ffc861',waiting:'#9aa3c2'})[p.status])||'#61dcff'),onClick:()=>this.toolGo(p.id)})),
       hasToolFind:!!(String(st.toolFind||'').trim()),
       onSearch:(e)=>this.onSearch(e), onSearchKey:(e)=>this.onSearchKey(e),
       closeAgent:()=>this.setState({agentId:null}),
@@ -1436,7 +1474,7 @@ class Component extends DCLogic {
       confirmCardStyle:`width:430px;max-width:90vw;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.45)':'rgba(255,107,122,.35)'};background:linear-gradient(172deg,${(st._confirm&&st._confirm.kind==='warn')?'rgba(20,14,10,.98),rgba(8,6,5,.99)':'rgba(20,12,14,.98),rgba(8,5,7,.99)'});box-shadow:0 30px 80px rgba(0,0,0,.6);padding:22px 24px;border-radius:14px`,
       confirmOkStyle:`padding:8px 20px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'#ff9650':'#ff6b7a'};background:${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.14)':'rgba(255,107,122,.14)'};color:${(st._confirm&&st._confirm.kind==='warn')?'#ffb060':'#ff6b7a'}`,
       hubTitle:(()=>{ const err=st._hubPulse==='error'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); return err?'hata':(work?'çalışıyor':'hazır'); })(),
-      hubDotStyle:(()=>{ const err=st._hubPulse==='error'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); const col=err?'#ff6b7a':(work?'#4684f6':'#61dcff'); return `display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};box-shadow:0 0 8px ${col};flex-shrink:0;${work&&!err?'animation:gxhubpulse 1.1s ease-in-out infinite;':''}`; })(),
+      hubDotStyle:(()=>{ const err=st._hubPulse==='error'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); const col=err?'#ff6b7a':(work?'#4684f6':'#61dcff'); return `display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};box-shadow:0 0 8px ${col};flex-shrink:0;${work&&!err&&!this._reduced()?'animation:gxhubpulse 1.1s ease-in-out infinite;':''}`; })(),
       // Özellik rehberi
       guideOpen:!!st._guideOpen, openGuide:()=>this.openGuide(), closeGuide:()=>this.closeGuide(),
       guideSections:this._guideData().map(([title,items])=>({title, items:items.map(t=>({t}))})),
@@ -1466,18 +1504,19 @@ class Component extends DCLogic {
     for(let i=0;i<N;i++){ P.push({a:Math.random()*Math.PI*2, r:26+Math.random()*66, sp:0.003+Math.random()*0.012, sz:0.7+Math.random()*2.4, ph:Math.random()*Math.PI*2, rr:0.85+Math.random()*0.3}); }
     const COL={ idle:[97,220,255], listening:[85,232,139], working:[70,132,246], speaking:[138,231,255] };
     let tk=0;
-    const draw=()=>{ A._raf=requestAnimationFrame(draw); tk++;
+    const draw=()=>{ A._raf=requestAnimationFrame(draw);
+      const reduce=this._reduced(); if(!reduce) tk++;
       const cv=canvas(); if(!cv) return; const ctx=cv.getContext('2d'); if(!ctx) return;
       const w=cv.width,h=cv.height,cx=w/2,cy=h/2; ctx.clearRect(0,0,w,h); ctx.globalCompositeOperation='lighter';
       const c=COL[A.state]||COL.idle;
-      const speed=A.state==='working'?2.6:(A.state==='listening'?1.15:1);
-      const pulse=A.state==='listening'?(0.6+A.amp*0.9+Math.sin(tk*0.11)*0.1):(A.state==='speaking'?(0.72+Math.abs(Math.sin(tk*0.16))*0.5):(0.88+Math.sin(tk*0.045)*0.13));
+      const speed=reduce?0:(A.state==='working'?2.6:(A.state==='listening'?1.15:1));
+      const pulse=reduce?0.9:(A.state==='listening'?(0.6+A.amp*0.9+Math.sin(tk*0.11)*0.1):(A.state==='speaking'?(0.72+Math.abs(Math.sin(tk*0.16))*0.5):(0.88+Math.sin(tk*0.045)*0.13)));
       const coreR=30*pulse;
       const g=ctx.createRadialGradient(cx,cy,0,cx,cy,coreR*2.1);
       g.addColorStop(0,'rgba('+c[0]+','+c[1]+','+c[2]+',.95)'); g.addColorStop(.38,'rgba('+c[0]+','+c[1]+','+c[2]+',.34)'); g.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,coreR*2.1,0,Math.PI*2); ctx.fill();
-      for(const p of P){ p.a+=p.sp*speed; const rr=p.r*pulse+Math.sin(tk*0.03+p.ph)*5; const x=cx+Math.cos(p.a)*rr, y=cy+Math.sin(p.a)*rr*p.rr;
-        const al=0.42+Math.sin(tk*0.05+p.ph)*0.4; ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+Math.max(0,al)+')';
+      for(const p of P){ if(!reduce) p.a+=p.sp*speed; const rr=p.r*pulse+(reduce?0:Math.sin(tk*0.03+p.ph)*5); const x=cx+Math.cos(p.a)*rr, y=cy+Math.sin(p.a)*rr*p.rr;
+        const al=reduce?0.5:(0.42+Math.sin(tk*0.05+p.ph)*0.4); ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+Math.max(0,al)+')';
         ctx.beginPath(); ctx.arc(x,y,p.sz*(0.7+pulse*0.5),0,Math.PI*2); ctx.fill(); }
       ctx.globalCompositeOperation='source-over';
     };
@@ -1529,7 +1568,7 @@ class Component extends DCLogic {
     el.innerHTML='<span style="font-size:16px">🚀</span><span style="font-size:13px;color:#dbe4ff">Yeni sürüm <b>v'+String(p.version).replace(/[<>]/g,'')+'</b> hazır</span>';
     const dl=document.createElement('button'); dl.textContent='İndir'; dl.style.cssText='border:1px solid #61dcff;background:rgba(97,220,255,.16);color:#61dcff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;font-family:inherit';
     dl.onclick=()=>{ try{ window.galaxy&&window.galaxy.openUpdate&&window.galaxy.openUpdate(p.url); }catch(e){} el.remove(); };
-    const x=document.createElement('span'); x.textContent='✕'; x.title='Kapat'; x.style.cssText='color:#8791b8;cursor:pointer;font-size:14px;padding:0 4px'; x.onclick=()=>el.remove();
+    const x=document.createElement('span'); x.textContent='✕'; x.title='Kapat'; x.style.cssText='color:#9aa3c2;cursor:pointer;font-size:14px;padding:0 4px'; x.onclick=()=>el.remove();
     el.appendChild(dl); el.appendChild(x); document.body.appendChild(el);
   }catch(e){} }
   // Konuşma metnini temizle: gizli aksiyon komutları, emoji, markdown → sesli okumaya uygun düz metin
@@ -1589,7 +1628,7 @@ class Component extends DCLogic {
   _asstPauseRec(){ const A=this._asst; if(!A) return; A._recPaused=true; try{ if(A.rec){ A.rec.onend=null; A.rec.stop(); } }catch(e){} A.rec=null; }
   _asstResumeRec(){ const A=this._asst; if(!A||!A.convo) return; A._recPaused=false; if(!A.rec) this._asstStartRec(); }
   // ---- Native STT (macOS Speech) : "Hey Galaxy" uyandırma + sesli komut ----
-  _asstWakeBtnStyle(){ const A=this._asst; if(!A||!A.wakeBtn) return; const on=A.native&&A.wakeOn; A.wakeBtn.style.color=on?'#55e88b':'#8791b8'; A.wakeBtn.style.opacity=A.native?'1':'.4'; A.wakeBtn.title=A.native?(on?'Hep dinle AÇIK — “Hey Galaxy” de':'Hep dinle kapalı'):'Native ses tanıma yok'; }
+  _asstWakeBtnStyle(){ const A=this._asst; if(!A||!A.wakeBtn) return; const on=A.native&&A.wakeOn; A.wakeBtn.style.color=on?'#55e88b':'#9aa3c2'; A.wakeBtn.style.opacity=A.native?'1':'.4'; A.wakeBtn.title=A.native?(on?'Hep dinle AÇIK — “Hey Galaxy” de':'Hep dinle kapalı'):'Native ses tanıma yok'; }
   _asstWakeToggle(){ const A=this._asst; if(!A) return; if(!A.native){ A.speak=false; this._asstSay('assistant','Bu ortamda native ses tanıma yok; mic tuşuyla konuşabiliriz.',{speak:false}); return; } A.wakeOn=!A.wakeOn; this._asstWakeBtnStyle(); if(A.wakeOn){ this._asstWakeStart(); this._asstSay('assistant','Tamam, artık “Hey Galaxy” diyerek beni çağırabilirsin.',{speak:false}); } else { if(A.sttMode!=='command'){ A.sttMode='off'; this._asstSttStop(); } this._asstSay('assistant','Hep dinleme kapandı. Mic tuşuyla yine konuşabiliriz.',{speak:false}); } }
   _asstSttStart(){ try{ if(window.galaxy&&window.galaxy.sttStart){ window.galaxy.sttStart(); this._asst._sttRunning=true; } }catch(e){} }
   _asstSttStop(){ try{ if(window.galaxy&&window.galaxy.sttStop){ window.galaxy.sttStop(); } }catch(e){} this._asst._sttRunning=false; }
@@ -1730,6 +1769,6 @@ class Component extends DCLogic {
     group.rotation.x=0.62;
     const resize=()=>{const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
     this._onResize=resize;window.addEventListener('resize',resize);resize();
-    const loop=()=>{this._raf=requestAnimationFrame(loop);group.rotation.y+=0.00018;renderer.render(scene,camera);};loop();
+    const loop=()=>{this._raf=requestAnimationFrame(loop); if(!this._reduced()) group.rotation.y+=0.00018; renderer.render(scene,camera);};loop();
   }
 }

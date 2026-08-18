@@ -30,6 +30,7 @@ function staticChecks() {
     check('workshop-stage', /Bir dosya seç/.test(h) && /Yörünge/.test(h) && !/belgede ara/.test(h), '');
     check('sprint-c-copy', /Evren bağla/.test(h) && /git init/.test(h) && /README.den çek/.test(h) && /confirmOkLabel/.test(h), '');
     check('sprint-d-twin', /id="ga-root"/.test(h) && /id="ga-panel"/.test(h) && /id="ga-orbwrap"/.test(h) && !/<div id="ga-mic"/.test(h), '');
+    check('sprint-e-a11y', /prefers-reduced-motion/.test(h) && /#9aa3c2/.test(h), '');
   } catch (e) { check('static-read', false, e.message); }
 }
 
@@ -73,6 +74,14 @@ app.whenReady().then(async () => {
     // Mic/voice kapalı olmalı (yazışma modu)
     const noMic = await js(`!document.getElementById('ga-mic') && !document.getElementById('ga-wake')`);
     check('voice-disabled', noMic);
+    await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Evren') b.click(); }); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); })(); true`);
+    await wait(350);
+    const railSel = `(function(){ var n=''; document.querySelectorAll('[style*="8px 18px"]').forEach(function(el){ var st=el.getAttribute('style')||''; if(st.indexOf('transparent')<0) n=(el.innerText||'').split('\\n')[0].trim(); }); return n; })()`;
+    const jkA = await js(railSel);
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'j',bubbles:true})); true`);
+    await wait(250);
+    const jkB = await js(railSel);
+    check('sprint-e-jk', !!jkA && !!jkB && jkA !== jkB, jkA + ' → ' + jkB);
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

@@ -110,7 +110,7 @@ Soldan sağa:
 
 - **GALAXY** logosu + **durum noktası** (hazır / çalışıyor / hata) · gezegen modundayken **‹** (uzaya dön) düğmesi.
 - **Konum breadcrumb'ı** — nerede olduğun her an bellidir: **🌌 Evren › 🪐 Gezegen ▾**. Tıkla → **hızlı geçiş anahtarı** açılır: üstte tüm **evrenler** (aktif olan işaretli), altta o evrenin **gezegenleri** (bulunduğun "buradasın" etiketiyle). Tek tıkla başka evrene/projeye ışınlan.
-- **Segmentli sekme çubuğu** — 7 sekme (aşağıda): aktif sekme dolgulu vurguyla belirgindir.
+- **Segmentli sekme çubuğu** — **Özet / Evren / Pano** + **Daha ▾** (DB, Docker, Zaman, SSH). Kadet’te Daha gizlenir.
 - **🎓 Kadet / ★ Komutan** — yoğunluk anahtarı (aşağıda).
 - **◷ Saat** — canlı saat; tıkla → **İstasyon Araçları**.
 - **⌕ Ara (⌘K)** — hızlı komut paleti: proje ara, komut çalıştır.
@@ -135,7 +135,7 @@ Soldan sağa:
 ### Uzay modu — galaksi haritası
 
 - **Galaksi görseli:** fareyle sürükle, tekerlekle yaklaş. WASD/oklar + / − ile de gezinilir.
-- **Sol panel — PROJELER:** aktif evrenin gezegenleri, **son aktiviteye göre sıralı** (en taze üstte). Her satır: durum noktası + proje adı + **dal ve son aktivite** (`main · 2g önce`). Başlıkta proje sayısı. Evren boşsa **Evren bağla** tek CTA.
+- **Sol panel — PROJELER:** aktif evrenin gezegenleri, **son aktiviteye göre sıralı** (en taze üstte). Her satır: durum noktası + proje adı + **dal ve son aktivite** (`main · 2g önce`). **Tek tık seçer, inmez;** **j / k** ile listede gez, **Enter** · **İn** · çift tık ile inersin. Evren boşsa **Evren bağla** tek CTA.
 - **Sağ istasyon:** 5 AI ajanın avatarları (üzerine gel → görev kartı, tıkla → sohbet).
 - **GALAXY HUD (alt):** 🚀 ile aç. Üç kart: **En Aktif Yıldız** (son 30 günde en çok commit alan projen), **Son Yapılanlar** (+ RAPOR arşivi), **Notlarım** (hızlı not ekle). Panel taşarsa iç kısmı kaydırılır; içerik asla kırpılmaz.
 
@@ -286,6 +286,7 @@ Yedeklerden geri dönüş: ⌘K → Yedekler.
 | **⌘K** | Hızlı komut: proje ara, Git Merkezi, ayarlar, yedekler |
 | **◷ (üst bar)** | İstasyon Araçları: saat · takvim · hesap · hızlı ara |
 | **🌌 breadcrumb** | Konum switcher: evren/gezegen değiştir |
+| **j / k** | Uzayda gezegen listesinde seç (**Enter** = in) · palette **↑↓** |
 | **ESC** | Katman katman geri (araçlar → switcher → paneller → uzay) |
 | **Enter** | Gönder/çalıştır · **Shift+Enter** yeni satır · **⌘Enter** commit |
 | **⌘⇧G** | Her yerden hızlı not |
@@ -458,7 +459,7 @@ Onayına göre ilk sprint: **Faz 1’in üç parçası** (mic HUD + merkez orb +
 - **Docker** — sekme açılınca otomatik tazelenir, durmuş konteynerler de listelenir, boş-durum mesajı.
 - **Zamanlayıcı** — görev çıktısı artık arayüzde görünür + bildirim.
 - **Uzak SSH** — login kabuk (doğru PATH), evren ekleme akışı sadeleşti.
-- **UX/erişilebilirlik** — segmentli navigasyon, HUD kırpılması giderildi, kontrast ve konsol boş-durumları iyileştirildi.
+- **UX/erişilebilirlik** — segmentli navigasyon, HUD kırpılması giderildi, ikincil metin `#9aa3c2`, `j/k` gezegen seçimi, `prefers-reduced-motion`.
 
 ## Sürüm çıkarma (otomatik — CI/CD)
 
