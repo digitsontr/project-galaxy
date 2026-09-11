@@ -228,7 +228,7 @@ class Component extends DCLogic {
     if(m.kind==='text'){ const last=ag.msgs[ag.msgs.length-1]; if(last&&last[0]==='a') last[1]+=m.text; else ag.msgs.push(['a',m.text]); if(this._loopRunId&&m.runId===this._loopRunId) this._loopOut=(this._loopOut||'')+m.text; }
     else if(m.kind==='tool'){ ag.msgs.push(['t','⚙ '+m.text]); }
     else if(m.kind==='err'){ if(!this._cliNoise(m.text)) ag.msgs.push(['a','⚠ '+m.text]); }
-    else if(m.kind==='done'){ this.setState({_agentBusy:false}); delete this._runAgents[m.runId]; if(this._loopRunId&&m.runId===this._loopRunId){ this.setState({loopBody:this._loopOut||'ajan bitti', loopStep:'is'}); this._loopRunId=null; } }
+    else if(m.kind==='done'){ ag.lastRunAt=Date.now(); this.setState({_agentBusy:false}); delete this._runAgents[m.runId]; if(this._loopRunId&&m.runId===this._loopRunId){ this.setState({loopBody:this._loopOut||'ajan bitti', loopStep:'is'}); this._loopRunId=null; } }
     this.setState({_agv:(this.state._agv||0)+1});
     this._scrollBottom('#ghud-agent-scroll');
   }
@@ -702,6 +702,7 @@ class Component extends DCLogic {
     try{ a.undo(); a.undone=true; this.toast('↺ geri alındı'); }catch(e){}
     this.setState({_activityTick:(this.state._activityTick||0)+1}); }
   openActivity(){ this.setState({activityOpen:true,palette:false}); }
+  _ago(ts){ if(!ts) return null; const s=Math.max(0,Math.floor((Date.now()-ts)/1000)); if(s<60) return 'şimdi'; const m=Math.floor(s/60); if(m<60) return m+'dk önce'; const h=Math.floor(m/60); if(h<24) return h+'sa önce'; return Math.floor(h/24)+'g önce'; }
   // Global onay kartı: askConfirm(mesaj, fn, {title, detail, okLabel, kind:'danger'|'warn'})
   askConfirm(msg,fn,opts){ opts=opts||{}; this.setState({_confirm:{msg,fn,title:opts.title||'',detail:opts.detail||'',okLabel:opts.okLabel||'Sil',kind:opts.kind||'danger'}}); }
   runConfirm(){ const c=this.state._confirm; this.setState({_confirm:null}); if(c&&c.fn){ try{ c.fn(); }catch(e){} } }
@@ -1402,7 +1403,10 @@ class Component extends DCLogic {
     const claudeLines=(_curCon.cout||[]).map(l=>({text:l.x,style:_outSt(l.t)}));
     const bashLines=(_curCon.bout||[]).map(l=>({text:l.x,style:_outSt(l.t)}));
 
-    const agents=this.AGENTS.map(a=>{ const on=a.id===st.agentId; return { id:a.id, name:a.name, hasBadge:a.badge>0, badge:a.badge,
+    const agents=this.AGENTS.map(a=>{ const on=a.id===st.agentId; const busy=Object.values(this._runAgents||{}).includes(a.id);
+      const ranAgo=this._ago(a.lastRunAt);
+      return { id:a.id, name:a.name, hasBadge:a.badge>0, badge:a.badge, busy,
+      pulseTitle:a.name+(busy?' · çalışıyor':(ranAgo?' · son koşu '+ranAgo:' · henüz çalışmadı')),
       btnStyle:`position:relative;width:44px;height:44px;border-radius:50%;cursor:pointer;padding:0;background:url('${a.avatar}') center/cover,#0a0e1a;border:2px solid ${on?a.color:this.rgba(a.color,.4)};box-shadow:0 0 ${on?18:10}px ${this.rgba(a.color,on?.6:.25)}`,
       onClick:()=>{ if(this._asst) this._asst.open=false; this.setState({agentId:on?null:a.id, asstOpen:false}); } }; });
     const activeRaw=this.AGENTS.find(a=>a.id===st.agentId)||null;
@@ -1845,7 +1849,7 @@ class Component extends DCLogic {
       // Aktivite şeridi — kalıcı eylem kanıtı (toast'lar 4sn'de kaybolur, bu kalıcı geçmiş).
       activityOpen: st.activityOpen, closeActivity:()=>this.setState({activityOpen:false}),
       activityList:(()=>{ const meta={ CREATE_COMMIT:{icon:'⎇',type:'COMMIT',color:'#55e88b'}, PUSH:{icon:'↑',type:'PUSH',color:'#61dcff'}, OPEN_PLANET:{icon:'●',type:'GEZEGEN',color:'#9aa3c2'}, HIDE_PLANET:{icon:'◌',type:'GİZLENDİ',color:'#ffc861'}, CAL_EVENT:{icon:'◷',type:'TAKVİM',color:'#c77bff'} };
-        const ago=(ts)=>{ const s=Math.max(0,Math.floor((Date.now()-ts)/1000)); if(s<60) return 'şimdi'; const m=Math.floor(s/60); if(m<60) return m+'dk önce'; const h=Math.floor(m/60); if(h<24) return h+'sa önce'; return Math.floor(h/24)+'g önce'; };
+        const ago=(ts)=>this._ago(ts)||'şimdi';
         return (this._activityLog||[]).map(a=>{ const m=meta[a.type]||{icon:'•',type:a.type,color:'#9aa3c2'};
           return { id:a.id, icon:m.icon, typeLabel:m.type, iconStyle:`color:${m.color};width:20px;text-align:center;flex-shrink:0`,
             label:a.label, ago:ago(a.ts), hasUndo:!!a.undo&&!a.undone, undone:!!a.undone,

@@ -10,7 +10,7 @@ const P = (id, name, branch, stale) => ({
 });
 const projects = [P('alpha', 'AlphaAPI', 'main', 1), P('beta', 'BetaWeb', 'dev', 3), P('gamma', 'GammaBot', 'main', 40), P('delta', 'DeltaData', 'main', 9)];
 const universes = [{ id: 'u', name: 'Şirket', subtitle: '~/work', count: 4 }, { id: 'u2', name: 'Papilon', subtitle: '~/pap', count: 2 }];
-let claudeCb = null, shellCb = null;
+let claudeCb = null, shellCb = null, agentCb = null;
 
 contextBridge.exposeInMainWorld('galaxy', {
   load: async () => ({ universes, projects, agents: [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], alerts: [], settings: { lang: 'tr' }, ignored: [] }),
@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('galaxy', {
   shellInput: async ({ shellId, cmd }) => { if (shellCb) { shellCb({ id: shellId, kind: 'out', text: 'çıktı: ' + cmd }); shellCb({ id: shellId, kind: 'done', code: 0, cwd: '/x' }); } return { ok: true }; },
   shellComplete: async () => ({ ok: true, matches: [] }),
   claudeRun: async ({ runId }) => { if (claudeCb) { claudeCb({ runId, kind: 'text', text: 'Merhaba, buradayım.' }); claudeCb({ runId, kind: 'done', text: '0' }); } return { ok: true }; },
+  agentRun: async ({ runId }) => { if (agentCb) { agentCb({ runId, kind: 'text', text: 'Durum iyi.' }); agentCb({ runId, kind: 'done' }); } return { ok: true }; },
   assistantRun: async ({ runId, prompt }) => {
     if (!claudeCb) return { ok: true };
     const resp = /docker/i.test(prompt || '') ? '[[ACT open_tab|docker]] Docker sekmesini açtım.' : 'Selam, buradayım. Nasıl yardımcı olayım?';
@@ -74,7 +75,7 @@ contextBridge.exposeInMainWorld('galaxy', {
   asstHistoryAppend: async () => ({ ok: true }),
   asstHistoryClear: async () => ({ ok: true }),
   onClaude: (cb) => { claudeCb = cb; }, onShell: (cb) => { shellCb = cb; }, onStt: () => {},
-  onAgent: () => {}, onScheduleDone: () => {}, onDockerLog: () => {},
+  onAgent: (cb) => { agentCb = cb; }, onScheduleDone: () => {}, onDockerLog: () => {},
   openFile: () => {}, openFolder: () => {}, openTerminal: () => {}, openSettings: () => {}, openClaude: () => {},
   pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], agentSave: async () => ({ ok: true, id: 'a1' }), backupList: async () => []
 });

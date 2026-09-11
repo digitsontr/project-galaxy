@@ -121,7 +121,17 @@ app.whenReady().then(async () => {
     await wait(600);
     const backToSpace = await js(`(document.body.innerText||'').includes('PROJELER')`);
     check('activity-undo', backToSpace);
-    await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); var b=document.querySelector('button[title="ATLAS"]'); if(b) b.click(); })(); true`);
+    // Ajan nabzı: bir ajana mesaj at → koşu bitince "son koşu" tooltip'e düşmeli
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); if(b) b.click(); })(); true`);
+    await wait(300);
+    await js(`(function(){var i=document.querySelector('aside input'); if(i){ i.value='durum ver'; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); } })(); true`);
+    await wait(900);
+    const pulseTitle = await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); return b?b.title:''; })()`);
+    check('agent-pulse', /son koşu|çalışıyor/.test(pulseTitle), pulseTitle);
+    // Paneli kapat ki aşağıdaki agent-edit-content testi ATLAS'ı yeniden açabilsin
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); if(b) b.click(); })(); true`);
+    await wait(250);
+    await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); if(b) b.click(); })(); true`);
     await wait(400);
     await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Düzenle') b.click(); }); })(); true`);
     await wait(450);
