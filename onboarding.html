@@ -12,6 +12,31 @@
     --dim: #8b93b8;
     --faint: #4d5677;
     --cy: #61dcff;
+    --gx-bg: #070b16;
+    --gx-panel: #0d1324;
+    --gx-panel-2: #0a101c;
+  }
+  html[data-theme="ev"] {
+    --bg: #14110e;
+    --cy: #e8b86d;
+    --ink: #f3eadc;
+    --dim: #b8a894;
+    --faint: #7a6e5c;
+    --line: rgba(232,184,109,.16);
+    --gx-bg: #14110e;
+    --gx-panel: #1c1814;
+    --gx-panel-2: #161310;
+  }
+  html[data-theme="apex"] {
+    --bg: #05070c;
+    --cy: #4fe0ff;
+    --ink: #e8f4ff;
+    --dim: #8aa0b8;
+    --faint: #4d5e73;
+    --line: rgba(79,224,255,.16);
+    --gx-bg: #05070c;
+    --gx-panel: #0c1018;
+    --gx-panel-2: #080b12;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -173,14 +198,226 @@
   @media (prefers-reduced-motion: reduce) {
     #nebula { animation: none !important; }
     .fade { animation: none !important; }
+    .pulse { animation: none !important; }
   }
+
+  /* --- ayarlar: tercih penceresi (onboarding sihirbazından ayrı) --- */
+  @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url("newui/assets/fonts/f02-750e0dbba1.woff2") format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:300 700;font-display:swap;src:url("newui/assets/fonts/f08-17e10d2ba2.woff2") format('woff2')}
+  body.prefs {
+    font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: var(--gx-bg);
+  }
+  body.prefs .wrap { display: none !important; }
+  body.prefs .drag { display: none; }
+  body.prefs canvas#stars, body.prefs #nebula { display: none; }
+  #prefs {
+    position: relative; z-index: 2; height: 100%;
+    display: grid; grid-template-rows: 52px 1fr 58px;
+    background: var(--gx-panel, #0d1324);
+  }
+  .prefs-top {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 22px 0 78px;
+    border-bottom: 1px solid var(--line);
+    background: var(--gx-panel, #0d1324);
+    -webkit-app-region: drag;
+  }
+  .prefs-top .mark {
+    width: 9px; height: 9px; background: var(--cy);
+    box-shadow: 0 0 12px var(--cy); transform: rotate(45deg); flex: none;
+  }
+  .prefs-top .brand {
+    font-weight: 600; letter-spacing: .16em; font-size: 13px; color: var(--ink);
+  }
+  .prefs-top .hud {
+    font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .22em;
+    color: var(--cy); margin-left: 4px;
+  }
+  .prefs-top .ver {
+    margin-left: auto; font-family: "JetBrains Mono", monospace;
+    font-size: 10px; color: var(--faint); -webkit-app-region: no-drag;
+  }
+  .prefs-body {
+    display: grid; grid-template-columns: 212px 1fr; min-height: 0;
+  }
+  .prefs-nav {
+    border-right: 1px solid var(--line);
+    padding: 14px 10px;
+    display: flex; flex-direction: column; gap: 3px;
+    background: var(--gx-panel-2, #0a101c);
+  }
+  .theme-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; max-width: 720px; }
+  .theme-card {
+    -webkit-app-region: no-drag;
+    text-align: left; cursor: pointer; border-radius: 14px;
+    border: 1px solid var(--line); background: var(--gx-panel-2, #0a101c);
+    padding: 12px; font-family: inherit; color: var(--ink);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .theme-card:hover { border-color: rgba(97,220,255,.28); }
+  html[data-theme="ev"] .theme-card:hover { border-color: rgba(232,184,109,.35); }
+  .theme-card.on {
+    border-color: var(--cy);
+    box-shadow: 0 0 0 1px var(--cy), 0 8px 28px rgba(0,0,0,.28);
+  }
+  .theme-card .lab { font-size: 15px; font-weight: 600; margin-top: 10px; }
+  .theme-card .sub { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .06em; color: var(--dim); margin-top: 2px; }
+  .theme-preview { height: 88px; border-radius: 10px; position: relative; overflow: hidden; }
+  .theme-preview.galaxy {
+    background:
+      radial-gradient(40% 50% at 20% 80%, rgba(97,220,255,.35), transparent 70%),
+      radial-gradient(50% 40% at 85% 20%, rgba(70,132,246,.3), transparent 70%),
+      linear-gradient(180deg, #0a1228, #05080f);
+  }
+  .theme-preview.ev {
+    background:
+      linear-gradient(180deg, transparent 74%, #6a4a2a 74.5%, #4a321c 100%),
+      linear-gradient(90deg, #e7f3ff 0 18%, transparent 18%),
+      repeating-linear-gradient(90deg, rgba(90,60,30,.1) 0 2px, transparent 2px 28px),
+      linear-gradient(180deg, #d4b07a, #a07848);
+  }
+  .theme-preview.ev::before {
+    content:""; position:absolute; left:22%; top:12%; right:8%; bottom:28%;
+    background:#c9a06a; border:4px solid #5a3a22;
+  }
+  .theme-preview.ev::after {
+    content:""; position:absolute; left:28%; top:22%; width:20%; height:32%;
+    background:#f3e6c4; box-shadow: 28px 10px 0 #efe0b8, 12px 38px 0 #e8d5a8;
+    transform:rotate(-6deg); z-index:1;
+  }
+  .theme-preview.apex {
+    background:
+      linear-gradient(rgba(79,224,255,.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,224,255,.12) 1px, transparent 1px),
+      radial-gradient(50% 40% at 70% 30%, rgba(79,224,255,.32), transparent 70%),
+      linear-gradient(180deg, #05070c, #020308);
+    background-size: 14px 14px, 14px 14px, auto, auto;
+  }
+  .theme-preview.apex::after {
+    content:""; position:absolute; left:14%; top:22%; width:34%; height:38%;
+    border:1px solid rgba(79,224,255,.55); border-radius:8px;
+    box-shadow: 42px 16px 0 -1px rgba(79,224,255,.28), 0 0 16px rgba(79,224,255,.25);
+  }
+  .prefs-nav button {
+    -webkit-app-region: no-drag;
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; text-align: left; cursor: pointer;
+    background: transparent; border: 1px solid transparent;
+    color: var(--dim); border-radius: 10px;
+    padding: 10px 12px; font-family: inherit; font-size: 13.5px;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .prefs-nav button:hover { color: var(--ink); background: rgba(97,220,255,.05); }
+  .prefs-nav button.on {
+    color: var(--cy); border-color: rgba(97,220,255,.28);
+    background: rgba(97,220,255,.08);
+  }
+  .prefs-nav .ico {
+    width: 22px; text-align: center; font-size: 13px; opacity: .85; flex: none;
+  }
+  .prefs-nav .sub {
+    font-family: "JetBrains Mono", monospace; font-size: 9px;
+    letter-spacing: .08em; color: var(--faint); margin-top: 1px;
+  }
+  .prefs-main { overflow: auto; padding: 28px 36px 40px; }
+  .prefs-main::-webkit-scrollbar { width: 8px; }
+  .prefs-main::-webkit-scrollbar-thumb { background: rgba(190,205,255,.22); border-radius: 4px; }
+  .pane-hud {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: .28em; color: var(--cy); text-transform: uppercase;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .pulse {
+    width: 7px; height: 7px; border-radius: 50%; background: #55e88b;
+    box-shadow: 0 0 8px rgba(85,232,139,.7);
+    animation: gxpulse 2s ease-in-out infinite; flex: none;
+  }
+  .pulse.warn { background: #ffc861; box-shadow: 0 0 8px rgba(255,200,97,.55); }
+  .pulse.off { background: var(--faint); box-shadow: none; animation: none; }
+  @keyframes gxpulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .pane-title { font-size: 26px; font-weight: 500; letter-spacing: -.02em; margin-bottom: 6px; }
+  .pane-lead { color: var(--dim); font-size: 13.5px; line-height: 1.55; max-width: 52ch; margin-bottom: 26px; }
+  .fld { margin-bottom: 22px; }
+  .fld .lab { display: block; font-size: 13.5px; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+  .fld .hint { font-size: 12.5px; color: var(--dim); line-height: 1.5; margin-bottom: 10px; }
+  .fld input[type=text], .fld textarea, #prefs textarea, #prefs input[type=text] {
+    width: 100%; background: rgba(8,12,28,.72);
+    border: 1px solid rgba(120,160,255,.22);
+    color: var(--ink); padding: 12px 14px; font-size: 14px;
+    outline: none; border-radius: 10px;
+    font-family: inherit; -webkit-user-select: text; user-select: text;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  #prefs textarea {
+    resize: vertical; min-height: 108px; line-height: 1.55;
+  }
+  #prefs input[type=text]:focus, #prefs textarea:focus {
+    border-color: var(--cy); box-shadow: 0 0 0 3px rgba(97,220,255,.12);
+  }
+  .seg {
+    display: inline-flex; border: 1px solid rgba(190,205,255,.18);
+    border-radius: 10px; overflow: hidden; background: rgba(4,6,12,.4);
+  }
+  .seg button {
+    background: transparent; border: none; color: var(--dim);
+    padding: 10px 18px; font-size: 13px; cursor: pointer;
+    font-family: inherit; letter-spacing: .02em;
+    transition: background .15s, color .15s;
+  }
+  .seg button + button { border-left: 1px solid rgba(190,205,255,.14); }
+  .seg button.on { background: rgba(97,220,255,.14); color: var(--cy); font-weight: 600; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .stat {
+    border: 1px solid var(--line); border-radius: 14px;
+    background: linear-gradient(172deg, rgba(13,18,36,.72), rgba(5,8,18,.8));
+    padding: 16px 18px;
+  }
+  .stat .k { font-size: 12.5px; color: var(--dim); margin-bottom: 8px; }
+  .stat input {
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 28px !important; letter-spacing: .04em; color: var(--cy) !important;
+    padding: 4px 0 !important; background: transparent !important; border: none !important;
+    box-shadow: none !important; border-radius: 0 !important;
+  }
+  .stat .u { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .12em; color: var(--faint); text-transform: uppercase; }
+  .prefs-foot {
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 22px 0 22px;
+    border-top: 1px solid var(--line);
+    background: var(--gx-panel, #0d1324);
+  }
+  html[data-theme="ev"] .prefs-foot .save { color: #211a05; }
+  html[data-theme="ev"] #prefs input[type=text]:focus, html[data-theme="ev"] #prefs textarea:focus {
+    box-shadow: 0 0 0 3px rgba(232,184,109,.16);
+  }
+  html[data-theme="ev"] .fld input[type=text], html[data-theme="ev"] .fld textarea, html[data-theme="ev"] #prefs textarea, html[data-theme="ev"] #prefs input[type=text] {
+    background: rgba(28,22,16,.92); border-color: rgba(232,184,109,.22);
+  }
+  .prefs-foot .meta {
+    font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+    color: var(--faint); line-height: 1.45; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .prefs-foot .save {
+    margin-left: auto; -webkit-app-region: no-drag;
+    background: var(--cy); color: #04121c; border: 1px solid var(--cy);
+    padding: 10px 22px; font-size: 13px; font-weight: 600;
+    letter-spacing: .04em; cursor: pointer; border-radius: 10px;
+    font-family: inherit;
+  }
+  .prefs-foot .save:hover { filter: brightness(1.12); }
+  .prefs-foot .save:disabled { opacity: .4; cursor: default; }
+  .prefs-err { color: #ff8b8b; font-size: 12px; min-height: 0; }
+  .mono-in { font-family: "JetBrains Mono", monospace !important; font-size: 12.5px !important; }
 </style>
 </head>
 <body>
 <div id="nebula"></div>
 <canvas id="stars"></canvas>
 <div class="drag"></div>
-<div class="wrap">
+<div class="wrap" id="onboardWrap">
   <div class="hud mono" id="hudLabel">İLK KALKIŞ</div>
   <div class="title">PROJECT GALAXY</div>
   <div class="sub" id="stepSub"></div>
@@ -193,6 +430,7 @@
   </div>
   <div class="err mono" id="err"></div>
 </div>
+<div id="prefs" hidden></div>
 <div id="lb"><img alt=""></div>
 
 <script>
@@ -258,7 +496,13 @@ const STR = {
 const MODE = new URLSearchParams(location.search).get('mode') === 'settings' ? 'settings' : 'onboard';
 const state = { step: 0, lang: 'tr', name: '', universes: [], agents: [], isMas: false,
   staleDays: 21, planPending: 5, dataDir: '', version: '',
-  claudePath: '', terminalApp: 'Terminal', sshTimeout: 8, focusMin: 25 };
+  claudePath: '', terminalApp: 'Terminal', sshTimeout: 8, focusMin: 25,
+  uiTheme: 'galaxy', setPane: 'profil' };
+function applyPrefsTheme() {
+  const t = (state.uiTheme === 'ev' || state.uiTheme === 'apex') ? state.uiTheme : 'galaxy';
+  document.documentElement.dataset.theme = t;
+  document.body.dataset.theme = t;
+}
 const $ = id => document.getElementById(id);
 const T = () => STR[state.lang];
 
@@ -275,6 +519,17 @@ async function init() {
       state.sshTimeout = sg.settings.sshTimeout || 8;
       state.focusMin = sg.settings.focusMin || 25;
       state.assistantBio = sg.settings.assistantBio || '';
+      const srv = (sg.settings.mcpServers && sg.settings.mcpServers[0]) || {};
+      state.mcpCommand = srv.command || '';
+      state.mcpArgs = Array.isArray(srv.args) ? srv.args.join(' ') : (srv.args || '');
+      state.mcpEnv = srv.env && typeof srv.env === 'object' ? Object.keys(srv.env).map(k => k + '=' + srv.env[k]).join('\n') : '';
+      state.mailBriefTool = sg.settings.mailBriefTool || '';
+      state.mailSendTool = sg.settings.mailSendTool || '';
+      state.mailTo = sg.settings.mailTo || '';
+      state.mailListTool = sg.settings.mailListTool || '';
+      state.mailReadTool = sg.settings.mailReadTool || '';
+      state.uiTheme = (sg.settings.uiTheme === 'ev' || sg.settings.uiTheme === 'apex') ? sg.settings.uiTheme : 'galaxy';
+      applyPrefsTheme();
       state.dataDir = sg.dataDir || '';
       state.version = sg.version || '';
       state.isMas = !!sg.isMas;
@@ -287,96 +542,272 @@ async function init() {
       state.isMas = !!st.isMas;
     }
   } catch (e) {}
-  if (MODE === 'settings') renderSettings(); else render();
+  if (MODE === 'settings') {
+    document.body.classList.add('prefs');
+    const wrap = $('onboardWrap'); if (wrap) wrap.hidden = true;
+    const prefs = $('prefs'); if (prefs) prefs.hidden = false;
+    renderSettings();
+  } else render();
 }
 
-// ---- ayarlar modu: tek sayfalık form ----
+// ---- ayarlar: yan menülü tercih penceresi ----
+function harvestSettings() {
+  const v = id => { const el = $(id); return el ? el.value : undefined; };
+  const n = v('setName'); if (n !== undefined) state.name = n;
+  const bio = v('setBio'); if (bio !== undefined) state.assistantBio = bio;
+  const cl = v('setClaude'); if (cl !== undefined) state.claudePath = cl;
+  const stv = v('setStale'); if (stv !== undefined) { const n = parseInt(stv, 10); if (!isNaN(n)) state.staleDays = n; }
+  const pl = v('setPlan'); if (pl !== undefined) { const n = parseInt(pl, 10); if (!isNaN(n)) state.planPending = n; }
+  const fo = v('setFocus'); if (fo !== undefined) { const n = parseInt(fo, 10); if (!isNaN(n)) state.focusMin = n; }
+  const ss = v('setSshTo'); if (ss !== undefined) { const n = parseInt(ss, 10); if (!isNaN(n)) state.sshTimeout = n; }
+  const mc = v('setMcpCmd'); if (mc !== undefined) state.mcpCommand = mc;
+  const ma = v('setMcpArgs'); if (ma !== undefined) state.mcpArgs = ma;
+  const me = v('setMcpEnv'); if (me !== undefined) state.mcpEnv = me;
+  const mb = v('setMailBrief'); if (mb !== undefined) state.mailBriefTool = mb;
+  const ms = v('setMailSend'); if (ms !== undefined) state.mailSendTool = ms;
+  const ml = v('setMailList'); if (ml !== undefined) state.mailListTool = ml;
+  const mr = v('setMailRead'); if (mr !== undefined) state.mailReadTool = mr;
+  const mt = v('setMailTo'); if (mt !== undefined) state.mailTo = mt;
+}
+
+function setPane(id) {
+  harvestSettings();
+  state.setPane = id;
+  renderSettings();
+}
+
+function paneHtml(tr) {
+  const p = state.setPane || 'profil';
+  if (p === 'profil') return `
+    <div class="pane-hud"><span class="pulse"></span>${tr ? 'STATUS · KAPTAN' : 'STATUS · CAPTAIN'}</div>
+    <div class="pane-title">${tr ? 'Profil' : 'Profile'}</div>
+    <div class="pane-lead">${tr ? 'Ajanlar ve ikiz burada yazdığın isimle seslenir. Dil, arayüzü ve ajan yanıtlarını birlikte çevirir.' : 'Agents and the twin address you by this name. Language switches the UI and agent replies together.'}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Hitap' : 'Name'}</div>
+      <div class="hint">${tr ? 'Kısa tut — “Furkan”, “Kaptan” gibi.' : 'Keep it short — “Furkan”, “Captain”.'}</div>
+      <input type="text" id="setName" value="${esc(state.name)}" maxlength="60" placeholder="${tr ? 'Adın…' : 'Your name…'}">
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Dil' : 'Language'}</div>
+      <div class="seg">
+        <button type="button" class="${tr ? 'on' : ''}" id="langTr">Türkçe</button>
+        <button type="button" class="${tr ? '' : 'on'}" id="langEn">English</button>
+      </div>
+    </div>`;
+  if (p === 'gorunum') {
+    return `
+    <div class="pane-hud"><span class="pulse"></span>${tr ? 'STATUS · GÖRÜNÜM' : 'STATUS · APPEARANCE'}</div>
+    <div class="pane-title">${tr ? 'Görünüm' : 'Appearance'}</div>
+    <div class="pane-lead">${tr ? 'Paneller opak. Galaxy yıldız alanı, Ev oda duvarı, Apex koyu navy + cyan.' : 'Opaque panels. Galaxy is the starfield, Home is a room, Apex is navy + cyan.'}</div>
+    <div class="theme-grid">
+      <button type="button" class="theme-card ${state.uiTheme==='galaxy'?'on':''}" id="themeGalaxy">
+        <div class="theme-preview galaxy"></div>
+        <div class="lab">Galaxy</div>
+        <div class="sub">${tr ? 'yıldız alanı · cyan' : 'starfield · cyan'}</div>
+      </button>
+      <button type="button" class="theme-card ${state.uiTheme==='ev'?'on':''}" id="themeEv">
+        <div class="theme-preview ev"></div>
+        <div class="lab">${tr ? 'Ev' : 'Home'}</div>
+        <div class="sub">${tr ? 'oda · duvar kâğıtları' : 'room · wall papers'}</div>
+      </button>
+      <button type="button" class="theme-card ${state.uiTheme==='apex'?'on':''}" id="themeApex">
+        <div class="theme-preview apex"></div>
+        <div class="lab">Apex</div>
+        <div class="sub">${tr ? 'navy · cyan ızgara' : 'navy · cyan grid'}</div>
+      </button>
+    </div>`;
+  }
+  if (p === 'esikler') return `
+    <div class="pane-hud"><span class="pulse warn"></span>${tr ? 'STATUS · UYARI' : 'STATUS · ALERTS'}</div>
+    <div class="pane-title">${tr ? 'Eşikler' : 'Thresholds'}</div>
+    <div class="pane-lead">${tr ? 'Galaksi bu sayılara bakarak ihmal ve açık plan uyarısı üretir. Küçük tut — gürültü değil sinyal.' : 'The galaxy uses these numbers for neglect and open-plan alerts. Keep them tight — signal, not noise.'}</div>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="k">${tr ? 'İhmal uyarısı' : 'Neglect alert'}</div>
+        <input type="text" id="setStale" value="${state.staleDays}" inputmode="numeric">
+        <div class="u">${tr ? 'gün sessizlik' : 'days silent'}</div>
+      </div>
+      <div class="stat">
+        <div class="k">${tr ? 'Plan uyarısı' : 'Plan alert'}</div>
+        <input type="text" id="setPlan" value="${state.planPending}" inputmode="numeric">
+        <div class="u">${tr ? 'açık madde' : 'open items'}</div>
+      </div>
+      <div class="stat">
+        <div class="k">${tr ? 'Odak süresi' : 'Focus timer'}</div>
+        <input type="text" id="setFocus" value="${state.focusMin}" inputmode="numeric">
+        <div class="u">${tr ? 'dakika' : 'minutes'}</div>
+      </div>
+      <div class="stat">
+        <div class="k">${tr ? 'SSH zaman aşımı' : 'SSH timeout'}</div>
+        <input type="text" id="setSshTo" value="${state.sshTimeout}" inputmode="numeric">
+        <div class="u">${tr ? 'saniye' : 'seconds'}</div>
+      </div>
+    </div>
+    <div class="fld" style="margin-top:22px">
+      <div class="hint">${tr ? 'Evrenler ✎, ajanlar uygulama içinden düzenlenir — burası kokpit eşikleri.' : 'Universes (✎) and agents are edited inside the app — this pane is cockpit thresholds.'}</div>
+    </div>`;
+  if (p === 'araclar') return `
+    <div class="pane-hud"><span class="pulse"></span>${tr ? 'STATUS · ARAÇLAR' : 'STATUS · TOOLS'}</div>
+    <div class="pane-title">${tr ? 'Araçlar' : 'Tools'}</div>
+    <div class="pane-lead">${tr ? 'Claude CLI ve dış terminal. Boş yol, PATH’teki claude komutunu kullanır.' : 'Claude CLI and the external terminal. A blank path uses claude from PATH.'}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Claude komut yolu' : 'Claude binary path'}</div>
+      <div class="hint">${tr ? 'Örn. claude  ·  /opt/homebrew/bin/claude' : 'e.g. claude  ·  /opt/homebrew/bin/claude'}</div>
+      <input type="text" id="setClaude" class="mono-in" value="${esc(state.claudePath)}" placeholder="claude" spellcheck="false">
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Terminal uygulaması' : 'Terminal app'}</div>
+      <div class="seg">
+        <button type="button" class="${state.terminalApp !== 'iTerm' ? 'on' : ''}" id="termTerminal">Terminal</button>
+        <button type="button" class="${state.terminalApp === 'iTerm' ? 'on' : ''}" id="termIterm">iTerm</button>
+      </div>
+    </div>`;
+  if (p === 'ikiz') return `
+    <div class="pane-hud"><span class="pulse"></span>${tr ? 'STATUS · İKİZ' : 'STATUS · TWIN'}</div>
+    <div class="pane-title">${tr ? 'Dijital ikiz' : 'Digital twin'}</div>
+    <div class="pane-lead">${tr ? 'Uzun bellek. Kim olduğun, işlerin, konuşma tarzın — ikiz her oturumda bunu okur.' : 'Long memory. Who you are, your work, your tone — the twin reads this every session.'}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Hakkında' : 'About you'}</div>
+      <textarea id="setBio" rows="8" placeholder="${tr ? 'Furkan, mobil + AI. Kısa ve net konuşurum; teknik konuda derinlik isterim.' : 'Who you are, how you work, how you like to be spoken to.'}">${esc(state.assistantBio || '')}</textarea>
+    </div>`;
+  const mcpOn = !!(state.mcpCommand && String(state.mcpCommand).trim());
+  return `
+    <div class="pane-hud"><span class="pulse ${mcpOn ? '' : 'off'}"></span>${mcpOn ? (tr ? 'STATUS · MCP HAZIR' : 'STATUS · MCP READY') : (tr ? 'STATUS · BAĞLI DEĞİL' : 'STATUS · UNBOUND')}</div>
+    <div class="pane-title">${tr ? 'Posta MCP' : 'Mail MCP'}</div>
+    <div class="pane-lead">${tr ? 'stdio MCP süreci bağlanır. Liste/oku gelen kutuyu doldurur; gönder yazdığın e-postayı yollar.' : 'A stdio MCP process is attached. List/read fill the inbox; send delivers the email you write.'}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Komut' : 'Command'}</div>
+      <input type="text" id="setMcpCmd" class="mono-in" value="${esc(state.mcpCommand || '')}" placeholder="npx  ·  /usr/local/bin/mcp-gmail" spellcheck="false">
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Argümanlar' : 'Arguments'}</div>
+      <input type="text" id="setMcpArgs" class="mono-in" value="${esc(state.mcpArgs || '')}" placeholder="-y @modelcontextprotocol/server-gmail" spellcheck="false">
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Ortam' : 'Environment'}</div>
+      <div class="hint">${tr ? 'KEY=VAL, satır satır. # ile yorum.' : 'KEY=VAL, one per line. # comments.'}</div>
+      <textarea id="setMcpEnv" rows="4" class="mono-in" placeholder="GMAIL_CLIENT_ID=…">${esc(state.mcpEnv || '')}</textarea>
+    </div>
+    <div class="stat-grid">
+      <div class="fld" style="margin:0">
+        <div class="lab">${tr ? 'Gönder araç adı' : 'Send tool'}</div>
+        <input type="text" id="setMailSend" class="mono-in" value="${esc(state.mailSendTool || '')}" placeholder="send_email" spellcheck="false">
+      </div>
+      <div class="fld" style="margin:0">
+        <div class="lab">${tr ? 'Liste araç adı' : 'List tool'}</div>
+        <input type="text" id="setMailList" class="mono-in" value="${esc(state.mailListTool || '')}" placeholder="search_emails" spellcheck="false">
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="fld" style="margin:0">
+        <div class="lab">${tr ? 'Oku araç adı' : 'Read tool'}</div>
+        <input type="text" id="setMailRead" class="mono-in" value="${esc(state.mailReadTool || '')}" placeholder="read_email" spellcheck="false">
+      </div>
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Kime (alıcı e-posta)' : 'To (recipient email)'}</div>
+      <div class="hint">${tr ? 'send_email gibi araçlar to/subject/body ister — Galaxy metni buraya gönderir.' : 'Tools like send_email need to/subject/body — Galaxy addresses the text to this.'}</div>
+      <input type="text" id="setMailTo" class="mono-in" value="${esc(state.mailTo || '')}" placeholder="ad@ornek.com" spellcheck="false">
+    </div>`;
+}
+
 function renderSettings() {
   const tr = state.lang !== 'en';
-  $('hudLabel').textContent = tr ? 'AYARLAR' : 'SETTINGS';
-  $('stepSub').textContent = tr
-    ? 'Profil, uyarı eşikleri ve araçları (Claude yolu, terminal, odak, SSH) buradan ayarla. Evrenler ✎, ajanlar ⚙ ile uygulama içinden düzenlenir.'
-    : 'Set your profile, alert thresholds and tools (Claude path, terminal, focus, SSH) here. Universes (✎) and agents (⚙) are edited inside the app.';
-  $('illusHost').innerHTML = '';
-  $('backBtn').style.visibility = 'hidden';
-  $('dots').innerHTML = '';
-  $('nextBtn').textContent = tr ? 'KAYDET ▸' : 'SAVE ▸';
-  $('stepBody').innerHTML = `<div class="card fade" style="max-height:none">
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'AD / HİTAP' : 'NAME'}</div>
-    <input type="text" id="setName" value="${esc(state.name)}" maxlength="60" style="margin:6px 0 16px">
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'DİL / LANGUAGE' : 'LANGUAGE'}</div>
-    <div class="row" style="margin:8px 0 16px">
-      <button class="btn ${tr ? 'solid' : ''}" id="langTr" type="button">TÜRKÇE</button>
-      <button class="btn ${tr ? '' : 'solid'}" id="langEn" type="button">ENGLISH</button>
+  const pane = state.setPane || 'profil';
+  const nav = [
+    ['profil', tr ? 'Profil' : 'Profile', tr ? 'hitap · dil' : 'name · lang', '◈'],
+    ['gorunum', tr ? 'Görünüm' : 'Appearance', tr ? 'galaxy · ev · apex' : 'galaxy · home · apex', '✦'],
+    ['esikler', tr ? 'Eşikler' : 'Thresholds', tr ? 'ihmal · odak' : 'neglect · focus', '◉'],
+    ['araclar', tr ? 'Araçlar' : 'Tools', 'claude · ssh', '⌘'],
+    ['ikiz', tr ? 'İkiz' : 'Twin', tr ? 'kişilik' : 'persona', '◎'],
+    ['posta', tr ? 'Posta' : 'Mail', 'MCP', '✉']
+  ];
+  const host = $('prefs');
+  host.innerHTML = `
+    <div class="prefs-top">
+      <span class="mark"></span>
+      <span class="brand">GALAXY</span>
+      <span class="hud">${tr ? 'AYARLAR' : 'SETTINGS'}</span>
+      <span class="ver">v${esc(state.version)}${state.isMas ? ' · App Store' : ''}</span>
     </div>
-    <div class="row">
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'İHMAL UYARISI (GÜN)' : 'NEGLECT ALERT (DAYS)'}</div>
-        <input type="text" id="setStale" value="${state.staleDays}" style="margin-top:6px" inputmode="numeric">
+    <div class="prefs-body">
+      <div class="prefs-nav">
+        ${nav.map(([id, lab, sub, ico]) => `<button type="button" class="${pane === id ? 'on' : ''}" data-pane="${id}">
+          <span class="ico">${ico}</span>
+          <span><div>${lab}</div><div class="sub">${sub}</div></span>
+        </button>`).join('')}
       </div>
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'PLAN UYARISI (MADDE)' : 'PLAN ALERT (ITEMS)'}</div>
-        <input type="text" id="setPlan" value="${state.planPending}" style="margin-top:6px" inputmode="numeric">
-      </div>
+      <div class="prefs-main fade">${paneHtml(tr)}</div>
     </div>
-    <div style="height:1px;background:rgba(190,205,255,.12);margin:20px 0 16px"></div>
-    <div style="font-size:11px;letter-spacing:.16em;color:var(--faint);margin-bottom:14px" class="mono">${tr ? 'ARAÇLAR & DAVRANIŞ' : 'TOOLS & BEHAVIOR'}</div>
-
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'CLAUDE KOMUT YOLU (boşsa PATH’ten)' : 'CLAUDE BINARY PATH (blank = from PATH)'}</div>
-    <input type="text" id="setClaude" value="${esc(state.claudePath)}" placeholder="claude  ·  /opt/homebrew/bin/claude" style="margin:6px 0 16px" spellcheck="false">
-
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'TERMİNAL UYGULAMASI' : 'TERMINAL APP'}</div>
-    <div class="row" style="margin:8px 0 16px">
-      <button class="btn ${state.terminalApp !== 'iTerm' ? 'solid' : ''}" id="termTerminal" type="button">Terminal</button>
-      <button class="btn ${state.terminalApp === 'iTerm' ? 'solid' : ''}" id="termIterm" type="button">iTerm</button>
-    </div>
-
-    <div class="row">
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'ODAK SÜRESİ (DK)' : 'FOCUS TIMER (MIN)'}</div>
-        <input type="text" id="setFocus" value="${state.focusMin}" style="margin-top:6px" inputmode="numeric">
-      </div>
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'SSH ZAMAN AŞIMI (SN)' : 'SSH TIMEOUT (SEC)'}</div>
-        <input type="text" id="setSshTo" value="${state.sshTimeout}" style="margin-top:6px" inputmode="numeric">
-      </div>
-    </div>
-
-    <div style="margin-top:18px">
-      <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'ASİSTAN KİŞİLİĞİ / HAKKINDA' : 'ASSISTANT PERSONA / ABOUT YOU'}</div>
-      <textarea id="setBio" rows="4" placeholder="${tr ? 'Dijital ikizin seni tanısın: kim olduğun, işlerin, konuşma tarzın, tercihlerin… (örn. \'Furkan, mobil + AI geliştiricisi. Kısa ve net konuşurum, teknik konularda derinlik severim.\')' : 'Let your twin know you: who you are, your work, tone, preferences…'}" style="margin-top:6px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px;font-family:inherit">${esc(state.assistantBio || '')}</textarea>
-    </div>
-
-    <div class="hint mono" style="margin-top:18px">${tr ? 'Veri' : 'Data'}: ${esc(state.dataDir)}<br>${tr ? 'Sürüm' : 'Version'}: v${esc(state.version)}${state.isMas ? ' · App Store' : ''}</div>
-  </div>`;
-  $('setName').addEventListener('input', e => { state.name = e.target.value; });
-  $('setBio').addEventListener('input', e => { state.assistantBio = e.target.value; });
-  $('langTr').addEventListener('click', () => { state.lang = 'tr'; renderSettings(); });
-  $('langEn').addEventListener('click', () => { state.lang = 'en'; renderSettings(); });
-  $('setClaude').addEventListener('input', e => { state.claudePath = e.target.value; });
-  $('termTerminal').addEventListener('click', () => { state.terminalApp = 'Terminal'; renderSettings(); });
-  $('termIterm').addEventListener('click', () => { state.terminalApp = 'iTerm'; renderSettings(); });
+    <div class="prefs-foot">
+      <div class="meta" title="${esc(state.dataDir)}">${esc(state.dataDir)}</div>
+      <div class="prefs-err" id="prefsErr"></div>
+      <button type="button" class="save" id="prefsSave">${tr ? 'Kaydet' : 'Save'}</button>
+    </div>`;
+  host.querySelectorAll('[data-pane]').forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
+  const bind = (id, fn) => { const el = $(id); if (el) el.addEventListener('input', fn); };
+  bind('setName', e => { state.name = e.target.value; });
+  bind('setBio', e => { state.assistantBio = e.target.value; });
+  bind('setClaude', e => { state.claudePath = e.target.value; });
+  bind('setMcpCmd', e => { state.mcpCommand = e.target.value; });
+  bind('setMcpArgs', e => { state.mcpArgs = e.target.value; });
+  bind('setMcpEnv', e => { state.mcpEnv = e.target.value; });
+  bind('setMailBrief', e => { state.mailBriefTool = e.target.value; });
+  bind('setMailSend', e => { state.mailSendTool = e.target.value; });
+  bind('setMailTo', e => { state.mailTo = e.target.value; });
+  bind('setMailList', e => { state.mailListTool = e.target.value; });
+  bind('setMailRead', e => { state.mailReadTool = e.target.value; });
+  const lt = $('langTr'), le = $('langEn');
+  if (lt) lt.addEventListener('click', () => { harvestSettings(); state.lang = 'tr'; renderSettings(); });
+  if (le) le.addEventListener('click', () => { harvestSettings(); state.lang = 'en'; renderSettings(); });
+  const tt = $('termTerminal'), ti = $('termIterm');
+  if (tt) tt.addEventListener('click', () => { harvestSettings(); state.terminalApp = 'Terminal'; renderSettings(); });
+  if (ti) ti.addEventListener('click', () => { harvestSettings(); state.terminalApp = 'iTerm'; renderSettings(); });
+  const tg = $('themeGalaxy'), te = $('themeEv'), ta = $('themeApex');
+  if (tg) tg.addEventListener('click', () => { harvestSettings(); state.uiTheme = 'galaxy'; applyPrefsTheme(); renderSettings(); });
+  if (te) te.addEventListener('click', () => { harvestSettings(); state.uiTheme = 'ev'; applyPrefsTheme(); renderSettings(); });
+  if (ta) ta.addEventListener('click', () => { harvestSettings(); state.uiTheme = 'apex'; applyPrefsTheme(); renderSettings(); });
+  const save = $('prefsSave');
+  if (save) save.addEventListener('click', saveSettings);
 }
 
 async function saveSettings() {
-  const stale = parseInt($('setStale').value, 10);
-  const plan = parseInt($('setPlan').value, 10);
-  const focus = parseInt($('setFocus').value, 10);
-  const sshTo = parseInt($('setSshTo').value, 10);
-  $('nextBtn').disabled = true;
+  harvestSettings();
+  const btn = $('prefsSave');
+  if (btn) btn.disabled = true;
+  const err = $('prefsErr');
   try {
     await window.galaxy.settingsSave({
       name: state.name, lang: state.lang,
-      staleDays: isNaN(stale) ? state.staleDays : stale,
-      planPending: isNaN(plan) ? state.planPending : plan,
+      staleDays: state.staleDays,
+      planPending: state.planPending,
       claudePath: state.claudePath,
       terminalApp: state.terminalApp,
-      focusMin: isNaN(focus) ? state.focusMin : focus,
-      sshTimeout: isNaN(sshTo) ? state.sshTimeout : sshTo,
-      assistantBio: state.assistantBio || ''
+      focusMin: state.focusMin,
+      sshTimeout: state.sshTimeout,
+      assistantBio: state.assistantBio || '',
+      mcpServers: state.mcpCommand ? [{
+        id: 'mail',
+        command: state.mcpCommand,
+        args: (state.mcpArgs || '').split(/\s+/).filter(Boolean),
+        env: (state.mcpEnv || '').split(/\r?\n/).reduce((o, line) => {
+          const s = line.trim(); if (!s || s.startsWith('#')) return o;
+          const i = s.indexOf('='); if (i <= 0) return o;
+          o[s.slice(0, i).trim()] = s.slice(i + 1).trim(); return o;
+        }, {})
+      }] : [],
+      mailBriefTool: state.mailBriefTool || '',
+      mailSendTool: state.mailSendTool || '',
+      mailTo: state.mailTo || '',
+      mailListTool: state.mailListTool || '',
+      mailReadTool: state.mailReadTool || '',
+      uiTheme: (state.uiTheme === 'ev' || state.uiTheme === 'apex') ? state.uiTheme : 'galaxy'
     });
     window.close();
-  } catch (e) { $('nextBtn').disabled = false; }
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    if (err) err.textContent = (e && e.message) || 'kaydedilemedi';
+  }
 }
 
 // Tanıtım görselleri: her adım, sunumdaki karşılık gelen infografikle açılır.
@@ -558,9 +989,14 @@ document.addEventListener('click', e => {
   if (z) { const lb = $('lb'); lb.querySelector('img').src = z.dataset.zoom; lb.classList.add('on'); return; }
   if (e.target.closest && e.target.closest('#lb')) $('lb').classList.remove('on');
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') $('lb').classList.remove('on'); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('lb').classList.remove('on');
+  if (MODE === 'settings' && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault(); saveSettings();
+  }
+});
 
-$('nextBtn').addEventListener('click', () => { if (MODE === 'settings') saveSettings(); else next(); });
+$('nextBtn').addEventListener('click', () => { if (MODE !== 'settings') next(); });
 $('backBtn').addEventListener('click', () => { if (MODE !== 'settings' && state.step > 0) { state.step--; render(); } });
 window.setLang = setLang;
 init();

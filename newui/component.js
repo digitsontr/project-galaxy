@@ -15,7 +15,9 @@ class Component extends DCLogic {
     _conBusy:false, _claudeOk:null, _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false,
     schAddOpen:false, _schResult:'', schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},
-    consoleH:240, agentFormOpen:false, agentForm:{id:'',name:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''} };
+    consoleH:240, agentFormOpen:false, agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''},
+    mailPane:'inbox', _inbox:[], mailSel:null, mailReadBody:'', mailTo:'', mailSub:'', mailBody:'', mailAtts:[], _treeOpen:{} };
+  _uiTheme = 'galaxy';
 
   NOTES = { haci:['Yol tarifi v1\'de yok — sonraya','Kalıcı oturum: ilk girişten sonra login istenmez','Vital mock verisi sadece nabza indirilecek'], sales:['DuckDuckGo araması — API key gerektirmiyor','Web UI: python web_app.py'], core:['flux ile aynı kod tabanı','Son commit: Aralık 2025'], kyc:['Canlılık testi TurkTrust SDK ile'] };
   LINKS = { haci:[['PAP/BleBracelet','Bileklik firmware','#c77bff'],['KYC TurkTrust','Kimlik doğrulama','#61dcff']], sales:[['Core SDK','Ortak biyometri','#ffc861']], core:[['Flux','Aynı kod tabanı','#8a8fa8']], kyc:[['Hacı Takip','Kimlik modülü','#61dcff']] };
@@ -35,11 +37,11 @@ class Component extends DCLogic {
   ];
 
   AGENTS = [
-    { id:'atlas', name:'ATLAS', role:'CTO · Risk & Durum', color:'#61dcff', avatar:(window.__resources&&window.__resources.avCto)||'assets/avatar-cto.jpg', prompt:'İş evreninin durum raporunu ver', badge:0, msgs:[['u','Bugün nereye odaklanmalıyım?'],['a','3 aktif projenden Hacı Takip 21 gündür telemetri açık — en yüksek risk. Sales Agent %70, tek engel rapor kalitesi. Öneri: sabah telemetri, öğleden sonra rapor.']] },
-    { id:'nav', name:'NAVIGATOR', role:'PM · Standup', color:'#ffc861', avatar:(window.__resources&&window.__resources.avNav)||'assets/avatar-navigator.jpg', prompt:'İhmal ettiklerim neler?', badge:3, msgs:[['u','İhmal ettiklerim neler?'],['a','3 uyarı: Hacı Takip (21g), Core SDK (SSL pinning bekliyor), Flux (birleştirilmedi). İlk ikisini bu hafta kapatmanı öneririm.']] },
-    { id:'doc', name:'DOCUMENTOR', role:'Dokümantasyon', color:'#55e88b', avatar:(window.__resources&&window.__resources.avDoc)||'assets/avatar-documentor.jpg', prompt:'Bu projeye README yaz', badge:0, msgs:[['u','Bu projeye README yaz'],['a','Taslak hazır: başlık, kurulum, mimari ve yapılacaklar bölümleri. Onaylarsan README.md dosyasına yazarım — dosya yazma yetkim var.']] },
-    { id:'forge', name:'FORGE', role:'Kod Kalitesi', color:'#ff6b7a', avatar:(window.__resources&&window.__resources.avForge)||'assets/avatar-forge.jpg', prompt:'Teknik borcu tara', badge:0, msgs:[['u','Teknik borcu tara'],['a','Core SDK: RoleSelectView kaldırılmalı, 4 TODO açık. Sadece okurum, asla değiştirmem — düzeltmeleri sana bırakıyorum.']] },
-    { id:'mentor', name:'MENTOR', role:'Kişisel Koç', color:'#c77bff', avatar:(window.__resources&&window.__resources.avMentor)||'assets/avatar-mentor.jpg', prompt:'Bu hafta için plan öner', badge:0, msgs:[['u','Bu hafta için plan öner'],['a','Pzt-Sal: Hacı Takip telemetri. Çar: Core SDK güvenlik. Per: Sales rapor. Cum: temizlik + Flux kararı. Küçük, bitirilebilir bloklar.']] },
+    { id:'atlas', name:'ATLAS', role:'CTO · Risk & Durum', color:'#61dcff', avatar:(window.__resources&&window.__resources.avCto)||'assets/avatar-cto.jpg', prompt:'İş evreninin durum raporunu ver', sys:'Sen ATLAS\'sın — kişisel CTO. Durumu net ve dürüst raporla: yönetici özeti, riskler, tıkanıklıklar, en fazla 5 somut sonraki adım.', presets:[{label:'Durum raporu ver',ask:'Durum raporu ver'},{label:'Riskleri sırala',ask:'Riskleri sırala'},{label:'Bu hafta neye odaklanayım',ask:'Bu hafta neye odaklanayım'}], badge:0, msgs:[['u','Bugün nereye odaklanmalıyım?'],['a','3 aktif projenden Hacı Takip 21 gündür telemetri açık — en yüksek risk. Sales Agent %70, tek engel rapor kalitesi. Öneri: sabah telemetri, öğleden sonra rapor.']] },
+    { id:'nav', name:'NAVIGATOR', role:'PM · Standup', color:'#ffc861', avatar:(window.__resources&&window.__resources.avNav)||'assets/avatar-navigator.jpg', prompt:'İhmal ettiklerim neler?', sys:'Sen NAVIGATOR\'sın — proje yöneticisi. Plan maddelerini takip et, ihmalleri işaretle, her aktif proje için tek sonraki adımı söyle. Kısa standup tarzı, Türkçe.', presets:[{label:'Standup yap',ask:'Standup yap'},{label:'İhmal edilenleri göster',ask:'İhmal edilenleri göster'},{label:'Sıradaki somut adımlar',ask:'Sıradaki somut adımlar'}], badge:3, msgs:[['u','İhmal ettiklerim neler?'],['a','3 uyarı: Hacı Takip (21g), Core SDK (SSL pinning bekliyor), Flux (birleştirilmedi). İlk ikisini bu hafta kapatmanı öneririm.']] },
+    { id:'doc', name:'DOCUMENTOR', role:'Dokümantasyon', color:'#55e88b', avatar:(window.__resources&&window.__resources.avDoc)||'assets/avatar-documentor.jpg', prompt:'Bu projeye README yaz', sys:'Sen DOCUMENTOR\'sın — dokümantasyon uzmanı. README eksiğini bul, istenirse README.md yaz. Türkçe, net, kurulum + kullanım + mimari.', presets:[{label:'README eksiklerini tara',ask:'README eksiklerini tara'},{label:'Bu projeye README yaz',ask:'Bu projeye README yaz'},{label:'Doküman sağlığı',ask:'Doküman sağlığı'}], badge:0, msgs:[['u','Bu projeye README yaz'],['a','Taslak hazır: başlık, kurulum, mimari ve yapılacaklar bölümleri. Onaylarsan README.md dosyasına yazarım — dosya yazma yetkim var.']] },
+    { id:'forge', name:'FORGE', role:'Kod Kalitesi', color:'#ff6b7a', avatar:(window.__resources&&window.__resources.avForge)||'assets/avatar-forge.jpg', prompt:'Teknik borcu tara', sys:'Sen FORGE\'sun — kod kalitesi mühendisi. Teknik borç, hızlı kazanım ve riskli projeleri raporla. Kod oku, dosya değiştirme. Türkçe yaz.', presets:[{label:'Teknik borcu tara',ask:'Teknik borcu tara'},{label:'En riskli 3 proje',ask:'En riskli 3 proje'},{label:'Hızlı kazanımlar',ask:'Hızlı kazanımlar'}], badge:0, msgs:[['u','Teknik borcu tara'],['a','Core SDK: RoleSelectView kaldırılmalı, 4 TODO açık. Sadece okurum, asla değiştirmem — düzeltmeleri sana bırakıyorum.']] },
+    { id:'mentor', name:'MENTOR', role:'Kişisel Koç', color:'#c77bff', avatar:(window.__resources&&window.__resources.avMentor)||'assets/avatar-mentor.jpg', prompt:'Bu hafta için plan öner', sys:'Sen MENTOR\'sun — kişisel gelişim koçu. Öğrenme projelerinde ilerlemeyi değerlendir, küçük gerçekçi haftalık hedefler öner. Destekleyici ama gerçekçi, Türkçe.', presets:[{label:'Bu hafta için plan öner',ask:'Bu hafta için plan öner'},{label:'Öğrenme momentumu',ask:'Öğrenme momentumu'},{label:'Küçük hedef ver',ask:'Küçük hedef ver'}], badge:0, msgs:[['u','Bu hafta için plan öner'],['a','Pzt-Sal: Hacı Takip telemetri. Çar: Core SDK güvenlik. Per: Sales rapor. Cum: temizlik + Flux kararı. Küçük, bitirilebilir bloklar.']] },
   ];
 
   FILES = [
@@ -53,6 +55,25 @@ class Component extends DCLogic {
   _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
   _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen); }
   _reduced(){ try{ return !!(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
+  _applyTheme(theme){
+    const t=(theme==='ev'||theme==='apex')?theme:'galaxy';
+    this._uiTheme=t;
+    try{ document.documentElement.dataset.theme=t; document.body.dataset.theme=t; localStorage.setItem('gxUiTheme',t); }catch(e){}
+  }
+  _theme(){
+    if(this._uiTheme==='ev') return {acc:'#e8b86d', ink:'#f3eadc', dim:'#c4b49a', panel:'#241c16', panel2:'#1c1612', wire:'rgba(232,184,109,.9)', wireDim:'rgba(232,184,109,.28)'};
+    if(this._uiTheme==='apex') return {acc:'#4fe0ff', ink:'#e8f4ff', dim:'#8aa0b8', panel:'#0c1018', panel2:'#080b12', wire:'rgba(79,224,255,.92)', wireDim:'rgba(79,224,255,.28)'};
+    return {acc:'#61dcff', ink:'#dbe4ff', dim:'#9aa3c2', panel:'#10182c', panel2:'#0c1220', wire:'rgba(97,220,255,.9)', wireDim:'rgba(97,220,255,.28)'};
+  }
+  _t(){
+    return {
+      acc:'var(--gx-accent)', ink:'var(--gx-ink)', dim:'var(--gx-dim)', faint:'var(--gx-faint)',
+      ok:'var(--gx-ok)', err:'var(--gx-err)', warn:'var(--gx-warn)', info:'var(--gx-info)',
+      line:'var(--gx-line)', on:'var(--gx-on-accent)',
+      accA:(p)=>`color-mix(in srgb, var(--gx-accent) ${p}%, transparent)`,
+      okA:(p)=>`color-mix(in srgb, var(--gx-ok) ${p}%, transparent)`
+    };
+  }
   _float(sec){ return this._reduced()?'':`animation:floatOrb ${sec}s ease-in-out infinite`; }
   _pulse(){ return this._reduced()?'':'animation:pulseGlow 1.6s ease-in-out infinite'; }
   _railIds(){ return (this.PROJECTS||[]).slice().sort((a,b)=>(a._stale||0)-(b._stale||0)).map(p=>p.id); }
@@ -81,19 +102,34 @@ class Component extends DCLogic {
       else if (e.key==='Escape'){ if (this.state.asstOpen||(this._asst&&this._asst.open)) this._asstClose(); else if (this.state.moreOpen) this.setState({moreOpen:false}); else if (this.state.locOpen) this.setState({locOpen:false}); else if (this.state.toolsOpen) this.closeTools(); else if (this.state._guideOpen) this.setState({_guideOpen:false}); else if (this.state._confirm) this.setState({_confirm:null}); else if (this.state.palette) this.setState({palette:false,query:'',paletteIdx:0}); else if (this.state._preview) this.closePreview(); else if (this.state.agentId) this.setState({agentId:null}); else if (this.state.mode==='planet' || this.state.holdPlanet) this.back(); }
     };
     window.addEventListener('keydown', this._key);
-    try{ if(localStorage.getItem('gxUiMode')==='kadet') this.state.uiMode='kadet'; }catch(e){}
+    try{ /* kadet kaldırıldı — her zaman tam görünüm */ this.state.uiMode='komutan'; }catch(e){}
+    try{ if(this.state.kayitSub==='baglanti') this.state.kayitSub='plan'; }catch(e){}
     try{ const h=parseInt(localStorage.getItem('gxConsoleH'),10); if(h>=240) this.state.consoleH=Math.min(640,h); }catch(e){}
     try{ if(localStorage.getItem('gxOrbitView')==='1') this.state.orbitView=true; }catch(e){}
     try{ if(localStorage.getItem('gxReadmeOpen')==='0') this.state.readmeOpen=false; }catch(e){}
     try{ const lt=localStorage.getItem('gxLeftTab'); if(lt==='kayit'||lt==='agac'||lt==='git') this.state.leftTab=lt; }catch(e){}
+    try{ const th=localStorage.getItem('gxUiTheme'); if(th==='ev'||th==='galaxy'||th==='apex') this._applyTheme(th); else this._applyTheme(this._uiTheme||'galaxy'); }catch(e){ this._applyTheme(this._uiTheme||'galaxy'); }
     this._waitThree(0);
     this._loadReal();
     // Dil tercihi (tr/en) — ayarlardan gelir; UI metinleri buna göre çevrilir.
     this._lang='tr';
+    try{ const lg=localStorage.getItem('gxLang'); if(lg==='en'||lg==='tr') this._lang=lg; }catch(e){}
     try{ if(window.galaxy&&window.galaxy.profileGet){ window.galaxy.profileGet().then(p=>{ this._lang=(p&&p.lang)||'tr'; this._applyLang(); }); } }catch(e){ this._applyLang(); }
     // Ayarlardan yapılandırılabilir odak (Pomodoro) süresi — çalışmıyorken uygula
     this._focusDefault=1500;
-    this._loadFocusPref=()=>{ try{ if(window.galaxy&&window.galaxy.settingsGet) window.galaxy.settingsGet().then(r=>{ const m=(r&&r.settings&&+r.settings.focusMin)||25; this._focusDefault=Math.max(60,m*60); if(!this.state.focusRunning) this.setState({focusSec:this._focusDefault}); }); }catch(e){} };
+    this._loadFocusPref=()=>{ try{ if(window.galaxy&&window.galaxy.settingsGet) window.galaxy.settingsGet().then(r=>{
+      const s=(r&&r.settings)||{};
+      this._mailTo=s.mailTo||'';
+      this._mailListTool=s.mailListTool||'';
+      this._mailReadTool=s.mailReadTool||'';
+      const m=+s.focusMin||25; this._focusDefault=Math.max(60,m*60);
+      const theme=(s.uiTheme==='ev'||s.uiTheme==='apex')?s.uiTheme:'galaxy';
+      const ns={};
+      if(!this.state.focusRunning) ns.focusSec=this._focusDefault;
+      if(theme!==this._uiTheme){ this._applyTheme(theme); ns._themeTick=(this.state._themeTick||0)+1; }
+      if(s.mailTo && !this.state.mailTo) ns.mailTo=s.mailTo;
+      if(Object.keys(ns).length) this.setState(ns);
+    }); }catch(e){} };
     this._loadFocusPref();
     // Üst bar saati — re-render'a gerek olmadan doğrudan DOM güncellemesi (her sn)
     this._barClock=setInterval(()=>{ try{ const el=document.getElementById('gx-clock'); if(el){ const d=new Date(),p=n=>String(n).padStart(2,'0'); el.textContent=p(d.getHours())+':'+p(d.getMinutes()); } }catch(e){} },1000);
@@ -106,6 +142,8 @@ class Component extends DCLogic {
     try{ if(window.galaxy&&window.galaxy.onClaude){ window.galaxy.onClaude(m=>{ if(m&&String(m.runId||'').indexOf('asst-')===0){ this._asstClaudeMsg(m); return; } const pid=this._pidFromRun(m&&m.runId); this._appendOut(this._con(pid).cout,m); }); } }catch(e){}
     try{ if(window.galaxy&&window.galaxy.onShell){ window.galaxy.onShell(m=>{ const sid=String((m&&m.id)||''); if(sid.indexOf('asst-sh-')===0){ this._asstShellMsg(m); return; } if(sid.indexOf('srvterm')===0){ this._sbout=this._sbout||[]; this._appendOut(this._sbout,m); } else { const pid=this._pidFromShell(m&&m.id); this._appendOut(this._con(pid).bout,m); } }); } }catch(e){}
     try{ this._initAssistant(); }catch(e){}
+    try{ if(window.galaxy&&window.galaxy.onStt) window.galaxy.onStt(m=>this._onStt(m)); }catch(e){}
+    try{ if(window.galaxy&&window.galaxy.sttAvailable) window.galaxy.sttAvailable().then(r=>{ if(this._asst&&r&&r.ok){ this._asst.native=true; this._asstWakeBtnStyle(); this.setState({_hubTick:(this.state._hubTick||0)+1}); } }); }catch(e){}
     try{ if(window.galaxy&&window.galaxy.onUpdate){ window.galaxy.onUpdate((kind,p)=>this._onUpdate(kind,p)); } }catch(e){}
     try{ if(window.galaxy&&window.galaxy.onDockerLog){ window.galaxy.onDockerLog(m=>this._onDockerLog(m)); } }catch(e){}
     try{ if(window.galaxy&&window.galaxy.onScheduleDone){ window.galaxy.onScheduleDone(m=>this._onScheduleDone(m)); } }catch(e){}
@@ -186,10 +224,10 @@ class Component extends DCLogic {
   _onAgentMsg(m){
     if(!m||!this._runAgents) return; const aid=this._runAgents[m.runId]; if(!aid) return;
     const ag=this.AGENTS.find(a=>a.id===aid); if(!ag) return;
-    if(m.kind==='text'){ const last=ag.msgs[ag.msgs.length-1]; if(last&&last[0]==='a') last[1]+=m.text; else ag.msgs.push(['a',m.text]); }
+    if(m.kind==='text'){ const last=ag.msgs[ag.msgs.length-1]; if(last&&last[0]==='a') last[1]+=m.text; else ag.msgs.push(['a',m.text]); if(this._loopRunId&&m.runId===this._loopRunId) this._loopOut=(this._loopOut||'')+m.text; }
     else if(m.kind==='tool'){ ag.msgs.push(['t','⚙ '+m.text]); }
     else if(m.kind==='err'){ if(!this._cliNoise(m.text)) ag.msgs.push(['a','⚠ '+m.text]); }
-    else if(m.kind==='done'){ this.setState({_agentBusy:false}); delete this._runAgents[m.runId]; }
+    else if(m.kind==='done'){ this.setState({_agentBusy:false}); delete this._runAgents[m.runId]; if(this._loopRunId&&m.runId===this._loopRunId){ this.setState({loopBody:this._loopOut||'ajan bitti', loopStep:'is'}); this._loopRunId=null; } }
     this.setState({_agv:(this.state._agv||0)+1});
     this._scrollBottom('#ghud-agent-scroll');
   }
@@ -206,7 +244,7 @@ class Component extends DCLogic {
   // ---------- i18n (tr↔en) — render sonrası DOM cümle değişimi ----------
   _enMapObj(){ return {
     'GENEL BAKIŞ':'OVERVIEW','EVREN':'UNIVERSE','PANO':'BOARD','DOCKER':'DOCKER','ZAMANLAYICI':'SCHEDULER','SUNUCULAR':'SERVERS','DB':'DB',
-    'Özet':'Overview','Evren':'Universe','Pano':'Board','Daha':'More','Kadet':'Cadet','Komutan':'Commander','İn':'In','İstasyon':'Station','HUD':'HUD',
+    'Özet':'Overview','Evren':'Universe','Pano':'Board','Daha':'More','Kadet':'Cadet','Komutan':'Commander','İn':'In','İstasyon':'Station','HUD':'HUD','Döngü':'Loop','Posta':'Mail','Döngü tuvali':'Loop canvas',
     'PROJELER':'PROJECTS','İSTASYON':'STATION','Evrenini seç':'Choose your universe',
     'Her evren bir galaksi: içindeki proje klasörleri gezegen, projeleri barındıran çatı klasörler yıldız sistemi olur.':'Each universe is a galaxy: its project folders are planets, and the parent folders that hold them are star systems.',
     'YENİ EVREN EKLE':'ADD UNIVERSE','yerel klasör · uzak sunucu':'local folder · remote server','Evreni kaldır':'Remove universe',
@@ -214,6 +252,10 @@ class Component extends DCLogic {
     'Veritabanı':'Database','SQL Sorgu · SELECT':'SQL Query · SELECT','Çalıştır':'Run','Test':'Test','Kaydet':'Save','İptal':'Cancel','Ad (ör. Prod DB)':'Name (e.g. Prod DB)','Sunucu (host)':'Host','Port':'Port','Veritabanı adı':'Database name','Kullanıcı':'User','Parola':'Password','SQLite dosya yolu':'SQLite file path',
     'Pano':'Board','Bekliyor':'To Do','Devam':'In Progress','Tamam':'Done','Yeni görev ekle (Enter)…':'Add a task (Enter)…',
     'Zamanlayıcı · Otomatik Görevler':'Scheduler · Automated Tasks','Yeni otomatik görev (Enter)…':'New automated task (Enter)…','ÇALIŞTIR':'RUN','AKTİF':'ACTIVE','DURDU':'STOPPED',
+    'Tetik':'Trigger','Tara':'Scan','İş':'Work','İncele':'Review','Bildir':'Notify','Tümünü koş':'Run all','Brifing gönder':'Send briefing','Kilitle':'Lock',
+    'Beş düğüm: tetik (zamanlayıcı veya ikiz) → tarama → ajan işi → inceleme notu → bildirim. Harita durur.':'Five nodes: trigger (timer or twin) → scan → agent work → review note → notify. The map stays.',
+    'Gelen kutuyu oku, yeni e-posta yaz. MCP Ayarlar → Posta’daki araçlarla gider.':'Read the inbox, write a new email. MCP tools in Settings → Mail send it.',
+    'Posta':'Mail','Gelen':'Inbox','Yaz':'Compose','Yenile':'Refresh','Gönder':'Send','Yanıtla':'Reply','Kime (e-posta)':'To (email)','Konu':'Subject','Metin…':'Message…',
     'Sunucular · Uzak Evrenler':'Servers · Remote Universes','SSH ile uzak bir sunucu bağla; klasörleri yerel evrenler gibi galakside gezilir.':'Connect a remote server via SSH; its folders are browsed in the galaxy like local universes.','⟳ Tara':'⟳ Scan','Ad (ör. Prod Sunucu)':'Name (e.g. Prod Server)',
     'İLERLEME':'PROGRESS','PLAN':'PLAN','NOTLAR':'NOTES','BAĞLANTILAR':'LINKS','ODAK':'FOCUS','KAYIT':'RECORD','AĞAÇ':'TREE','GİT':'GIT','Ağaç':'Tree','Kayıt':'Record','Git':'Git','Yörünge':'Orbit','Dosya':'File','📁 Klasörü Aç':'📁 Open Folder','Kaldır':'Remove','Hızlı not ekle… (Enter)':'Quick note… (Enter)','Gezegene İn ▸':'Land on Planet ▸','UZAY':'SPACE','README':'README','komut / istem yaz, Enter\'a bas…':'type a command / prompt, press Enter…','proje kökü':'project root','Yapılacaklar':'To Do','Günlük':'Log','ÇİFT TIK DÜZENLE':'DOUBLE-CLICK TO EDIT','Tıkla: tamam / beklemede':'Click: done / pending','tıkla: tamam':'click: done','Bir dosya seç':'Pick a file','Soldaki Ağaç’tan bir dosyaya tıkla — içerik burada açılır.':'Click a file in the Tree on the left — it opens here.','README’yi gizle (⌘\\)':'Hide README (⌘\\)','README’yi aç (⌘\\)':'Show README (⌘\\)',
     'BAĞLAM: Tüm evren':'CONTEXT: All universes','Sil':'Delete','Durum ver':'Give status','Yeni ajan ekle':'Add new agent',
@@ -231,7 +273,8 @@ class Component extends DCLogic {
     'Bu evrende henüz gezegen yok.':'No planets in this universe yet.','Evren bağla':'Bind universe','Bu klasör henüz git deposu değil.':'This folder is not a git repo yet.','git init':'git init',
     'Henüz madde yok. README’deki işaret kutularını çek veya ilk maddeyi yaz.':'No items yet. Pull checkboxes from the README or type the first one.','README’den çek':'Pull from README','ilk madde yaz… (Enter)':'first item… (Enter)',
     'Claude Code bulunamadı.':'Claude Code not found.','Konsol ve ajanlar CLI ister. Kur, sonra Ayarlar’dan yolu doğrula.':'Console and agents need the CLI. Install it, then confirm the path in Settings.',
-    'Galaxy Asistanı':'Galaxy Assistant','hazır — bir komut ver':'ready — give a command','çalışıyorum…':'working…','Bir şey yaz…':'Write something…','Yeni sohbet':'New chat',
+    'Galaxy Asistanı':'Galaxy Assistant','hazır — bir komut ver':'ready — give a command','çalışıyorum…':'working…','dinliyorum…':'listening…','Dinliyor':'Listening','Bir şey yaz…':'Write something…','Yeni sohbet':'New chat',
+    'Sesli komut':'Voice command','Hey Galaxy — hep dinle':'Hey Galaxy — always listen','Dinlemeyi durdur':'Stop listening',
     'Güncel':'Up to date','Commit…':'Commit…','Git Merkezi':'Git Center','Gizle':'Hide','Push':'Push','Onayla ve çalıştır':'Confirm and run',
     'Gezegeni gizle':'Hide planet','Veritabanı yazma':'Database write',
     'Evrenler':'Universes','⌘K ile de hızlı geçiş yapabilirsin':'⌘K also jumps you quickly','buradasın':'you are here',
@@ -253,7 +296,11 @@ class Component extends DCLogic {
     'git restore <dosya> — dosyadaki kaydedilmemiş değişikliği geri al':'git restore <file> — discard unsaved changes in a file','git restore --staged <dosya> — dosyayı sahneden çıkar':'git restore --staged <file> — unstage a file','git reset --soft HEAD~1 — son commit\'i geri al (değişiklikler durur)':'git reset --soft HEAD~1 — undo last commit (keep changes)','git revert <hash> — bir commit\'i tersine çeviren yeni commit':'git revert <hash> — a new commit that reverses one','git show <hash> — bir commit\'in tüm detayını gör':'git show <hash> — see full detail of a commit','git blame <dosya> — her satırı kim/ne zaman değiştirmiş':'git blame <file> — who/when changed each line','git diff <dal1>..<dal2> — iki dal arasındaki farkı gör':'git diff <b1>..<b2> — see the difference between two branches','İpucu: bir şeyi bozmaktan korkma — commit\'lenmiş her şey geri alınabilir.':'Tip: don\'t fear breaking things — anything committed can be undone.',
     // Scheduler + ajan form
     '+ Yeni Otomatik Görev':'+ New Automated Task','SIKLIK':'FREQUENCY','Her gün':'Daily','Haftalık':'Weekly','GÜN':'DAY','SAAT':'TIME','AJAN':'AGENT','Görev adı (ör. Haftalık rapor)':'Task name (e.g. Weekly report)','Ne yapsın? (ör. bana bu haftanın ilerleme raporunu çıkar)':'What should it do? (e.g. give me this week\'s progress report)',
-    'Hazır komutlar':'Quick commands','Yeni ajan ekle':'Add new agent','Düzenle':'Edit','Ajanı düzenle':'Edit agent','Ajanı sil':'Delete agent','Yeni Ajan':'New Agent','Ajanı Düzenle':'Edit Agent','Ajan Adı':'Agent Name','Sistem Promptu — ajan ne yapar, nasıl davranır?':'System prompt — what the agent does, how it behaves','3 Hazır Komut (opsiyonel — panelde tıklanabilir görünür)':'3 quick commands (optional — clickable in the panel)',
+    'Hazır komutlar':'Quick commands','Yeni ajan ekle':'Add new agent','Düzenle':'Edit','Ajanı düzenle':'Edit agent','Ajanı sil':'Delete agent','Yeni Ajan':'New Agent','Ajanı Düzenle':'Edit Agent','Yeni ajan':'New agent',
+    'Ajan Adı':'Agent Name','Ajan adı':'Agent name','Görevi':'Role','Kişilik':'Personality','Tek tık komutlar':'One-click commands',
+    'Sistem Promptu — ajan ne yapar, nasıl davranır?':'System prompt — what the agent does, how it behaves','3 Hazır Komut (opsiyonel — panelde tıklanabilir görünür)':'3 quick commands (optional — clickable in the panel)',
+    'Bu ajan sağdaki sohbette konuşur. Kişilik her mesajdan önce okunur. Komutlar panelde buton olur.':'This agent talks in the right-hand chat. Personality is read before every message. Commands become buttons in the panel.',
+    'Sağ panelde buton olur. Tıklayınca sohbete o cümleyi gönderir.':'They become buttons in the right panel. Clicking sends that sentence to chat.',
     'Klasörü Aç':'Open Folder','Aç':'Open','Sürükle: konsolu büyüt/küçült':'Drag: resize console','İşlem Günlüğü':'Operation Log',
     'VERİTABANI:':'DATABASE:','temizle ✕':'clear ✕','temizle':'clear','✓ Her işlem loglanır · parolalar safeStorage ile şifreli':'✓ Every operation is logged · passwords encrypted with safeStorage','SQL / İşlem · SELECT + INSERT / UPDATE / DELETE':'SQL / Operation · SELECT + INSERT / UPDATE / DELETE','SQL Sorgu · SELECT':'SQL Query · SELECT','satır etkilendi':'rows affected','kayıtlı':'saved','veritabanı':'database','🤖 AI Veritabanı Ajanı · ne istediğini doğal dille yaz':'🤖 AI Database Agent · describe what you want in plain language','⚡ Sor':'⚡ Ask',
     'Durum okuması:':'Status:','Commit\'lenmemiş dosyalar':'Uncommitted files','✓ Temiz — commit\'lenecek dosya yok.':'✓ Clean — nothing to commit.','Bu depoda henüz commit yok.':'No commits in this repository yet.',
@@ -268,6 +315,7 @@ class Component extends DCLogic {
     'Esc — katman katman geri':'Esc — back layer by layer'
   }; }
   _applyLang(){
+    try{ document.documentElement.lang=this._lang==='en'?'en':'tr'; }catch(e){}
     const en=this._lang==='en'; const map=en?(this._enMap||(this._enMap=this._enMapObj())):null;
     const rev=(!en)?(this._trMap||(this._trMap=(()=>{const o={},m=this._enMapObj();for(const k in m)o[m[k]]=k;return o;})())):null;
     const dict=en?map:rev; if(!dict) return;
@@ -290,21 +338,39 @@ class Component extends DCLogic {
   // ---------- MARKDOWN-LITE (ajan çıktısı + README güzel görünsün) ----------
   _mdSegs(s){ const out=[]; const re=/(\*\*([^*]+)\*\*|`([^`]+)`)/g; let last=0,m;
     while((m=re.exec(s))){ if(m.index>last) out.push({t:s.slice(last,m.index),style:'color:inherit'});
-      if(m[2]!=null) out.push({t:m[2],style:'color:#dbe4ff;font-weight:600'});
-      else out.push({t:m[3],style:'color:#8ae7ff;font-family:JetBrains Mono,monospace;background:rgba(97,220,255,.1);padding:1px 5px;border-radius:3px'});
+      if(m[2]!=null) out.push({t:m[2],style:'color:var(--gx-ink);font-weight:600'});
+      else out.push({t:m[3],style:'color:var(--gx-accent);font-family:JetBrains Mono,monospace;background:color-mix(in srgb, var(--gx-accent) 10%, transparent);padding:1px 5px;border-radius:3px'});
       last=re.lastIndex; }
     if(last<s.length) out.push({t:s.slice(last),style:'color:inherit'});
     if(!out.length) out.push({t:s||' ',style:'color:inherit'}); return out; }
-  _mdLines(text){ const st=(t)=>({h1:'font-size:15px;font-weight:700;color:#dbe4ff;margin:12px 0 6px',h2:'font-size:14px;font-weight:600;color:#dbe4ff;margin:12px 0 5px;border-bottom:1px solid rgba(190,205,255,.12);padding-bottom:4px',h3:'font-size:13px;font-weight:600;color:#8ae7ff;margin:10px 0 4px',li:'padding-left:16px;position:relative;margin:3px 0',task:'margin:3px 0;color:#9aa3c2',p:'margin:5px 0',blank:'height:6px'}[t]||'margin:5px 0');
-    return String(text||'').split('\n').map(ln=>{ let type='p',content=ln,bullet='';
-      if(!ln.trim()) return {type:'blank',lineStyle:st('blank'),bullet:'',segs:[{t:'',style:''}]};
+  _mdLines(text, mode){ const doc=mode==='doc';
+    const st=(t)=>({
+      h1: doc?'font-size:26px;font-weight:700;color:#f4f7ff;margin:6px 0 14px;line-height:1.25;letter-spacing:-.02em':'font-size:15px;font-weight:700;color:#dbe4ff;margin:12px 0 6px',
+      h2: doc?'font-size:18px;font-weight:600;color:#e8eeff;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid rgba(190,205,255,.14)':'font-size:14px;font-weight:600;color:#dbe4ff;margin:12px 0 5px;border-bottom:1px solid rgba(190,205,255,.12);padding-bottom:4px',
+      h3: doc?'font-size:15px;font-weight:600;color:#8ae7ff;margin:16px 0 8px':'font-size:13px;font-weight:600;color:#8ae7ff;margin:10px 0 4px',
+      li: doc?'padding-left:18px;margin:6px 0;line-height:1.55':'padding-left:16px;position:relative;margin:3px 0',
+      task: doc?'margin:6px 0;color:#c5cde8;line-height:1.5':'margin:3px 0;color:#9aa3c2',
+      p: doc?'margin:8px 0;line-height:1.7;color:#cfd6ee;font-size:15px':'margin:5px 0',
+      blank: doc?'height:10px':'height:6px',
+      hr:'height:1px;background:rgba(190,205,255,.16);margin:18px 0',
+      code:'font-family:JetBrains Mono,monospace;font-size:12px;color:#c9e7ff;background:rgba(8,12,24,.65);padding:1px 0;white-space:pre-wrap;line-height:1.55'
+    }[t]||(doc?'margin:8px 0;line-height:1.7':'margin:5px 0'));
+    const lines=String(text||'').split('\n'); const out=[]; let inCode=false;
+    for(const ln of lines){
+      if(/^```/.test(ln)){ inCode=!inCode; continue; }
+      if(inCode){ out.push({type:'code',lineStyle:st('code'),bullet:'',segs:[{t:ln||' ',style:'font-family:JetBrains Mono,monospace;color:#c9e7ff'}]}); continue; }
+      if(!ln.trim()){ out.push({type:'blank',lineStyle:st('blank'),bullet:'',segs:[{t:'',style:''}]}); continue; }
+      if(/^---+$/.test(ln.trim())||/^\*\*\*+$/.test(ln.trim())){ out.push({type:'hr',lineStyle:st('hr'),bullet:'',segs:[{t:'',style:''}]}); continue; }
+      let type='p',content=ln,bullet='';
       if(/^###\s/.test(ln)){type='h3';content=ln.replace(/^###\s/,'');}
       else if(/^##\s/.test(ln)){type='h2';content=ln.replace(/^##\s/,'');}
       else if(/^#\s/.test(ln)){type='h1';content=ln.replace(/^#\s/,'');}
       else if(/^\s*[-*]\s+\[[ xX]\]\s*/.test(ln)){type='task';const done=/\[[xX]\]/.test(ln);content=ln.replace(/^\s*[-*]\s+\[[ xX]\]\s*/,'');bullet=done?'✓ ':'○ ';}
-      else if(/^\s*[-*]\s+/.test(ln)){type='li';content=ln.replace(/^\s*[-*]\s+/,'');bullet='•';}
-      else if(/^\s*\d+\.\s+/.test(ln)){type='li';content=ln.replace(/^\s*\d+\.\s+/,'');bullet='›';}
-      return {type,lineStyle:st(type),bullet,segs:this._mdSegs(content)}; }); }
+      else if(/^\s*[-*]\s+/.test(ln)){type='li';content=ln.replace(/^\s*[-*]\s+/,'');bullet='• ';}
+      else if(/^\s*\d+\.\s+/.test(ln)){type='li';content=ln.replace(/^\s*\d+\.\s+/,'');bullet='› ';}
+      out.push({type,lineStyle:st(type),bullet,segs:this._mdSegs(content)});
+    }
+    return out; }
   onAgentInput(e){ this.setState({agentInput:(e&&e.target&&e.target.value)||''}); }
   onAgentKey(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault&&e.preventDefault(); this.sendAgent(); } }
   sendAgent(){
@@ -345,9 +411,33 @@ class Component extends DCLogic {
       +'<text x="48" y="61" font-family="JetBrains Mono,monospace" font-size="34" font-weight="700" fill="'+color+'" text-anchor="middle">'+init+'</text></svg>';
     return 'data:image/svg+xml,'+encodeURIComponent(svg);
   }
+  _asText(v){
+    if(v==null||v==='') return '';
+    if(typeof v==='string') return v;
+    if(typeof v==='number'||typeof v==='boolean') return String(v);
+    if(typeof v==='object'){
+      for(const k of ['text','prompt','content','sys','message','value']){
+        if(v[k]!=null&&v[k]!==v){ const t=this._asText(v[k]); if(t) return t; }
+      }
+      return '';
+    }
+    return '';
+  }
+  _agentPresetDefaults(a){
+    const k=String((a&&(a.id||''))+' '+(a&&(a.role||''))+' '+(a&&(a.name||''))).toLowerCase();
+    if(/atlas|cto/.test(k)) return ['Durum raporu ver','Riskleri sırala','Bu hafta neye odaklanayım'];
+    if(/nav|pm/.test(k)) return ['Standup yap','İhmal edilenleri göster','Sıradaki somut adımlar'];
+    if(/doc/.test(k)) return ['README eksiklerini tara','Bu projeye README yaz','Doküman sağlığı'];
+    if(/forge|kod/.test(k)) return ['Teknik borcu tara','En riskli 3 proje','Hızlı kazanımlar'];
+    if(/mentor|koç/.test(k)) return ['Bu hafta için plan öner','Öğrenme momentumu','Küçük hedef ver'];
+    if(/design|ux/.test(k)) return ['Bu ekranı değerlendir','Tema tutarlılığı','UX sorunlarını listele'];
+    return ['Durum ver','Ne birikti?','Sıradaki iş'];
+  }
   _mapAgent(a){ const c=a.color||'#61dcff'; const av=(window.__resources&&window.__resources['av'+(a.id||'')])||this._avatar(a.name,c);
-    const presets=(a.presets||[]).map(p=>typeof p==='string'?{label:p,ask:p}:{label:p.label||p.ask||'',ask:p.ask||p.label||''}).filter(p=>p.ask).slice(0,3);
-    return { id:a.id, name:a.name, role:a.role||'', color:c, avatar:av, prompt:(presets[0]&&presets[0].ask)||'Durum ver', presets, sys:a.prompt||'', write:!!a.write, badge:0, msgs:[] }; }
+    let presets=(a.presets||[]).map(p=>typeof p==='string'?{label:p,ask:p}:{label:p.label||p.ask||'',ask:p.ask||p.label||''}).filter(p=>p.ask).slice(0,3);
+    if(!presets.length) presets=this._agentPresetDefaults(a).map(x=>({label:x,ask:x}));
+    const sys=this._asText(a.sys||a.prompt);
+    return { id:a.id, name:a.name, role:a.role||'', color:c, avatar:av, prompt:(presets[0]&&presets[0].ask)||'Durum ver', presets, sys, write:!!a.write, badge:0, msgs:[] }; }
   sendPreset(ask){ if(!ask) return; this.setState({agentInput:ask}); setTimeout(()=>this.sendAgent(),30); }
   _hue(s){ let h=0; s=String(s||''); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))%360; return h; }
   _layout(list){
@@ -385,7 +475,9 @@ class Component extends DCLogic {
       this._scan=scan;
       this._allProjects=(scan.projects||[]).map(p=>this._mapProject(p));
       this._unis=this._buildUnis(scan);
-      const agents=(scan.agents||[]).map(a=>this._mapAgent(a));
+      let rawAgents=scan.agents||[];
+      try{ if(window.galaxy.agentsFull){ const full=await window.galaxy.agentsFull(); if(Array.isArray(full)&&full.length) rawAgents=full; } }catch(e){}
+      const agents=rawAgents.map(a=>this._mapAgent(a));
       if(agents.length) this.AGENTS=agents;
       const uniId=(this._unis[0]&&this._unis[0].id)||null;
       this._applyUni(uniId);
@@ -422,6 +514,8 @@ class Component extends DCLogic {
     this._loadServers();
     this._loadReports();
     this._probeClaude();
+    this._calLoad();
+    this._loopLoad();
   }
   async _probeClaude(){
     try{
@@ -511,16 +605,56 @@ class Component extends DCLogic {
     return { hm:p(d.getHours())+':'+p(d.getMinutes()), hms:p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()), date }; }
   _calCells(offset){ const now=new Date(); const base=new Date(now.getFullYear(), now.getMonth()+(offset||0), 1);
     const y=base.getFullYear(), m=base.getMonth();
-    const lead=(new Date(y,m,1).getDay()+6)%7;                 // Pazartesi=0
+    const lead=(new Date(y,m,1).getDay()+6)%7;
     const dim=new Date(y,m+1,0).getDate();
     const isCur=(now.getFullYear()===y && now.getMonth()===m);
-    const cellBase='display:flex;align-items:center;justify-content:center;height:28px;font-family:\'JetBrains Mono\',monospace;font-size:12px;border-radius:6px;';
-    const cells=[];
-    for(let i=0;i<lead;i++) cells.push({label:'',style:cellBase+'visibility:hidden'});
-    for(let d=1;d<=dim;d++){ const today=isCur&&d===now.getDate();
-      cells.push({label:String(d), style:cellBase+(today?'background:#61dcff;color:#04121c;font-weight:700;box-shadow:0 0 14px rgba(97,220,255,.5)':'color:#c3cbe6')}); }
+    const cellBase='display:flex;align-items:center;justify-content:center;height:28px;font-family:\'JetBrains Mono\',monospace;font-size:12px;border-radius:6px;cursor:pointer;';
+    const cells=[]; const pick=this.state.calPickDay; const evs=this._calEvents||[];
+    for(let i=0;i<lead;i++) cells.push({label:'',style:cellBase+'visibility:hidden',onClick:()=>{}});
+    for(let d=1;d<=dim;d++){ const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const today=isCur&&d===now.getDate(); const sel=pick===iso; const has=evs.some(ev=>String(ev.start||'').slice(0,10)===iso);
+      let st=cellBase; if(today) st+='background:#61dcff;color:#04121c;font-weight:700;box-shadow:0 0 14px rgba(97,220,255,.5);'; else if(sel) st+='background:rgba(97,220,255,.18);color:#dbe4ff;box-shadow:inset 0 0 0 1px #61dcff;'; else st+='color:#c3cbe6';
+      if(has&&!today) st+=';box-shadow:inset 0 -2px 0 #61dcff';
+      cells.push({label:String(d),style:st,onClick:()=>this._calPick(iso)}); }
     let title=''; try{ title=base.toLocaleDateString('tr-TR',{month:'long',year:'numeric'}); }catch(e){ title=(m+1)+'/'+y; }
     return { title:title.charAt(0).toLocaleUpperCase('tr')+title.slice(1), cells }; }
+  _calPick(iso){ if(!iso) return; this.setState({calPickDay:iso, calFormStart:this.state.calFormStart||'09:00', calFormEnd:this.state.calFormEnd||'11:00', calFormTitle:this.state.calFormTitle||'Odak', calFormPlanet:(this.state.calFormPlanet||(this.sel&&this.sel.id)||'')}); }
+  calClearDay(){ this.setState({calPickDay:null}); }
+  onCalStart(e){ this.setState({calFormStart:(e&&e.target&&e.target.value)||''}); }
+  onCalEnd(e){ this.setState({calFormEnd:(e&&e.target&&e.target.value)||''}); }
+  onCalTitle(e){ this.setState({calFormTitle:(e&&e.target&&e.target.value)||''}); }
+  _calNormHm(s){ const m=String(s||'').match(/(\d{1,2})(?:[:.](\d{2}))?/); if(!m) return '09:00'; return String(Math.min(23,+m[1])).padStart(2,'0')+':'+String(Math.min(59,+(m[2]||0))).padStart(2,'0'); }
+  async _calLoad(){ try{ if(window.galaxy&&window.galaxy.calList){ this._calEvents=(await window.galaxy.calList())||[]; this.setState({_calTick:(this.state._calTick||0)+1}); } }catch(e){} }
+  async calSave(){ const iso=this.state.calPickDay; if(!iso) return;
+    const rec={ start:iso+'T'+this._calNormHm(this.state.calFormStart), end:iso+'T'+this._calNormHm(this.state.calFormEnd), planetId:this.state.calFormPlanet||'', title:this.state.calFormTitle||'Odak' };
+    try{
+      if(window.galaxy&&window.galaxy.calSave){ const r=await window.galaxy.calSave(rec); if(r&&r.ok){ const ev=r.event||rec; this._calEvents=(this._calEvents||[]).filter(x=>x.id!==ev.id).concat([ev]); } else { this.toast('✕ '+((r&&r.error)||'kayıt yok'),'err'); return; } }
+      else { rec.id='cal-'+Date.now(); this._calEvents=(this._calEvents||[]).concat([rec]); }
+      this.toast('EVENT CREATED'); this.setState({_calTick:(this.state._calTick||0)+1});
+    }catch(e){ this.toast('✕ takvim hatası','err'); } }
+  async _calDelete(id){ try{ if(window.galaxy&&window.galaxy.calDelete) await window.galaxy.calDelete(id); this._calEvents=(this._calEvents||[]).filter(x=>x.id!==id); this.setState({_calTick:(this.state._calTick||0)+1}); }catch(e){} }
+  _asstCalNextDate(dow){ const now=new Date(); const d=new Date(now.getFullYear(), now.getMonth(), now.getDate()); const cur=(d.getDay()+6)%7; let add=(dow-cur+7)%7; if(add===0) add=7; d.setDate(d.getDate()+add); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  async _asstCalBlock(arg){ const n=this._asstFold(arg||'');
+    const days={pazar:0,pazartesi:1,sali:2,carsamba:3,persembe:4,cuma:5,cumartesi:6,sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6};
+    let dow=null;
+    for(const k of Object.keys(days)){ if(n.indexOf(k)>=0){ dow=days[k]; break; } }
+    const hm=n.match(/(\d{1,2})\s*[:.]?\s*(\d{2})?\s*[-–]\s*(\d{1,2})\s*[:.]?\s*(\d{2})?/) || n.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})/);
+    if(dow==null||!hm) return 'Gün ve saat aralığı lazım — örn. “Pazar 10–12’yi bu gezegene kilitle”.';
+    const sh=String(Math.min(23,+hm[1])).padStart(2,'0'), sm=String(Math.min(59,+(hm[2]||0))).padStart(2,'0');
+    const eh=String(Math.min(23,+(hm[3]!=null?hm[3]:hm[2]||hm[1]))).padStart(2,'0');
+    const em=String(Math.min(59,+(hm[4]||0))).padStart(2,'0');
+    const iso=this._asstCalNextDate(dow);
+    let planet=this.sel&&this.sel.id||'';
+    const p=this._asstFindProject((n.replace(/pazar|pazartesi|sali|carsamba|persembe|cuma|cumartesi|bu gezegen(?:e|i)?|kilitle|saat|yi|ya/g,' ').trim()));
+    if(p) planet=p.id;
+    const rec={ start:iso+'T'+sh+':'+sm, end:iso+'T'+eh+':'+em, planetId:planet, title:'Odak' };
+    try{
+      if(window.galaxy&&window.galaxy.calSave){ const r=await window.galaxy.calSave(rec); if(r&&r.ok){ this._calEvents=(this._calEvents||[]).concat([r.event||rec]); } }
+      else { rec.id='cal-'+Date.now(); this._calEvents=(this._calEvents||[]).concat([rec]); }
+    }catch(e){}
+    this.toast('EVENT CREATED'); this.setState({calPickDay:iso, toolsOpen:true, _calTick:(this.state._calTick||0)+1});
+    const pname=(this.PROJECTS||[]).concat(this._allProjects||[]).find(x=>x.id===planet);
+    return iso+' '+sh+':'+sm+'–'+eh+':'+em+' odak bloğu yazıldı'+(pname?(' · '+pname.name):'')+'.'; }
   // Özellik rehberi (app içi README) — F1 ya da alt bardan
   openGuide(){ this.setState({_guideOpen:true}); }
   closeGuide(){ this.setState({_guideOpen:false}); }
@@ -531,7 +665,9 @@ class Component extends DCLogic {
     ['🐳 Docker',['Konteyner: başlat / durdur / ⟳ yeniden başlat / 🗑 kaldır','Canlı log akışı, konteyner içine terminal','İmaj yönetimi + silme, prune']],
     ['🖥 Uzak Sunucular (SSH)',['Sunucu ekle: anahtar seçici (agent/varsayılan + ~/.ssh anahtarların)','Uzak klasör tanımla → galakside evren olur (Düzenle → Uzak klasörler)','⌁ Uzak terminal — sunucuda komut çalıştır (Tab tamamlama, geçmiş)','Uzak dosya önizleme']],
     ['🤖 AI Ajanları',['Sağ İSTASYON rayından ajan seç → uzman sohbeti (Claude, proje klasöründe çalışır)','Hazır komutlar tek tıkla; ajan ekle/düzenle/sil','Ajan açıkken ikiz noktaya iner — aynı anda tek sohbet']],
-    ['⏰ Zamanlayıcı',['Otomatik görev kur (haftalık/günlük, saat + ajan seç)','Telafi: app o an kapalıysa, açıldığında geçmiş görevi çalıştırır','Üretilen raporları HUD\'dan (🚀) görüntüle']],
+    ['⏰ Zamanlayıcı',['Otomatik görev kur (haftalık/günlük, saat + ajan seç)','Telafi: app o an kapalıysa, açıldığında geçmiş görevi çalıştırır','Üretilen raporları HUD’dan (🚀) görüntüle']],
+    ['🔁 Döngü',['Daha ▾ Döngü — Tetik · Tara · İş · İncele · Bildir','Tara evren özetini alır, İş ajan koşar, İncele remarks kaydeder']],
+    ['✉ Posta',['Gelen: MCP liste/oku','Yaz: kime · konu · metin, Gönder']],
     ['📋 Pano · 📁 Dosyalar · ⌁ Konsol',['Pano: görev ekle, sürükle-bırak taşı, README ile senkron','Dosyalar: ağaç varsayılan, orta panelde önizleme; Yörünge isteğe bağlı; düzenle→kaydet, grep','Konsol: Bash + Claude (proje klasöründe), Tab tamamlama, ↑/↓ geçmiş, sürükle yükseklik']],
     ['⌘ Kısayollar',['⌘K — komut paleti / arama (↑↓ seç, Enter çalıştır)','j / k — uzayda gezegen seç (Enter = in)','F1 — bu rehber','⌘\\ — README gizle/göster','Esc — katman katman geri','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
   ]; }
@@ -546,14 +682,15 @@ class Component extends DCLogic {
   runConfirm(){ const c=this.state._confirm; this.setState({_confirm:null}); if(c&&c.fn){ try{ c.fn(); }catch(e){} } }
   cancelConfirm(){ this.setState({_confirm:null,_dbConfirm:null}); }
   // ---------- DOCKER ----------
-  // Kadet (acemi) / Komutan (uzman) mod — Kadet'te gelişmiş sekmeler gizlenir
-  _setUiMode(m){ const adv=['db','docker','zaman','servers']; const ns={uiMode:m, moreOpen:false}; if(m==='kadet'&&adv.includes(this.state.tab)){ ns.tab='genel'; ns.mode='space'; } this.setState(ns); try{ localStorage.setItem('gxUiMode',m); }catch(e){} }
+  // Kadet kaldırıldı — görünüm her zaman tam (eski Komutan)
+  _setUiMode(m){ this.setState({uiMode:'komutan', moreOpen:false}); try{ localStorage.setItem('gxUiMode','komutan'); }catch(e){} }
   // Üst sekme: sahneyi değiştir ama gezegen bağlamını (holdPlanet) silme
   _openTab(id){
     const fromPlanet=this.state.mode==='planet';
     const ns={tab:id, agentId:null, moreOpen:false};
     if(fromPlanet){ ns.mode='space'; ns.holdPlanet=true; }
     else if(this.state.mode!=='space') ns.mode='space';
+    if(id==='dongu'||id==='posta'){ ns.leftCollapsed=true; ns.rightCollapsed=true; ns.hudOpen=false; }
     this.setState(ns); this._onTabOpen(id);
   }
   // Sekme açılınca ilgili veriyi tazele — konteyner/DB/sunucu vb. güncel görünsün
@@ -562,7 +699,207 @@ class Component extends DCLogic {
     else if(id==='db') this._loadDb&&this._loadDb();
     else if(id==='servers') this._loadServers&&this._loadServers();
     else if(id==='zaman'){ if(window.galaxy&&window.galaxy.scheduleList) window.galaxy.scheduleList().then(s=>this.setState({_sched:s||[]})); this._loadReports&&this._loadReports(); }
+    else if(id==='dongu') this._loopLoad();
+    else if(id==='posta') this._mailLoad();
   }catch(e){} }
+  _loopAgent(){ const st=this.state; return (this.AGENTS||[]).find(a=>a.id===st.loopAgentId)||(this.AGENTS||[])[0]||null; }
+  _loopNodes(){
+    const st=this.state; const ag=this._loopAgent();
+    const order=['tetik','tara','is','incele','bildir']; const cur=order.indexOf(st.loopStep);
+    const pos={
+      tetik:{l:36,t:210,w:168,h:92}, tara:{l:268,t:168,w:168,h:92},
+      is:{l:500,t:88,w:252,h:196}, incele:{l:800,t:36,w:196,h:118}, bildir:{l:800,t:290,w:196,h:96}
+    };
+    const meta={
+      tetik:['Tetik','zamanlayıcı / ikiz'], tara:['Tara','evren özeti'],
+      is:['İş','ajan koşusu'], incele:['İncele','remarks'], bildir:['Bildir','toast + posta']
+    };
+    const th=this._theme();
+    const busy=!!st._agentBusy && st.loopStep==='is';
+    return order.map((id,i)=>{
+      const on=st.loopStep===id; const done=cur>i;
+      const p=pos[id]; const [label,hint]=meta[id];
+      let status='hazır', sc=th.dim;
+      if(done){ status='done'; sc='#55e88b'; }
+      if(on&&busy){ status='running…'; sc=th.acc; }
+      else if(on&&id==='incele'){ status='waiting on you'; sc='#ffc861'; }
+      else if(on){ status='active'; sc=th.acc; }
+      if(id==='incele'&&!on&&cur<i) status='remarks';
+      const border=on?(busy?th.acc:(id==='incele'?'#ffc861':th.acc)):(done?'rgba(85,232,139,.55)':(this._uiTheme==='ev'?'rgba(232,184,109,.22)':'rgba(190,205,255,.22)'));
+      const bg=on?th.panel:th.panel2;
+      const glow=on?`0 0 22px ${sc}55`:'0 0 18px transparent';
+      const expanded=id==='is';
+      return {
+        id, label, hint, status, expanded,
+        model:(ag&&ag.name)||'ATLAS', mem:'remarks · kısa', tools:'Tara · ajan',
+        onClick:()=>this._loopRun(id),
+        style:`left:${p.l}px;top:${p.t}px;width:${p.w}px;min-height:${p.h}px;padding:12px 14px 14px;border:1px solid ${border};background:${bg};color:${th.ink};box-shadow:${glow}${busy&&on?';animation:gxhubpulse 1.1s ease-in-out infinite':''}`,
+        stStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.04em;color:${sc};margin-top:8px;display:flex;align-items:center;gap:6px`
+      };
+    });
+  }
+  _loopPaint(){
+    const el=document.getElementById('gx-loop-svg'); if(!el) return;
+    const wires=this._loopWires(); const reduce=this._reduced();
+    el.innerHTML=wires.map(w=>{
+      const flow=!reduce && w.hot;
+      return `<path class="gx-wire${flow?' gx-wire-flow':''}" d="${w.d}" stroke="${w.stroke}"></path>`;
+    }).join('');
+  }
+  _loopWires(){
+    const st=this.state; const order=['tetik','tara','is','incele','bildir']; const cur=order.indexOf(st.loopStep);
+    const th=this._theme();
+    const glow=(b)=>{ const ib=order.indexOf(b); const hot=cur>=ib||(st.loopStep===b); return { stroke:hot?th.wire:th.wireDim, hot }; };
+    return [
+      { d:'M204 256 C236 256 236 214 268 214', ...glow('tara') },
+      { d:'M436 214 C468 214 468 186 500 186', ...glow('is') },
+      { d:'M752 140 C776 140 776 95 800 95', ...glow('incele') },
+      { d:'M752 210 C776 248 776 338 800 338', ...glow('bildir') }
+    ];
+  }
+  async _loopLoad(){ try{ if(window.galaxy&&window.galaxy.loopGet){ const r=await window.galaxy.loopGet(); this.setState({loopRemarks:(r&&r.remarks)||'', loopLastRun:(r&&r.lastRun)||null, loopBody:this.state.loopBody||'Bir düğüme tıkla — Tetik zamanlayıcı veya ikiz cümlesi, Tara evren özeti, İş ajan koşusu, İncele remarks, Bildir toast + posta.'}); } }catch(e){} }
+  async _loopSaveRemarks(){ const t=String(this.state.loopRemarks||''); try{ if(window.galaxy&&window.galaxy.loopSave) await window.galaxy.loopSave({remarks:t}); this.toast('✓ remarks kaydedildi'); this.setState({loopStep:'incele'}); }catch(e){ this.toast('✕ kayıt yok','err'); } }
+  _loopRun(id){ const st=this.state;
+    if(id==='tetik'){ const sch=(st._sched||[])[0]; const body=sch?('Zamanlayıcı: '+(sch.name||sch.task||'görev')+' · '+(sch.cron||sch.when||'')):('İkiz cümlesi: “döngüyü çalıştır” — veya Zamanlayıcı’dan bir görev bağla.'); this.setState({loopStep:'tetik', loopBody:body}); return; }
+    if(id==='tara'){ const data=this._asstBriefData()||'Tarama için proje verisi yok.'; this.setState({loopStep:'tara', loopBody:data, loopScan:data}); return; }
+    if(id==='is'){ this._loopWork(); return; }
+    if(id==='incele'){ this.setState({loopStep:'incele', loopBody:st.loopRemarks||'İncele düğümüne not yaz — ertesi döngü bunu okur.'}); return; }
+    if(id==='bildir'){ this._loopNotify(); return; } }
+  _loopWork(){ const ag=this._loopAgent(); const scan=this.state.loopScan||this._asstBriefData()||'';
+    const prompt='Döngü iş adımı. Kısa durum + 3 somut sonraki adım:\n\n'+scan;
+    if(!ag){ this.setState({loopStep:'is', loopBody:'Ajan yok — İstasyon’dan bir ajan ekle.'}); return; }
+    if(!(window.galaxy&&window.galaxy.agentRun)){ this.setState({loopStep:'is', loopBody:prompt+'\n\n(ajan bu ortamda yok — tarama metni yukarıda.)'}); return; }
+    this._rc=(this._rc||0)+1; const runId='loop-is-'+this._rc;
+    this._runAgents=this._runAgents||{}; this._runAgents[runId]=ag.id; this._loopRunId=runId; this._loopOut='';
+    this.setState({loopStep:'is', loopBody:'ajan çalışıyor…', _agentBusy:true});
+    try{ window.galaxy.agentRun({runId,agentId:ag.id,prompt,projectId:null,continueSession:false}); }catch(e){ this.setState({loopBody:'✕ ajan başlatılamadı', _agentBusy:false}); } }
+  _mailArgs(text, subject){ const to=String(this._mailTo||'').trim();
+    return to ? {to:[to], subject:subject||'Galaxy', body:text} : {text}; }
+  async _loopNotify(){ const body=[this.state.loopScan, this.state.loopBody, this.state.loopRemarks].filter(Boolean).join('\n\n').slice(0,4000);
+    this.toast('Döngü bildirildi');
+    try{ if(window.galaxy&&window.galaxy.loopSave) await window.galaxy.loopSave({lastRun:{ts:Date.now(), text:body.slice(0,800)}}); }catch(e){}
+    let mail=''; try{ if(window.galaxy&&window.galaxy.mcpCall){ const r=await window.galaxy.mcpCall({alias:'send', args:this._mailArgs(body,'Galaxy Döngü')}); mail=(r&&r.ok)?'posta MCP: gitti':('posta: '+((r&&r.error)||'MCP yok')); } }catch(e){ mail='posta: bağlanamadı'; }
+    this.setState({loopStep:'bildir', loopBody:(body||'boş döngü')+(mail?('\n\n'+mail):'')}); }
+  async _loopRunAll(){ this._loopRun('tetik'); this._loopRun('tara'); this._loopWork(); }
+  _mailItems(){ const items=[]; const ps=this._allProjects||[];
+    const stale=ps.filter(p=>p.status==='active'&&(p._stale||0)>=14).sort((a,b)=>(b._stale||0)-(a._stale||0)).slice(0,6);
+    if(stale.length) items.push({kind:'stale gezegen', text:stale.map(p=>p.name+' · '+(p._stale||0)+'g').join('\n')});
+    if(this.state.loopLastRun&&this.state.loopLastRun.text) items.push({kind:'döngü çıktısı', text:String(this.state.loopLastRun.text)});
+    else if(this.state.loopBody&&this.state.loopStep==='bildir') items.push({kind:'döngü çıktısı', text:String(this.state.loopBody)});
+    const dirty=ps.filter(p=>p._git&&p._git.dirty>0).slice(0,5);
+    if(dirty.length) items.push({kind:'PR özeti', text:dirty.map(p=>p.name+' · '+(p._git.branch||'?')+' · '+p._git.dirty+' kirli'+(p._git.ahead?(' · +'+p._git.ahead):'')).join('\n')});
+    return items; }
+  _mailExtract(r){
+    const res=r&&r.result; if(res==null) return '';
+    if(typeof res==='string') return res;
+    const c=res.content;
+    if(Array.isArray(c)) return c.map(x=>(x&&(x.text||x.content))||'').join('\n');
+    if(typeof res.text==='string') return res.text;
+    try{ return JSON.stringify(res); }catch(e){ return String(res); }
+  }
+  _mailParseInbox(raw){
+    const t=String(raw||'').trim(); if(!t) return [];
+    const hdr=(m,n)=>{ const hs=(m&&m.payload&&m.payload.headers)||(m&&m.headers)||[]; const h=hs.find(x=>String(x.name||'').toLowerCase()===n); return (h&&h.value)||''; };
+    const asObj=m=>{ const from=String(m.from||m.sender||m.from_email||m.From||hdr(m,'from')||''); const subject=String(m.subject||m.title||m.Subject||hdr(m,'subject')||'(konu yok)');
+      return { id:String(m.id||m.threadId||m.messageId||m.uid||''), from, subject, date:String(m.date||m.internalDate||m.Date||hdr(m,'date')||'').slice(0,40), snippet:String(m.snippet||m.preview||m.snippetText||'').slice(0,200), body:String(m.body||m.text||m.snippet||'') }; };
+    const tryJ=s=>{ try{ return JSON.parse(s); }catch(e){ return null; } };
+    let j=tryJ(t);
+    if(!j){ const m=t.match(/(\[[\s\S]*\]|\{[\s\S]*\})/); if(m) j=tryJ(m[1]); }
+    if(j){
+      const arr=Array.isArray(j)?j:(j.messages||j.emails||j.threads||j.results||j.data||[]);
+      if(Array.isArray(arr)&&arr.length) return arr.slice(0,40).map(asObj);
+    }
+    const items=[];
+    const blocks=t.split(/\n{2,}/).map(b=>b.trim()).filter(b=>b.length>6);
+    for(const b of blocks){
+      const sub=(b.match(/(?:subject|konu)\s*[:\-]\s*(.+)/i)||[])[1];
+      const from=(b.match(/(?:from|kimden|sender)\s*[:\-]\s*(.+)/i)||[])[1];
+      if(sub||from){ items.push({ id:'', from:(from||'').trim(), subject:(sub||'(konu yok)').trim(), date:'', snippet:b.slice(0,180), body:b }); }
+    }
+    if(items.length) return items.slice(0,40);
+    return t.split(/\n/).filter(l=>l.trim()).slice(0,20).map((l,i)=>({ id:String(i), from:'', subject:l.slice(0,80), date:'', snippet:'', body:l }));
+  }
+  _mailPickTool(tools, re, fallback){ const n=(tools||[]).map(t=>t.name||t).find(x=>re.test(String(x||''))); return n||fallback||''; }
+  async _mailInbox(){
+    const tools=this._mcpTools||[];
+    const list=this._mailListTool||this._mailPickTool(tools, /search_?emails?|list_?emails?|list_?messages?|get_inbox|gmail[_-]?(search|list|messages)?/i, '');
+    if(!list){ this.setState({_inbox:[], mailSel:null, mailReadBody:'', mailStatus:(this.state.mailStatus||'')+' · liste aracı yok'}); return; }
+    this._mailListTool=list;
+    const args={ query:'in:inbox', q:'in:inbox', maxResults:20, max:20, limit:20 };
+    try{
+      const r=await window.galaxy.mcpCall({alias:'list', name:list, args});
+      if(!(r&&r.ok)){ this.setState({_inbox:[], mailSel:null, mailReadBody:'', mailStatus:'✕ '+((r&&r.error)||'liste yok')}); return; }
+      const parsed=this._mailParseInbox(this._mailExtract(r));
+      const first=parsed[0]||null;
+      this.setState({_inbox:parsed, mailSel:first, mailReadBody:first?(first.body||first.snippet||''):'', mailStatus:(parsed.length||0)+' posta'});
+    }catch(e){ this.setState({_inbox:[], mailSel:null, mailReadBody:'', mailStatus:'✕ gelen kutu'}); }
+  }
+  async _mailOpen(im){
+    if(!im) return;
+    this.setState({mailSel:im, mailReadBody:im.body||im.snippet||'…'});
+    const tools=this._mcpTools||[];
+    const read=this._mailReadTool||this._mailPickTool(tools, /read_?emails?|get_?emails?|get_?messages?|fetch_?emails?|gmail[_-]?read|gmail[_-]?get/i, '');
+    if(!read||!im.id) return;
+    this._mailReadTool=read;
+    try{
+      const r=await window.galaxy.mcpCall({alias:'read', name:read, args:{id:im.id, messageId:im.id, threadId:im.id}});
+      if(r&&r.ok){ const t=this._mailExtract(r); this.setState({mailReadBody:t||im.body||im.snippet||''}); }
+    }catch(e){}
+  }
+  async _mailLoad(){ try{ if(window.galaxy&&window.galaxy.loopGet){ const r=await window.galaxy.loopGet(); if(r&&r.lastRun) this.setState({loopLastRun:r.lastRun}); }
+      if(window.galaxy&&window.galaxy.mcpList){ const r=await window.galaxy.mcpList();
+        const tools=(r&&r.tools)||[]; this._mcpTools=tools;
+        const aliases=(r&&r.aliases)||{};
+        if(aliases.list) this._mailListTool=aliases.list;
+        if(aliases.read) this._mailReadTool=aliases.read;
+        const st=(r&&r.ok)?((tools.length)+' MCP araç'):((r&&r.error)||'MCP bağlı değil');
+        this.setState({mailStatus:st, mailPane:this.state.mailPane||'inbox'});
+        if(r&&r.ok) this._mailInbox();
+      } else this.setState({mailStatus:''});
+    }catch(e){ this.setState({mailStatus:'MCP yok'}); } }
+  _mailReply(){
+    const sel=this.state.mailSel||{};
+    const from=String(sel.from||'').replace(/^.*<([^>]+)>\s*$/,'$1').trim();
+    const sub=String(sel.subject||'');
+    this.setState({ mailPane:'compose', mailTo: from||this.state.mailTo||this._mailTo||'', mailSub: sub?( /^re:/i.test(sub)?sub:('Re: '+sub) ):'', mailBody:'' });
+  }
+  _mailNormFiles(r){
+    const list=Array.isArray(r)?r:(r?[r]:[]);
+    return list.map(f=>{
+      const path=typeof f==='string'?f:(f&&(f.path||f.file||''))||'';
+      const name=String((f&&f.name)||path).split('/').pop()||'dosya';
+      const img=/\.(png|jpe?g|gif|webp|heic|svg|bmp)$/i.test(name);
+      return { path, name, icon: img?'🖼':'📄' };
+    }).filter(a=>a.path||a.name);
+  }
+  async _mailPickFiles(){
+    try{
+      if(!(window.galaxy&&window.galaxy.pickFiles)){ this.toast('dosya seçici yok','err'); return; }
+      const r=await window.galaxy.pickFiles();
+      const add=this._mailNormFiles(r);
+      if(!add.length) return;
+      const cur=(this.state.mailAtts||[]).slice();
+      for(const a of add){ if(!cur.some(x=>x.path===a.path&&x.name===a.name)) cur.push(a); }
+      this.setState({mailAtts:cur.slice(0,12)});
+    }catch(e){ this.toast('✕ dosya seçilemedi','err'); }
+  }
+  _mailRemoveAtt(i){ const cur=(this.state.mailAtts||[]).slice(); cur.splice(i,1); this.setState({mailAtts:cur}); }
+  async _mailSend(){
+    const to=String(this.state.mailTo||this._mailTo||'').trim();
+    const sub=String(this.state.mailSub||'').trim();
+    const body=String(this.state.mailBody||'').trim();
+    if(!to){ this.toast('kime yaz','err'); return; }
+    if(!body){ this.toast('metin boş','err'); return; }
+    const atts=this.state.mailAtts||[];
+    try{
+      if(!(window.galaxy&&window.galaxy.mcpCall)){ this.toast('✕ MCP yok','err'); return; }
+      const paths=atts.map(a=>a.path).filter(Boolean);
+      const names=atts.map(a=>a.name);
+      const r=await window.galaxy.mcpCall({alias:'send', args:{to:[to], subject:sub||'(konu yok)', body, text:body, attachments:paths, files:paths, filenames:names}});
+      if(r&&r.ok){ this.toast(paths.length?('✓ posta + '+paths.length+' ek'):'✓ posta gitti'); this.setState({mailBody:'', mailAtts:[]}); }
+      else this.toast('✕ '+((r&&r.error)||'MCP yok'),'err');
+    }catch(e){ this.toast('✕ posta hatası','err'); }
+  }
   async _loadDocker(){
     try{ if(window.galaxy.dockerStatus){ this.setState({_dstatus:await window.galaxy.dockerStatus()}); } }catch(e){ this.setState({_dstatus:{ok:false}}); }
     try{ if(window.galaxy.dockerPs){ const r=await window.galaxy.dockerPs(true); this.setState({_docker:(r&&r.ok)?(r.containers||[]):[]}); } }catch(e){ this.setState({_docker:[]}); }
@@ -612,11 +949,26 @@ class Component extends DCLogic {
     if(raw){ raw.plan=raw.plan||[]; raw.plan.push(Array.isArray(raw.plan[0])||!raw.plan.length?[text,false]:{text,done:false}); this._saveRaw(raw); }
     if(p){ p.plan=p.plan||[]; p.plan.push([text,false]); }
     this.setState({planInput:'',_nv:(this.state._nv||0)+1}); }
-  async pullPlanFromReadme(){ const p=this.sel; if(!p||!p.id||!window.galaxy||!window.galaxy.syncReadme){ this.toast('✕ README senkronu yok','err'); return; }
-    try{ const r=await window.galaxy.syncReadme(p.id);
-      if(r&&r.ok){ if(r.plan) p.plan=this._mapPlan(r.plan); this.toast(r.added?('✓ '+r.added+' madde çekildi'):'✓ README tarandı'); await this._loadReal(); }
-      else this.toast('✕ '+((r&&r.error)||'çekilemedi'),'err');
-    }catch(e){ this.toast('✕ çekilemedi','err'); } }
+  _plainPlan(t){ return String(t||'').replace(/\*\*(.+?)\*\*/g,'$1').replace(/`([^`]+)`/g,'$1').replace(/\s+/g,' ').trim(); }
+  _parseReadmePlan(md){
+    const lines=String(md||'').split('\n'); const secs=[]; let cur={title:'Yapılacaklar',items:[]};
+    for(const ln of lines){
+      const h=ln.match(/^#{1,3}\s+(.+)/); if(h){ if(cur.items.length) secs.push(cur); cur={title:h[1].trim(),items:[]}; continue; }
+      const t=ln.match(/^\s*[-*]\s+\[([ xX])\]\s+(.+)/); if(t) cur.items.push({text:t[2].trim(),done:t[1].toLowerCase()==='x'});
+    }
+    if(cur.items.length) secs.push(cur);
+    return secs.filter(s=>s.items.length);
+  }
+  async pullPlanFromReadme(){ return this._autoPlanFromReadme(true); }
+  async _autoPlanFromReadme(force){
+    const p=this.sel; if(!p||!p.id||!window.galaxy||!window.galaxy.syncReadme) return;
+    if(!force && this._planAuto===p.id) return;
+    this._planAuto=p.id;
+    try{
+      const r=await window.galaxy.syncReadme(p.id);
+      if(r&&r.ok&&r.plan){ p.plan=this._mapPlan(r.plan); const raw=this._rawProj(); if(raw) raw.plan=r.plan; this.setState({_nv:(this.state._nv||0)+1}); }
+    }catch(e){}
+  }
   // Bağlantı ekle (BAĞLANTILAR sekmesi) — ad + URL/açıklama
   onLinkInput(e){ this.setState({linkInput:(e&&e.target&&e.target.value)||''}); }
   onLinkKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.addLink(); } else if(e.key==='Escape'){ this.setState({linkAdd:false,linkInput:''}); } }
@@ -650,14 +1002,34 @@ class Component extends DCLogic {
   async _openBackups(){ this.setState({backupsOpen:true,palette:false}); try{ if(window.galaxy.backupList){ this.setState({_backups:(await window.galaxy.backupList())||[]}); } }catch(e){} }
   async _restoreBackup(name){ try{ await window.galaxy.backupRestore(name); this.setState({backupsOpen:false}); await this._loadReal(); }catch(e){} }
   // ---------- AJAN CRUD ----------
-  openAgentAdd(){ this.setState({agentFormOpen:true,agentForm:{id:'',name:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''}}); }
+  _formVal(e){ return (e&&e.target&&e.target.value!=null)?e.target.value:(typeof e==='string'?e:''); }
+  openAgentAdd(){ this.setState({agentFormOpen:true,agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'Durum ver',p2:'Ne birikti?',p3:'Sıradaki iş'}}); }
   openAgentEdit(){ const a=this.AGENTS.find(x=>x.id===this.state.agentId); if(!a) return;
-    this.setState({agentFormOpen:true,agentForm:{id:a.id,name:a.name,prompt:a.sys||'',color:a.color||'#61dcff',p1:(a.presets[0]&&a.presets[0].ask)||'',p2:(a.presets[1]&&a.presets[1].ask)||'',p3:(a.presets[2]&&a.presets[2].ask)||''}}); }
+    const defs=this._agentPresetDefaults(a);
+    const p=a.presets||[];
+    this.setState({agentFormOpen:true,agentForm:{
+      id:a.id, name:a.name||'', role:a.role||'', color:a.color||'#61dcff',
+      prompt:this._asText(a.sys||a.prompt),
+      p1:this._asText((p[0]&&p[0].ask)||defs[0]||''),
+      p2:this._asText((p[1]&&p[1].ask)||defs[1]||''),
+      p3:this._asText((p[2]&&p[2].ask)||defs[2]||'')
+    }}); }
   agentFormSet(k,v){ this.setState({agentForm:Object.assign({},this.state.agentForm,{[k]:v})}); }
-  async saveAgentForm(){ const f=this.state.agentForm; if(!f.name){ return; }
-    const presets=[f.p1,f.p2,f.p3].filter(x=>x&&x.trim()).map(x=>({label:x.trim().slice(0,40),ask:x.trim()}));
-    try{ if(window.galaxy.agentSave){ const r=await window.galaxy.agentSave({id:f.id||undefined,name:f.name,role:'Özel Ajan',color:f.color,prompt:f.prompt,write:false,presets});
-      if(r&&r.ok){ this.setState({agentFormOpen:false}); await this._loadReal(); } } }catch(e){} }
+  async saveAgentForm(){ const f=this.state.agentForm||{}; if(!String(f.name||'').trim()){ this.toast('ajan adı yaz','err'); return; }
+    const prev=this.AGENTS.find(x=>x.id===f.id)||{};
+    const presets=[f.p1,f.p2,f.p3].map(x=>this._asText(x).trim()).filter(Boolean).map(x=>({label:x.slice(0,48),ask:x}));
+    try{
+      if(window.galaxy&&window.galaxy.agentSave){
+        const r=await window.galaxy.agentSave({
+          id:f.id||undefined, name:String(f.name).trim().slice(0,40),
+          role:String(f.role||prev.role||'Ajan').trim().slice(0,40),
+          color:f.color||prev.color||'#61dcff',
+          prompt:this._asText(f.prompt), write:!!prev.write, presets
+        });
+        if(r&&r.ok){ this.toast('✓ ajan kaydedildi'); this.setState({agentFormOpen:false}); await this._loadReal(); }
+        else this.toast('✕ '+((r&&r.error)||'kayıt yok'),'err');
+      }
+    }catch(e){ this.toast('✕ ajan kaydı','err'); } }
   async _agentDelete(id){ try{ if(window.galaxy.agentDelete){ await window.galaxy.agentDelete(id||this.state.agentId); this.toast('✓ ajan silindi'); this.setState({agentId:null,agentFormOpen:false}); await this._loadReal(); } }catch(e){} }
   // ---------- ZAMANLAYICI ----------
   async _schedRun(id){ this.setState({_schResult:'⏳ çalışıyor…'}); try{ const r=await window.galaxy.scheduleRun(id); this.setState({_schResult:(r&&r.ok)?('✓ Çalıştı:\n\n'+(r.out||'(çıktı yok)')):('✕ '+((r&&r.error)||'hata'))}); }catch(e){ this.setState({_schResult:'✕ hata'}); } }
@@ -668,6 +1040,11 @@ class Component extends DCLogic {
       if(r&&r.ok){ this.setState({schAddOpen:false,_schResult:'',schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},_sched:(await window.galaxy.scheduleList())||[]}); }
       else this.setState({_schResult:'✕ '+((r&&r.error)||'kaydedilemedi')}); } }catch(e){ this.setState({_schResult:'✕ hata'}); } }
   _onScheduleDone(m){ if(!m) return; this.setState({_schResult:'✓ "'+(m.name||'görev')+'" çalıştı → '+(m.file||'')+(m.error?(' · hata: '+m.error):'')}); try{ this.toast(m.error?('✕ "'+(m.name||'görev')+'" hata: '+m.error):('✓ "'+(m.name||'görev')+'" çalıştı — rapor hazır')); }catch(e){} try{ window.galaxy.scheduleList().then(s=>this.setState({_sched:s||[]})); }catch(e){} this._loadReports(); }
+  // Ajan kota / auth / düz metin yanıtını SQL sanma — yalnızca gerçek sorgu göster/çalıştır.
+  _sqlLooks(s){ const t=String(s||'').trim(); if(!t||t.length>20000) return false;
+    if(/session limit|rate limit|quota|you've hit|you have hit|not logged in|unauthorized|overloaded/i.test(t)) return false;
+    return /^(with|select|insert|update|delete|replace|merge|create|drop|alter|truncate|explain|analyze|show|describe|desc|pragma|call|do|begin|values)\b/i.test(t)
+      || /^\(\s*select\b/i.test(t); }
   // ---------- DB SORGU ----------
   async runDbQuery(){ if(!window.galaxy) return; const sql=String(this.state.dbSql||'').trim(); if(!sql||!this.state.dbSel) return;
     // dbExec: SELECT + yazma (INSERT/UPDATE/DELETE) çalıştırır ve audit log'a yazar. Yazma → önce onay.
@@ -695,10 +1072,11 @@ class Component extends DCLogic {
     this.setState({dbAgentBusy:true,_dbresult:null});
     try{ const r=await window.galaxy.dbAgent({id:this.state.dbSel,database:this.state.dbDatabase,request});
       this.setState({dbAgentBusy:false});
-      if(r&&r.needConfirm){ this.setState({_dbConfirm:{sql:r.sql,danger:!!r.danger,request:r.request},_dbresult:{sql:r.sql,fields:[],rows:[]}});
+      if(r&&r.needConfirm && this._sqlLooks(r.sql)){ this.setState({_dbConfirm:{sql:r.sql,danger:!!r.danger,request:r.request},_dbresult:{sql:r.sql,fields:[],rows:[]}});
         this.askConfirm(r.danger?'Yıkıcı işlem — emin misin?':'Bu işlem veriyi değiştirecek.', ()=>this.confirmDbWrite(),
           {title:'Veritabanı yazma', detail:r.sql, okLabel:'Onayla ve çalıştır', kind:r.danger?'danger':'warn'}); return; }
-      this.setState({_dbresult:(r&&r.ok)?r:{error:(r&&r.error)||'ajan hatası',sql:(r&&r.sql)||'',fields:[],rows:[]}}); this._loadDbLog();
+      const sql=this._sqlLooks(r&&r.sql)?r.sql:'';
+      this.setState({_dbresult:(r&&r.ok)?Object.assign({},r,{sql}):{error:(r&&r.error)||'ajan hatası',sql,fields:[],rows:[]}}); this._loadDbLog();
     }catch(e){ this.setState({dbAgentBusy:false,_dbresult:{error:'ajan hatası',fields:[],rows:[]}}); } }
   async _schedDelete(id){ try{ await window.galaxy.scheduleDelete(id); this.toast('✓ görev silindi'); this.setState({_sched:(await window.galaxy.scheduleList())||[]}); }catch(e){} }
   async dbSelectConn(id){
@@ -812,6 +1190,7 @@ class Component extends DCLogic {
     try{ if(window.galaxy&&window.galaxy.gitLog){ const g=await window.galaxy.gitLog(p.id); this.setState({_git:(g&&g.ok)?g:null}); } }catch(e){ this.setState({_git:null}); }
     try{ if(window.galaxy&&window.galaxy.tree&&p._path){ const t=await window.galaxy.tree(p._path); if(Array.isArray(t)&&t.length) this._applyFiles(t); } }catch(e){}
     try{ if(window.galaxy&&window.galaxy.readme&&p._path){ const r=await window.galaxy.readme(p._path); this.setState({_readme:(r&&r.content)?r:null}); } else this.setState({_readme:null}); }catch(e){ this.setState({_readme:null}); }
+    this._autoPlanFromReadme();
   }
   _applyFiles(nodes){
     this._treeNodes=nodes;
@@ -846,13 +1225,13 @@ class Component extends DCLogic {
   closePreview(){ this.setState({_preview:null,_editMode:false,_editContent:'',_editMsg:''}); }
   openPreviewExternal(){ const p=this.state._preview; if(p&&p.path&&window.galaxy.openFile){ try{ window.galaxy.openFile(p.path); }catch(e){} } }
   // --- Dosya düzenleme ---
-  startEdit(){ const p=this.state._preview; if(!p||(p.kind!=='text'&&p.kind!=='markdown')) return; this.setState({_editMode:true,_editContent:p.content||'',_editMsg:''}); }
+  startEdit(){ const p=this.state._preview; if(!p||(p.kind!=='text'&&p.kind!=='markdown'&&p.kind!=='html')) return; this.setState({_editMode:true,_editContent:p.content||'',_editMsg:''}); }
   onEditContent(e){ this.setState({_editContent:(e&&e.target&&e.target.value)||''}); }
   cancelEdit(){ this.setState({_editMode:false,_editMsg:''}); }
   async saveEdit(){ const p=this.state._preview, root=(this.sel&&this.sel._path)||''; if(!p||!p.rel||!root||!window.galaxy||!window.galaxy.fileWrite) return;
     this.setState({_editBusy:true,_editMsg:''});
     try{ const r=await window.galaxy.fileWrite({root,rel:p.rel,content:this.state._editContent});
-      if(r&&r.ok){ this.setState({_editBusy:false,_editMode:false,_editMsg:'',_preview:Object.assign({},p,{content:this.state._editContent})}); }
+      if(r&&r.ok){ const bust=p.url?(String(p.url).split('?')[0]+'?t='+Date.now()):p.url; this.setState({_editBusy:false,_editMode:false,_editMsg:'',_preview:Object.assign({},p,{content:this.state._editContent,url:bust||p.url})}); }
       else this.setState({_editBusy:false,_editMsg:'✕ '+((r&&r.error)||'kaydedilemedi')}); }
     catch(e){ this.setState({_editBusy:false,_editMsg:'✕ hata'}); } }
   // --- Dosya oluştur/sil ---
@@ -871,8 +1250,10 @@ class Component extends DCLogic {
     catch(e){ this.setState({_grepBusy:false,_grep:[]}); } }
   // (geriye dönük — bazı yerler hâlâ tam yol + dir ile çağırıyor)
   _openFsPath(path,dir){ try{ if(dir){ if(window.galaxy.openFolder) window.galaxy.openFolder(path); } else if(window.galaxy.openFile) window.galaxy.openFile(path); }catch(e){} }
-  _flatTree(nodes,base,depth){ let out=[]; for(const n of (nodes||[])){ const path=base?base+'/'+n.name:n.name;
-    out.push({name:n.name,dir:!!n.dir,depth,path}); if(n.dir&&n.children&&depth<2) out=out.concat(this._flatTree(n.children,path,depth+1)); } return out; }
+  _treeIsOpen(path, depth){ const o=this.state._treeOpen||{}; if(Object.prototype.hasOwnProperty.call(o,path)) return !!o[path]; return depth<1; }
+  _toggleTree(path, depth){ const o=Object.assign({}, this.state._treeOpen||{}); o[path]=!this._treeIsOpen(path, depth); this.setState({_treeOpen:o}); }
+  _flatTree(nodes,base,depth){ let out=[]; for(const n of (nodes||[])){ const path=base?base+'/'+n.name:n.name; const isDir=!!n.dir; const kids=isDir&&n.children&&n.children.length; const open=isDir&&this._treeIsOpen(path,depth);
+    out.push({name:n.name,dir:isDir,depth,path,hasKids:!!kids,open}); if(isDir&&open&&n.children) out=out.concat(this._flatTree(n.children,path,depth+1)); } return out; }
   componentWillUnmount(){
     window.removeEventListener('keydown', this._key);
     if (this._raf) cancelAnimationFrame(this._raf);
@@ -889,8 +1270,8 @@ class Component extends DCLogic {
   planetBg(c){ return `radial-gradient(circle at 38% 30%,#dffbff,${c} 46%,${this.DARK[c]||'#222'} 100%)`; }
   rgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
 
-  select(id){ this.setState({selId:id, _fsCwd:'', _preview:null}); this._loadGit(); }
-  enter(){ this._warp(()=>this.setState({mode:'planet', holdPlanet:true, moreOpen:false})); this._loadGit(); this._focusConsole(); }
+  select(id){ this._planAuto=null; this.setState({selId:id, _fsCwd:'', _preview:null, _treeOpen:{}}); this._loadGit(); }
+  enter(){ this._planAuto=null; this._warp(()=>this.setState({mode:'planet', holdPlanet:true, moreOpen:false})); this._loadGit(); this._focusConsole(); }
   back(){
     if(this.state.mode==='space' && this.state.holdPlanet){
       this._warp(()=>this.setState({mode:'planet', tab:'evren', moreOpen:false}));
@@ -911,18 +1292,19 @@ class Component extends DCLogic {
     const noteArr = realMode ? String(sel._notes||'').split(/\n+/).map(s=>s.trim()).filter(Boolean) : (this.NOTES[sel.id]||[]);
     const linkArr = realMode ? (sel._links||[]).map(l=>Array.isArray(l)?l:[l.name||l.label||String(l),l.desc||l.role||'',l.color||'#61dcff']) : (this.LINKS[sel.id]||[]);
 
-    const kadet=st.uiMode==='kadet';
-    // Kadet: Özet / Evren / Pano. Komutan’da DB·Docker·Zaman·SSH Daha menüsünde.
-    const tabDefAll=[['genel','Özet'],['evren','Evren'],['pano','Pano'],['db','DB'],['docker','Docker'],['zaman','Zamanlayıcı'],['servers','Sunucular']];
+    const kadet=false;
+    // Üst: Özet / Evren / Pano. DB·Docker·Zaman·SSH Daha menüsünde.
+    const tabDefAll=[['genel','Özet'],['evren','Evren'],['pano','Pano'],['db','DB'],['docker','Docker'],['zaman','Zamanlayıcı'],['dongu','Döngü'],['posta','Posta'],['servers','Sunucular']];
     const primaryIds=['genel','evren','pano'];
-    const moreIds=['db','docker','zaman','servers'];
+    const moreIds=['db','docker','zaman','dongu','posta','servers'];
     const tabDef=tabDefAll.filter(([id])=>primaryIds.includes(id));
-    const tabBtn=(active)=>`font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;padding:6px 12px;cursor:pointer;border-radius:8px;border:none;background:${active?'rgba(97,220,255,.16)':'transparent'};box-shadow:${active?'inset 0 0 0 1px rgba(97,220,255,.5)':'none'};color:${active?'#61dcff':'#9aa3c2'};transition:background .15s,color .15s`;
+    const tabBtn=(active)=>`font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;padding:6px 12px;cursor:pointer;border-radius:8px;border:none;background:${active?'color-mix(in srgb, var(--gx-accent) 16%, transparent)':'transparent'};box-shadow:${active?'inset 0 0 0 1px color-mix(in srgb, var(--gx-accent) 50%, transparent)':'none'};color:${active?'var(--gx-accent)':'var(--gx-dim)'};transition:background .22s,color .22s`;
     const tabs=tabDef.map(([id,label])=>({id,label,style:tabBtn(st.tab===id),onClick:()=>this._openTab(id)}));
-    const moreItem=(active)=>`display:flex;align-items:center;width:100%;text-align:left;padding:8px 12px;cursor:pointer;border:none;border-radius:7px;background:${active?'rgba(97,220,255,.12)':'transparent'};color:${active?'#61dcff':'#c3cbe6'};font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:.01em`;
-    const moreTabs=kadet?[]:tabDefAll.filter(([id])=>moreIds.includes(id)).map(([id,label])=>({id,label,style:moreItem(st.tab===id),onClick:()=>this._openTab(id)}));
+    const moreItem=(active)=>`display:flex;align-items:center;width:100%;text-align:left;padding:8px 12px;cursor:pointer;border:none;border-radius:7px;background:${active?'color-mix(in srgb, var(--gx-accent) 12%, transparent)':'transparent'};color:${active?'var(--gx-accent)':'var(--gx-ink)'};font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:.01em`;
+    const moreTabs=tabDefAll.filter(([id])=>moreIds.includes(id)).map(([id,label])=>({id,label,style:moreItem(st.tab===id),onClick:()=>this._openTab(id)}));
     const moreActive=moreIds.includes(st.tab)||!!st.moreOpen;
-    const modeBtn=(on)=>`padding:6px 10px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;border:none;background:${on?'rgba(97,220,255,.16)':'transparent'};color:${on?'#61dcff':'#9aa3c2'};transition:background .15s`;
+    const t=this._t();
+    const modeBtn=(on)=>`padding:6px 10px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;border:none;background:${on?t.accA(16):'transparent'};color:${on?t.acc:t.dim};transition:background .15s`;
 
     const relT=(d)=>{ d=d||0; if(d<=0) return 'bugün'; if(d===1) return 'dün'; if(d<7) return d+'g önce'; if(d<31) return Math.max(1,Math.floor(d/7))+'h önce'; if(d<365) return Math.floor(d/30)+'ay önce'; return Math.floor(d/365)+'y önce'; };
     // Tazelik sırasına göre (en son dokunulan üstte) — anlamlı: dal + son aktivite; "!" gürültüsü kaldırıldı
@@ -930,16 +1312,21 @@ class Component extends DCLogic {
       const br=(p.branch&&p.branch!=='—')?p.branch:''; const meta=[br,relT(p._stale)].filter(Boolean).join(' · '); const stale=(p._stale||0)>=60;
       return {
       id:p.id, name:p.name, meta,
-      rowStyle:`display:flex;align-items:center;gap:11px;width:100%;padding:8px 18px;cursor:pointer;background:${active?'rgba(97,220,255,.07)':'transparent'};border:none;border-left:2px solid ${active?'#61dcff':'transparent'};text-align:left`,
+      rowStyle:`display:flex;align-items:center;gap:11px;width:100%;padding:8px 18px;cursor:pointer;background:${active?t.accA(7):'transparent'};border:none;border-left:2px solid ${active?t.acc:'transparent'};text-align:left`,
       dotStyle:`width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${col};${active?`box-shadow:0 0 8px ${col}`:''}`,
-      nameStyle:`font-size:13px;color:${active?'#dbe4ff':'#c3cbe6'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`,
-      metaStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:${stale?'#8a7a55':(active?'#9aa3c2':'#6d78a0')};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px`,
+      nameStyle:`font-size:13px;color:${active?t.ink:'color-mix(in srgb, var(--gx-ink) 82%, var(--gx-dim))'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`,
+      metaStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:${stale?t.warn:(active?t.dim:t.faint)};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px`,
       active, onClick:()=>this.select(p.id), onEnter:()=>this.enter(),
       onEnterClick:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.enter(); } }; });
 
-    const planets=this.PROJECTS.filter(p=>p.orbit).map(p=>{ const col=statusColor(p.status); const active=p.id===st.selId; return {
-      id:p.id, name:p.name, warn:!!p.warn, progLabel:'%'+p.prog,
-      style:`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);width:${p.size}px;height:${p.size}px;border-radius:50%;border:none;cursor:pointer;padding:0;background:${this.planetBg(col)};box-shadow:0 0 ${active?60:42}px ${this.rgba(col,active?.7:.45)},inset -7px -10px 30px rgba(0,0,0,.45)${active?`,0 0 0 3px ${this.rgba(col,.5)}`:''};${this._float(5+p.size/30)}`,
+    const planets=this.PROJECTS.filter(p=>p.orbit).map(p=>{ const col=statusColor(p.status); const active=p.id===st.selId; const paper=this._uiTheme==='ev'; const node=this._uiTheme==='apex';
+      const rot=((p.x*7+p.y*3)%11)-5; const pw=Math.max(136,Math.round(p.size*0.96)), ph=Math.max(100,Math.round(p.size*0.78));
+      const paperStyle=`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%) rotate(${rot}deg);width:${pw}px;min-height:${ph}px;border-radius:2px;border:1px solid ${active?'#c9a15b':'#d4c4a0'};cursor:pointer;padding:18px 16px 16px;background:linear-gradient(180deg,#fbf6e6,#ead9b0 70%,#e0cc9a);color:#3a2c18;box-shadow:${active?'0 14px 32px rgba(0,0,0,.45),0 0 0 1px #c9a15b':'3px 8px 18px rgba(40,20,8,.38)'};text-align:left`;
+      const nodeStyle=`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);width:${Math.max(156,Math.round(p.size*1.05))}px;min-height:86px;border-radius:16px;border:1px solid ${active?'#4fe0ff':'rgba(79,224,255,.28)'};cursor:pointer;padding:14px 16px;text-align:left;background:linear-gradient(180deg,#141a28,#0a0e18);color:#e8f4ff;box-shadow:${active?'0 0 32px rgba(79,224,255,.38),0 10px 28px rgba(0,0,0,.45)':'0 10px 26px rgba(0,0,0,.42)'}`;
+      const orbStyle=`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);width:${p.size}px;height:${p.size}px;border-radius:50%;border:none;cursor:pointer;padding:0;background:${this.planetBg(col)};box-shadow:0 0 ${active?60:42}px ${this.rgba(col,active?.7:.45)},inset -7px -10px 30px rgba(0,0,0,.45)${active?`,0 0 0 3px ${this.rgba(col,.5)}`:''};${this._float(5+p.size/30)}`;
+      return {
+      id:p.id, name:p.name, warn:!!p.warn && !paper, progLabel:'%'+p.prog, paper, node, named:paper||node, notPaper:!paper&&!node,
+      style: paper?paperStyle:(node?nodeStyle:orbStyle),
       labelStyle:`position:absolute;left:${p.x}%;top:calc(${p.y}% + ${p.size/2+16}px);transform:translateX(-50%);font-size:13px;color:#dbe4ff;pointer-events:none;white-space:nowrap`,
       onClick:()=>this.select(p.id), onEnter:()=>this.enter() }; });
 
@@ -948,17 +1335,40 @@ class Component extends DCLogic {
       labelStyle:`position:absolute;left:${f.x}%;top:calc(${f.y}% + ${f.s/2+8}px);transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:11px;color:${f.glow?f.c:'#9aa3c2'};white-space:nowrap` }));
 
     const planLabel=`${sel.plan.filter(x=>x[1]).length}/${sel.plan.length}`;
-    const selPlan=sel.plan.map(([text,done],i)=>({ text, done, onToggle:()=>this._togglePlan(i),
-      textColor:`color:${done?'#55e88b':'#9aa3c2'}`,
-      boxStyle:`width:14px;height:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border:1px solid ${done?'#55e88b':'rgba(190,205,255,.3)'};background:${done?'rgba(85,232,139,.13)':'transparent'};color:#55e88b`,
+    const _mkPlanItem=(text,done,i)=>({ text:this._plainPlan(text), done, onToggle:()=>this._togglePlan(i),
+      textColor:`color:${done?'#55e88b':'#c5cde8'}`,
+      boxStyle:`width:16px;height:16px;margin-top:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border-radius:4px;border:1px solid ${done?'#55e88b':'rgba(190,205,255,.3)'};background:${done?'rgba(85,232,139,.13)':'transparent'};color:#55e88b`,
       check:done?'✓':'',
-      md:`[${done?'x':' '}] ${text}`, mdColor:`color:${done?'#55e88b':'#ffc861'}` }));
+      md:`[${done?'x':' '}] ${text}`, mdColor:`color:${done?'#55e88b':'#ffc861'}` });
+    const selPlan=sel.plan.map(([text,done],i)=>_mkPlanItem(text,done,i));
+    const planSections=(()=>{
+      const parsed=this._parseReadmePlan((st._readme&&st._readme.content)||'');
+      const items=sel.plan||[];
+      if(!parsed.length){
+        if(!items.length) return [];
+        return [{title:'Yapılacaklar', meta:planLabel, items:selPlan}];
+      }
+      const used=new Set();
+      const secs=parsed.map(s=>{
+        const mapped=s.items.map(it=>{
+          const idx=items.findIndex((p,i)=>!used.has(i) && String(p[0]).trim()===it.text);
+          if(idx<0) return null;
+          used.add(idx);
+          return _mkPlanItem(items[idx][0], items[idx][1], idx);
+        }).filter(Boolean);
+        const done=mapped.filter(x=>x.done).length;
+        return {title:s.title, meta:done+'/'+mapped.length, items:mapped};
+      }).filter(s=>s.items.length);
+      const rest=items.map((p,i)=>used.has(i)?null:_mkPlanItem(p[0],p[1],i)).filter(Boolean);
+      if(rest.length) secs.push({title:'Diğer', meta:rest.filter(x=>x.done).length+'/'+rest.length, items:rest});
+      return secs;
+    })();
 
     const leftDef=[['agac','Ağaç'],['kayit','Kayıt'],['git','Git']];
-    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this._setLeftTab(id),style:`background:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;color:${st.leftTab===id?'#61dcff':'#9aa3c2'}`}));
+    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this._setLeftTab(id),style:`background:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;color:${st.leftTab===id?t.acc:t.dim}`}));
 
-    const consoleTabs=[['claude','⌁ CLAUDE'],['bash','▮ BASH']].map(([id,label])=>({id,label,onClick:()=>{this.setState({consoleTab:id});this._focusConsole();},style:`padding:4px 10px;cursor:pointer;background:${st.consoleTab===id?'rgba(97,220,255,.08)':'transparent'};border:1px solid ${st.consoleTab===id?'#61dcff':'rgba(190,205,255,.16)'};color:${st.consoleTab===id?'#61dcff':'#9aa3c2'}`}));
-    const _outSt=t=>(t==='in'?'color:#9aa3c2':t==='tool'?'color:#61dcff':t==='err'?'color:#ff6b7a':t==='done'?'color:#55e88b':'color:#dbe4ff')+';white-space:pre-wrap';
+    const consoleTabs=[['claude','⌁ CLAUDE'],['bash','▮ BASH']].map(([id,label])=>({id,label,onClick:()=>{this.setState({consoleTab:id});this._focusConsole();},style:`padding:4px 10px;cursor:pointer;background:${st.consoleTab===id?t.accA(8):'transparent'};border:1px solid ${st.consoleTab===id?t.acc:t.line};color:${st.consoleTab===id?t.acc:t.dim}`}));
+    const _outSt=x=>(x==='in'?('color:'+t.dim):x==='tool'?('color:'+t.acc):x==='err'?('color:'+t.err):x==='done'?('color:'+t.ok):('color:'+t.ink))+';white-space:pre-wrap';
     const _curCon=this._con(sel&&sel.id);   // seçili projenin konsolu (proje bazlı)
     const claudeLines=(_curCon.cout||[]).map(l=>({text:l.x,style:_outSt(l.t)}));
     const bashLines=(_curCon.bout||[]).map(l=>({text:l.x,style:_outSt(l.t)}));
@@ -969,7 +1379,7 @@ class Component extends DCLogic {
     const activeRaw=this.AGENTS.find(a=>a.id===st.agentId)||null;
     const activePresets=((activeRaw&&activeRaw.presets)||[]).map(p=>({label:p.label,onClick:()=>this.sendPreset(p.ask),style:`text-align:left;width:100%;padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid rgba(190,205,255,.16);color:#9aa3c2;background:rgba(13,18,36,.5);border-radius:14px`}));
     const activeDesc=activeRaw?(activeRaw.role||''):''; const hasActivePresets=activePresets.length>0;
-    const active=activeRaw?{...activeRaw,avatarStyle:`width:38px;height:38px;flex-shrink:0;background:url('${activeRaw.avatar}') center/cover,#0a0e1a;border:1px solid ${this.rgba(activeRaw.color,.5)}`}:{avatarStyle:'',color:'#61dcff',name:'',role:'',prompt:''};
+    const active=activeRaw?{...activeRaw,avatarStyle:`width:38px;height:38px;flex-shrink:0;border-radius:10px;background:url('${activeRaw.avatar}') center/cover,#0a0e1a;border:1px solid ${this.rgba(activeRaw.color,.5)}`}:{avatarStyle:'',color:'#61dcff',name:'',role:'',prompt:''};
     const activeMsgs=(activeRaw?activeRaw.msgs:[]).map(([who,text])=>{ const isU=who==='u'; return { text, isUser:isU, notUser:!isU, lines:isU?[]:this._mdLines(text),
       wrapStyle:`display:flex;${isU?'justify-content:flex-end':''}`,
       bubbleStyle:`max-width:88%;font-size:13px;line-height:1.5;padding:10px 13px;${isU?'background:rgba(97,220,255,.1);border:1px solid rgba(97,220,255,.25);color:#dbe4ff':`background:rgba(13,18,36,.7);border-radius:14px;border-left:2px solid ${activeRaw?activeRaw.color:'#61dcff'};color:#9aa3c2`}` }; });
@@ -1135,13 +1545,15 @@ class Component extends DCLogic {
       : [{name:'İş Evreni',path:'~/Projects',planets:6,systems:2,active:4,color:'#61dcff',id:null},
          {name:'Papilon',path:'~/Papilon',planets:4,systems:1,active:2,color:'#c77bff',id:null},
          {name:'Arşiv',path:'~/Archive',planets:9,systems:3,active:0,color:'#8a8fa8',id:null}];
-    const universes=uniSrc.map(u=>{ const c=u.color; return {name:u.name,path:u.path,planets:u.planets,systems:u.systems,active:u.active,
-      cardStyle:`display:flex;flex-direction:column;justify-content:space-between;min-height:150px;box-sizing:border-box;text-align:left;cursor:pointer;border:1px solid ${this.rgba(c,.34)};background:linear-gradient(160deg,${this.rgba(c,.12)},rgba(9,13,26,.86));padding:22px;border-radius:16px;box-shadow:0 0 30px ${this.rgba(c,.1)},inset 0 0 0 1px rgba(255,255,255,.02)`,
+    const universes=uniSrc.map(u=>{ const c=u.color; const on=!!u.id && u.id===st.uniId; const th=this._theme();
+      return {name:u.name,path:u.path,planets:u.planets,systems:u.systems,active:u.active,
+      cardStyle:`border:1px solid ${on?th.acc:this.rgba(c,.32)};background:linear-gradient(165deg,${this.rgba(c,.12)},color-mix(in srgb, var(--gx-panel) 90%, transparent));box-shadow:${on?`0 0 0 1px ${th.acc},0 0 26px ${this.rgba(th.acc,.28)}`:`0 10px 28px rgba(0,0,0,.22)`}`,
       orbStyle:`width:52px;height:52px;border-radius:50%;background:${this.planetBg(c)};box-shadow:0 0 24px ${this.rgba(c,.5)};${this._float(5+u.planets/3)}`,
       accent:c, hasId:!!u.id, onClick:()=> u.id ? this.selectUni(u.id) : this.setState({tab:'evren'}),
       onDelete:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); if(u.id) this.askConfirm('"'+(u.name||'evren')+'" evrenini kaldır? (klasörler diskte kalır)',()=>this._universeDelete(u.id)); } }; });
 
     const isEvren=st.tab==='evren', space=st.mode==='space';
+    if(st.tab==='dongu'){ clearTimeout(this._loopPaintT); this._loopPaintT=setTimeout(()=>this._loopPaint(),0); }
     return {
       viewOverview: space&&st.tab==='genel', universes,
       addUniOpen: st.addUni,
@@ -1161,6 +1573,33 @@ class Component extends DCLogic {
       onUniRemoteKey:(e)=>{ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.addRemoteRoot(); } },
       addRemoteRoot:()=>this.addRemoteRoot(),
       viewServers: space&&st.tab==='servers',
+      loopNodes: this._loopNodes(),
+      loopStepTitle: ({tetik:'Tetik',tara:'Tara',is:'İş',incele:'İncele',bildir:'Bildir'})[st.loopStep]||'Döngü tuvali',
+      loopBody: st.loopBody||'Düğüme tıkla veya Tümünü koş. Galaksi durur; döngü uzayın üstünde akar.',
+      loopRemarks: st.loopRemarks||'', onLoopRemarks:(e)=>this.setState({loopRemarks:(e&&e.target&&e.target.value)||''}),
+      loopSaveRemarks:()=>this._loopSaveRemarks(), loopRunAll:()=>this._loopRunAll(),
+      loopLastRun: (()=>{ const r=st.loopLastRun; if(!r||!r.ts) return 'henüz koşmadı'; try{ return new Date(r.ts).toLocaleString('tr-TR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}); }catch(e){ return 'koştu'; } })(),
+      loopInspect: !!st.loopStep, loopIsIncele: st.loopStep==='incele',
+      loopAgents: (this.AGENTS||[]).map(a=>{ const on=(!st.loopAgentId&&a===this.AGENTS[0])||st.loopAgentId===a.id;
+        return { name:a.name, role:a.role, onClick:()=>this.setState({loopAgentId:a.id}),
+          style:`flex:0 0 168px;text-align:left;padding:10px 12px;cursor:pointer;border-radius:12px;border:1px solid ${on?a.color:'var(--gx-line)'};background:var(--gx-panel);border-top:3px solid ${a.color};color:var(--gx-ink)` }; }),
+      mailStatus: st.mailStatus||'', mailRefresh:()=>this._mailLoad(),
+      mailPane: st.mailPane||'inbox',
+      mailShowInbox: (st.mailPane||'inbox')!=='compose', mailShowCompose: st.mailPane==='compose',
+      mailInboxTab:()=>this.setState({mailPane:'inbox'}), mailComposeTab:()=>this.setState({mailPane:'compose', mailTo:st.mailTo||this._mailTo||''}),
+      mailInboxTabStyle: tabBtn((st.mailPane||'inbox')!=='compose'), mailComposeTabStyle: tabBtn(st.mailPane==='compose'),
+      inboxItems: (st._inbox||[]).map(im=>{ const on=st.mailSel&&((st.mailSel.id&&st.mailSel.id===im.id)||st.mailSel===im);
+        return { from:im.from||'', subject:im.subject||'(konu yok)', snippet:im.snippet||'', onClick:()=>this._mailOpen(im),
+          style: on?'background:color-mix(in srgb, var(--gx-accent) 12%, transparent)':'' }; }),
+      noInbox:!(st._inbox&&st._inbox.length),
+      mailReadFrom:(st.mailSel&&st.mailSel.from)||'', mailReadSubject:(st.mailSel&&st.mailSel.subject)||'', mailReadBody:st.mailReadBody||'',
+      mailCanReply:!!(st.mailSel&&(st.mailSel.from||st.mailSel.id)), mailReply:()=>this._mailReply(),
+      mailTo: st.mailTo||'', mailSub: st.mailSub||'', mailBody: st.mailBody||'',
+      onMailTo:(e)=>this.setState({mailTo:(e&&e.target&&e.target.value)||''}),
+      onMailSub:(e)=>this.setState({mailSub:(e&&e.target&&e.target.value)||''}),
+      onMailBody:(e)=>this.setState({mailBody:(e&&e.target&&e.target.value)||''}),
+      mailSend:()=>this._mailSend(), mailPickFiles:()=>this._mailPickFiles(),
+      mailAtts:(st.mailAtts||[]).map((a,i)=>({name:a.name, icon:a.icon||'📄', onRemove:()=>this._mailRemoveAtt(i)})),
       serverList:((st._servers)||[]).map(s=>({ name:s.name, host:[s.host||s.alias,s.user].filter(Boolean).join(' · '), roots:(s.roots&&s.roots.length)?(s.roots.length+' kök'):'',
         onScan:()=>this.srvScan(s.id), onEdit:()=>this.openSrvEdit(s), onDelete:()=>this.askConfirm('"'+(s.name||'sunucu')+'" sunucusunu kaldır?',()=>this.srvDelete(s.id)), onTerm:()=>this.openSrvTerm(s),
         dotStyle:`width:9px;height:9px;border-radius:50%;background:#61dcff;flex-shrink:0` })),
@@ -1241,8 +1680,8 @@ class Component extends DCLogic {
       gitDiffLines:this._diffLines((_gitDiff&&_gitDiff.content)||''), closeGitDiff:()=>this.closeGitDiff(),
       hasCommits, noCommits:!hasCommits, authors, hasAuthors, noAuthors:!hasAuthors,
       gitClean:gitDirtyCount===0, gitHasChanges:gitDirtyCount>0,
-      isPlan: st.kayitSub==='plan', isNotlar: st.kayitSub==='notlar', isBaglanti: st.kayitSub==='baglanti', isOdak: st.kayitSub==='odak',
-      kayitTabs: [['plan','PLAN'],['notlar','NOTLAR'],['baglanti','BAĞLANTILAR'],['odak','ODAK']].map(([id,label])=>({label,onClick:()=>this.setState({kayitSub:id}),style:`background:none;border:none;cursor:pointer;padding:0 0 4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1.5px solid ${st.kayitSub===id?'#61dcff':'transparent'};color:${st.kayitSub===id?'#61dcff':'#9aa3c2'}`})),
+      isPlan: st.kayitSub!=='notlar' && st.kayitSub!=='odak', isNotlar: st.kayitSub==='notlar', isBaglanti:false, isOdak: st.kayitSub==='odak',
+      kayitTabs: [['plan','PLAN'],['notlar','NOTLAR'],['odak','ODAK']].map(([id,label])=>({label,onClick:()=>this.setState({kayitSub:id}),style:`background:none;border:none;cursor:pointer;padding:0 0 4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1.5px solid ${st.kayitSub===id?t.acc:'transparent'};color:${st.kayitSub===id?t.acc:t.dim}`})),
       selNotes: noteArr.map(t=>({t})),
       selLinks: linkArr.map(([name,desc,c])=>({name,desc,dotStyle:`width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;box-shadow:0 0 8px ${c}`})),
       hasNotes: noteArr.length>0, hasLinks: linkArr.length>0,
@@ -1290,10 +1729,11 @@ class Component extends DCLogic {
       moreHud:()=>this.setState({hudOpen:!st.hudOpen, moreOpen:false}),
       moreToolsStyle: moreItem(!!st.toolsOpen),
       moreHudStyle: moreItem(!!st.hudOpen),
+      moreKadetStyle: moreItem(kadet), moreKomutanStyle: moreItem(!kadet),
       // Konum breadcrumb + hızlı geçiş anahtarı
       locUniName: ((this._unis||[]).find(u=>u.id===st.uniId)||{}).name || 'Evren seç',
       locOpen: st.locOpen, toggleLoc:()=>this.setState({locOpen:!st.locOpen, moreOpen:false}), closeLoc:()=>this.setState({locOpen:false}),
-      locBtnBg: st.locOpen?'rgba(97,220,255,.1)':'rgba(4,6,12,.5)', locBtnBorder: st.locOpen?'#61dcff':'rgba(190,205,255,.18)',
+      locBtnBg: st.locOpen?'color-mix(in srgb, var(--gx-accent) 12%, transparent)':'transparent', locBtnBorder: st.locOpen?'var(--gx-accent)':'var(--gx-line)',
       locUnis: (this._unis||[]).map(u=>{
         const ps=(this._allProjects||[]).filter(p=>p.universe===u.id);
         const active=u.id===st.uniId;
@@ -1313,13 +1753,19 @@ class Component extends DCLogic {
       }),
       hasLocPlanets: (this._allProjects||[]).some(p=>p.universe===st.uniId),
       viewGalaxy: space&&isEvren, viewPano: space&&st.tab==='pano', viewDb: space&&st.tab==='db', viewZaman: space&&st.tab==='zaman',
+      viewDongu: space&&st.tab==='dongu', viewPosta: space&&st.tab==='posta',
+      viewGalaxyHud: this._uiTheme==='galaxy', notPaperMap: this._uiTheme==='galaxy',
+      mapHudLabel: this._uiTheme==='ev'?'':'Aktif Geliştirme',
+      viewMapTitle: this._uiTheme!=='ev',
       board, schedule,
       todoInput: st.todoInput, onTodoInput:(e)=>this.onTodoInput(e), onTodoKey:(e)=>this.onTodoKey(e), addTodo:()=>this.addTodo(),
-      agentsW: st.agentId?'368px':(st.rightCollapsed?'0px':'64px'), dockH: st.hudOpen?'340px':'40px',
+      agentsW: st.agentId?'440px':(st.rightCollapsed?'0px':'64px'), dockH: st.hudOpen?'340px':'40px',
       railW: st.leftCollapsed?'0px':'246px',
       toggleLeft:()=>this.setState({leftCollapsed:!st.leftCollapsed}), toggleRight:()=>this.setState({rightCollapsed:!st.rightCollapsed}),
       leftIcon: st.leftCollapsed?'▶':'◀', rightIcon: st.rightCollapsed?'◀':'▶',
       hudOpen: st.hudOpen, hudArrow: st.hudOpen?'▾':'▴',
+      toggleHud:()=>this.setState({hudOpen:!st.hudOpen}),
+      hudChevStyle: st.hudOpen?'color:var(--gx-accent);border-color:var(--gx-accent)':'',
       hudBtnBg: st.hudOpen?'rgba(97,220,255,.08)':'transparent', hudBtnBorder: st.hudOpen?'#61dcff':'rgba(190,205,255,.16)', hudBtnColor: st.hudOpen?'#61dcff':'#9aa3c2',
       tabs, railItems, planets, files, leftTabs, consoleTabs, agents,
       kadetBtnStyle:modeBtn(kadet), komutanBtnStyle:modeBtn(!kadet),
@@ -1342,9 +1788,14 @@ class Component extends DCLogic {
       agentAdd:()=>this.openAgentAdd(), agentDelete:()=>this.askConfirm('"'+((this.AGENTS.find(a=>a.id===st.agentId)||{}).name||'ajan')+'" ajanını sil?',()=>this._agentDelete(st.agentId)), agentEdit:()=>this.openAgentEdit(),
       activePresets, activeDesc, hasActivePresets,
       agentFormOpen: st.agentFormOpen, closeAgentForm:()=>this.setState({agentFormOpen:false}),
-      agSetName:(e)=>this.agentFormSet('name',e.target.value), agSetPrompt:(e)=>this.agentFormSet('prompt',e.target.value),
-      agSetP1:(e)=>this.agentFormSet('p1',e.target.value), agSetP2:(e)=>this.agentFormSet('p2',e.target.value), agSetP3:(e)=>this.agentFormSet('p3',e.target.value),
-      saveAgentForm:()=>this.saveAgentForm(), agFormName:st.agentForm.name, agFormPrompt:st.agentForm.prompt, agFormP1:st.agentForm.p1, agFormP2:st.agentForm.p2, agFormP3:st.agentForm.p3, agFormTitle: st.agentForm.id?'Ajanı Düzenle':'Yeni Ajan',
+      agSetName:(e)=>this.agentFormSet('name',this._formVal(e)), agSetRole:(e)=>this.agentFormSet('role',this._formVal(e)),
+      agSetPrompt:(e)=>this.agentFormSet('prompt',this._formVal(e)),
+      agSetP1:(e)=>this.agentFormSet('p1',this._formVal(e)), agSetP2:(e)=>this.agentFormSet('p2',this._formVal(e)), agSetP3:(e)=>this.agentFormSet('p3',this._formVal(e)),
+      saveAgentForm:()=>this.saveAgentForm(),
+      agFormName:this._asText(st.agentForm&&st.agentForm.name), agFormRole:this._asText(st.agentForm&&st.agentForm.role),
+      agFormPrompt:this._asText(st.agentForm&&st.agentForm.prompt),
+      agFormP1:this._asText(st.agentForm&&st.agentForm.p1), agFormP2:this._asText(st.agentForm&&st.agentForm.p2), agFormP3:this._asText(st.agentForm&&st.agentForm.p3),
+      agFormTitle: (st.agentForm&&st.agentForm.id)?('Düzenle · '+(st.agentForm.name||'ajan')):'Yeni ajan',
       backupsOpen: st.backupsOpen, closeBackups:()=>this.setState({backupsOpen:false}),
       backupList:((st._backups)||[]).map(b=>({name:b.name,date:b.date||'',size:b.size?Math.round(b.size/1024)+' KB':'',onRestore:()=>this._restoreBackup(b.name)})),
       hasBackups:!!(st._backups&&st._backups.length), noBackups:!!(st._backups&&!st._backups.length),
@@ -1371,12 +1822,17 @@ class Component extends DCLogic {
         }; })(),
       docNoMatch: !!(String(st.docQuery||'').trim() && (st._readme&&st._readme.content) && !this._mdLines(st._readme.content).some(ln=>ln.type!=='blank'&&(ln.segs||[]).map(s=>s.t).join('').toLowerCase().includes(String(st.docQuery).trim().toLowerCase()))),
       selName: sel.name, selDesc: sel.desc, selStage: sel.stage, selBranch: sel.branch, selProg: sel.prog,
-      selProgLabel:'%'+sel.prog, selPlanLabel: planLabel, selPlan, planEmpty:!sel.plan.length,
+      selProgLabel:'%'+sel.prog, selPlanLabel: planLabel, selPlan, planSections, planEmpty:!sel.plan.length,
       planInput:st.planInput||'', onPlanInput:(e)=>this.onPlanInput(e), onPlanKey:(e)=>this.onPlanKey(e), pullPlanFromReadme:()=>this.pullPlanFromReadme(),
       selStatusColor: sc.c, selStatusLabel: sc.l,
       selDotStyle:`width:10px;height:10px;border-radius:50%;background:${sc.c};box-shadow:0 0 8px ${sc.c}`,
       selBarStyle:`width:${sel.prog}%;height:100%;background:linear-gradient(90deg,${sc.c},#8ae7ff);box-shadow:0 0 10px ${sc.c};transition:width .6s`,
-      treeList: this._flatTree(this._treeNodes||[], '', 0).slice(0,140).map(t=>{ const on=!!(st._preview&&st._preview.rel===t.path); return {name:(t.dir?'▸ ':'· ')+t.name, onClick:()=>this._openFsNode(t.path,t.dir), style:`padding:3px 6px 3px ${t.depth*18+6}px;cursor:pointer;color:${on?'#dbe4ff':(t.dir?'#61dcff':'#9aa3c2')};background:${on?'rgba(97,220,255,.08)':'transparent'};border-radius:4px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px`}; }),
+      treeList: this._flatTree(this._treeNodes||[], '', 0).slice(0,280).map(t=>{ const on=!!(st._preview&&st._preview.rel===t.path);
+        return {label:t.name, arrow: t.dir?(t.open?'▾':'▸'):'·',
+          onToggle:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); if(t.dir) this._toggleTree(t.path,t.depth); else this._openFsNode(t.path,false); },
+          onClick:()=>{ if(t.dir) this._toggleTree(t.path,t.depth); else this._openFsNode(t.path,false); },
+          arrowStyle:`width:16px;flex-shrink:0;text-align:center;cursor:pointer;color:${t.dir?'#61dcff':'#6d78a0'};font-family:'JetBrains Mono',monospace;font-size:11px`,
+          style:`padding:3px 6px 3px ${t.depth*14+4}px;cursor:pointer;color:${on?'#dbe4ff':(t.dir?'#8ae7ff':'#9aa3c2')};background:${on?'rgba(97,220,255,.08)':'transparent'};border-radius:4px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px`}; }),
       hasTree: (this._treeNodes&&this._treeNodes.length)>0, noTree: !(this._treeNodes&&this._treeNodes.length),
       enter:()=>this.enter(), back:()=>this.back(),
       openProjectFolder:()=>this.openProjectFolder(), removeProject:()=>this.removeProject(),
@@ -1393,7 +1849,7 @@ class Component extends DCLogic {
       dbSql:st.dbSql, onDbSql:(e)=>this.onDbSql(e), onDbSqlKey:(e)=>this.onDbSqlKey(e), runDbQuery:()=>this.runDbQuery(),
       dbAsk:st.dbAsk, onDbAsk:(e)=>this.onDbAsk(e), onDbAskKey:(e)=>this.onDbAskKey(e), runDbAgent:()=>this.runDbAgent(),
       dbAgentBusy:!!st.dbAgentBusy, dbAgentBtn:st.dbAgentBusy?'…':'⚡ Sor',
-      dbGenSql:(st._dbresult&&st._dbresult.sql)||'', hasGenSql:!!(st._dbresult&&st._dbresult.sql),
+      dbGenSql:this._sqlLooks(st._dbresult&&st._dbresult.sql)?st._dbresult.sql:'', hasGenSql:this._sqlLooks(st._dbresult&&st._dbresult.sql),
       dbResultFields:((st._dbresult&&st._dbresult.fields)||[]).map(f=>({name:(f&&f.name)||String(f)})),
       dbResultRows:((st._dbresult&&st._dbresult.rows)||[]).slice(0,50).map(r=>({cells:Object.values(r).map(v=>({v:v==null?'':String(v)}))})),
       dbResultErr:(st._dbresult&&st._dbresult.error)||'', hasDbResult:!!(st._dbresult&&(st._dbresult.rows||st._dbresult.error)),
@@ -1411,7 +1867,10 @@ class Component extends DCLogic {
       previewOpen:!!st._preview && st.mode!=='planet', closePreview:()=>this.closePreview(), openPreviewExternal:()=>this.openPreviewExternal(),
       previewName:(st._preview&&st._preview.name)||'', previewRel:(st._preview&&st._preview.rel)||'',
       previewMeta:(st._preview&&st._preview.size!=null)?('  ·  '+(st._preview.size<1024?st._preview.size+' B':(st._preview.size/1024<1024?(st._preview.size/1024).toFixed(1)+' KB':(st._preview.size/1048576).toFixed(1)+' MB'))):'',
-      pvText:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown')&&!st._editMode),
+      pvText:!!(st._preview&&st._preview.kind==='text'&&!st._editMode),
+      pvMd:!!(st._preview&&st._preview.kind==='markdown'&&!st._editMode),
+      pvHtml:!!(st._preview&&st._preview.kind==='html'&&!st._editMode),
+      previewMdLines: (st._preview&&st._preview.kind==='markdown')?this._mdLines(st._preview.content||'','doc'):[],
       pvImage:!!(st._preview&&st._preview.kind==='image'),
       pvPdf:!!(st._preview&&st._preview.kind==='pdf'),
       pvMedia:!!(st._preview&&(st._preview.kind==='audio'||st._preview.kind==='video')),
@@ -1422,8 +1881,8 @@ class Component extends DCLogic {
       pvError:!!(st._preview&&st._preview.kind==='error'),
       previewText:(st._preview&&st._preview.content)||'', previewUrl:(st._preview&&st._preview.url)||'',
       // dosya düzenleme
-      pvEditable:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown')), editMode:!!st._editMode,
-      showStartEdit:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown')&&!st._editMode),
+      pvEditable:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown'||st._preview.kind==='html')), editMode:!!st._editMode,
+      showStartEdit:!!(st._preview&&(st._preview.kind==='text'||st._preview.kind==='markdown'||st._preview.kind==='html')&&!st._editMode),
       startEdit:()=>this.startEdit(), saveEdit:()=>this.saveEdit(), cancelEdit:()=>this.cancelEdit(),
       editContent:st._editContent, onEditContent:(e)=>this.onEditContent(e), editBusy:!!st._editBusy,
       editSaveLabel:st._editBusy?'…':'Kaydet', editMsg:st._editMsg||'',
@@ -1446,6 +1905,12 @@ class Component extends DCLogic {
       clockTop:this._clk().hm, toolsClock:this._clk().hms, toolsDate:this._clk().date,
       calTitle:this._calCells(st.calMonthOffset).title, calCells:this._calCells(st.calMonthOffset).cells,
       calPrev:()=>this.calPrev(), calNext:()=>this.calNext(), calToday:()=>this.calToday(),
+      calDayOpen:!!st.calPickDay, calPickLabel:st.calPickDay||'', calFormStart:st.calFormStart||'09:00', calFormEnd:st.calFormEnd||'11:00', calFormTitle:st.calFormTitle||'Odak',
+      onCalStart:(e)=>this.onCalStart(e), onCalEnd:(e)=>this.onCalEnd(e), onCalTitle:(e)=>this.onCalTitle(e),
+      calSave:()=>this.calSave(), calClearDay:()=>this.calClearDay(),
+      calPlanets:(this.PROJECTS||[]).slice(0,12).map(p=>{ const on=st.calFormPlanet===p.id; return { name:p.name, onClick:()=>this.setState({calFormPlanet:p.id}), style:`padding:4px 8px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;border:1px solid ${on?'#61dcff':'rgba(190,205,255,.16)'};background:${on?'rgba(97,220,255,.14)':'transparent'};color:${on?'#61dcff':'#9aa3c2'};border-radius:6px` }; }),
+      calDayEvents:(this._calEvents||[]).filter(ev=>String(ev.start||'').slice(0,10)===st.calPickDay).map(ev=>{ const when=String(ev.start||'').slice(11,16)+'–'+String(ev.end||'').slice(11,16); const pl=(this.PROJECTS||[]).concat(this._allProjects||[]).find(p=>p.id===ev.planetId); return { when, title:(ev.title||'Odak')+(pl?(' · '+pl.name):''), onDel:()=>this._calDelete(ev.id) }; }),
+      hasCalDayEvents:(this._calEvents||[]).some(ev=>String(ev.start||'').slice(0,10)===st.calPickDay),
       calcExpr:st.calcExpr||'', onCalc:(e)=>this.onCalc(e), onCalcKey:(e)=>this.onCalcKey(e),
       calcEq:()=>this.calcEq(), calcClear:()=>this.calcClear(), calcBack:()=>this.calcBack(),
       calcKeys:['7','8','9','/','4','5','6','*','1','2','3','-','0','.','%','+'].map(k=>({k,onClick:()=>this.calcPush(k)})),
@@ -1456,15 +1921,28 @@ class Component extends DCLogic {
       closeAgent:()=>this.setState({agentId:null}),
       asstOpen:!!st.asstOpen, asstToggle:()=>this._asstToggle(), asstClose:()=>this._asstClose(), asstNewChat:()=>this._asstNewChat(),
       asstInput:st.asstInput||'', onAsstInput:(e)=>this.onAsstInput(e), onAsstKey:(e)=>this.onAsstKey(e), sendAsst:()=>this.sendAsst(),
+      asstMicToggle:()=>this._asstMicToggle(), asstWakeToggle:()=>this._asstWakeToggle(),
+      asstChatMode:()=>this._asstChatMode(), asstLangTr:()=>this._asstSetLang('tr'), asstLangEn:()=>this._asstSetLang('en'),
+      listenOpen:!!(this._asst&&this._asst.state==='listening'),
       asstStatus:(this._asst&&this._asst.statusLbl)||'hazır — bir komut ver',
-      asstDotStyle:(()=>{ const col=(this._asst&&this._asst.dotCol)||'#61dcff'; return `width:9px;height:9px;border-radius:50%;background:${col};box-shadow:0 0 10px ${col};flex-shrink:0`; })(),
-      asstOrbStyle:(()=>{ const n=!!st.agentId; const col=(this._asst&&this._asst.dotCol)||'#61dcff'; return `width:${n?'22px':'44px'};height:${n?'22px':'44px'};filter:drop-shadow(0 0 ${n?10:18}px ${col}88)`; })(),
-      asstPanelStyle:`position:fixed;right:78px;bottom:52px;z-index:70;width:380px;max-width:84vw;display:flex;flex-direction:column;height:${st.asstOpen?Math.min((typeof window!=='undefined'?window.innerHeight:800)*0.7,520)+'px':'0'};opacity:${st.asstOpen?'1':'0'};pointer-events:${st.asstOpen?'auto':'none'};overflow:hidden;transition:height .3s cubic-bezier(.2,.8,.2,1),opacity .22s ease;background:linear-gradient(180deg,rgba(11,15,30,.97),rgba(5,8,18,.98));border:1px solid rgba(97,220,255,.24);border-radius:12px;backdrop-filter:blur(18px);box-shadow:0 22px 70px rgba(0,0,0,.55);font-family:'Space Grotesk',sans-serif`,
+      asstStatusPill:(this._asst&&this._asst.statusPill)||'STATUS: READY',
+      asstPillStyle:(()=>{ const s=(this._asst&&this._asst.state)||'idle';
+        if(s==='listening') return 'color:var(--gx-ok);border-color:color-mix(in srgb, var(--gx-ok) 45%, transparent);background:color-mix(in srgb, var(--gx-ok) 10%, transparent)';
+        if(s==='working') return 'color:var(--gx-info);border-color:color-mix(in srgb, var(--gx-info) 45%, transparent)';
+        if(s==='speaking') return 'color:var(--gx-accent);border-color:color-mix(in srgb, var(--gx-accent) 45%, transparent)';
+        return ''; })(),
+      asstChatOn:(()=>{ const A=this._asst; const v=!(A&&(A.state==='listening'||A.sttMode==='command'||A.convo)); return v?'true':'false'; })(),
+      asstVoiceOn:(()=>{ const A=this._asst; return (A&&(A.state==='listening'||A.sttMode==='command'||A.convo))?'true':'false'; })(),
+      asstIsTr:this._lang!=='en'?'true':'false', asstIsEn:this._lang==='en'?'true':'false',
+      asstWakeOn:(this._asst&&this._asst.wakeOn)?'true':'false',
+      asstDotStyle:(()=>{ const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:9px;height:9px;border-radius:50%;background:${col};box-shadow:0 0 10px ${col};flex-shrink:0`; })(),
+      asstOrbStyle:(()=>{ const n=!!st.agentId; const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:${n?'22px':'44px'};height:${n?'22px':'44px'};filter:drop-shadow(0 0 ${n?10:18}px ${col})`; })(),
+      asstPanelStyle:`height:${st.asstOpen?Math.min((typeof window!=='undefined'?window.innerHeight:800)*0.7,520)+'px':'0'};opacity:${st.asstOpen?'1':'0'};pointer-events:${st.asstOpen?'auto':'none'}`,
       asstMsgs:((this._asst&&this._asst.msgs)||[]).map(m=>{ const me=!!m.isUser; const mono=!!m.mono;
         return { text:m.text, wrapStyle:`display:flex;${me?'justify-content:flex-end':''}`,
           bubbleStyle:`max-width:88%;font-size:${mono?'11px':'13px'};line-height:1.5;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-word;`
-            +(mono?"font-family:'JetBrains Mono',monospace;":"font-family:'Space Grotesk',sans-serif;")
-            +(me?'background:rgba(97,220,255,.14);border:1px solid rgba(97,220,255,.28);color:#dbe4ff;border-bottom-right-radius:4px':'background:rgba(20,26,46,.8);border:1px solid rgba(190,205,255,.12);color:#c3cbe6;border-bottom-left-radius:4px') }; }),
+            +(mono?"font-family:var(--gx-mono);":"font-family:var(--gx-font);")
+            +(me?'background:color-mix(in srgb, var(--gx-accent) 14%, transparent);border:1px solid color-mix(in srgb, var(--gx-accent) 28%, transparent);color:var(--gx-ink);border-bottom-right-radius:4px':'background:color-mix(in srgb, var(--gx-panel-2) 80%, transparent);border:1px solid var(--gx-line);color:var(--gx-dim);border-bottom-left-radius:4px') }; }),
       // Global toast + yıkıcı-işlem onayı
       toastOpen:!!st._toast, toastMsg:(st._toast&&st._toast.msg)||'',
       toastStyle:`position:fixed;top:64px;right:22px;z-index:80;max-width:360px;padding:12px 16px;border:1px solid ${(st._toast&&st._toast.kind==='err')?'#ff6b7a':'#55e88b'};background:${(st._toast&&st._toast.kind==='err')?'rgba(40,12,16,.95)':'rgba(10,30,18,.95)'};color:${(st._toast&&st._toast.kind==='err')?'#ff9aa4':'#7bf0a8'};font-family:'JetBrains Mono',monospace;font-size:12px;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:slideIn .22s ease both`,
@@ -1473,8 +1951,8 @@ class Component extends DCLogic {
       confirmOkLabel:(st._confirm&&st._confirm.okLabel)||'Sil', runConfirm:()=>this.runConfirm(), cancelConfirm:()=>this.cancelConfirm(),
       confirmCardStyle:`width:430px;max-width:90vw;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.45)':'rgba(255,107,122,.35)'};background:linear-gradient(172deg,${(st._confirm&&st._confirm.kind==='warn')?'rgba(20,14,10,.98),rgba(8,6,5,.99)':'rgba(20,12,14,.98),rgba(8,5,7,.99)'});box-shadow:0 30px 80px rgba(0,0,0,.6);padding:22px 24px;border-radius:14px`,
       confirmOkStyle:`padding:8px 20px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'#ff9650':'#ff6b7a'};background:${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.14)':'rgba(255,107,122,.14)'};color:${(st._confirm&&st._confirm.kind==='warn')?'#ffb060':'#ff6b7a'}`,
-      hubTitle:(()=>{ const err=st._hubPulse==='error'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); return err?'hata':(work?'çalışıyor':'hazır'); })(),
-      hubDotStyle:(()=>{ const err=st._hubPulse==='error'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); const col=err?'#ff6b7a':(work?'#4684f6':'#61dcff'); return `display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};box-shadow:0 0 8px ${col};flex-shrink:0;${work&&!err&&!this._reduced()?'animation:gxhubpulse 1.1s ease-in-out infinite;':''}`; })(),
+      hubTitle:(()=>{ const err=st._hubPulse==='error'; const listen=this._asst&&this._asst.state==='listening'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); return err?'hata':(listen?'dinliyor':(work?'çalışıyor':'hazır')); })(),
+      hubDotStyle:(()=>{ const err=st._hubPulse==='error'; const listen=this._asst&&this._asst.state==='listening'; const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); const col=err?t.err:(listen?t.ok:(work?t.info:t.acc)); return `display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};box-shadow:0 0 8px ${col};flex-shrink:0;${(listen||(work&&!err))&&!this._reduced()?'animation:gxhubpulse 1.1s ease-in-out infinite;':''}`; })(),
       // Özellik rehberi
       guideOpen:!!st._guideOpen, openGuide:()=>this.openGuide(), closeGuide:()=>this.closeGuide(),
       guideSections:this._guideData().map(([title,items])=>({title, items:items.map(t=>({t}))})),
@@ -1482,13 +1960,14 @@ class Component extends DCLogic {
   }
 
   // ==================== PROJECT GALAXY ASİSTANI ====================
-  // Markup: preview-sample.html (#ga-root / #ga-orbwrap). STT bu sprintte kapalı.
+  // Markup: preview-sample.html (#ga-root / #ga-orbwrap / #ga-mic / #ga-wake).
   _asstFold(s){ return String(s||'').toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/İ/g,'i'); }
   _asstBind(){ const A=this._asst; if(!A||typeof document==='undefined') return;
     A.root=document.getElementById('ga-root'); A.panel=document.getElementById('ga-panel');
     A.log=document.getElementById('ga-log'); A.statusEl=document.getElementById('ga-status');
     A.dotEl=document.getElementById('ga-dot'); A.textEl=document.getElementById('ga-text');
-    A.canvas=document.getElementById('ga-orb'); }
+    A.canvas=document.getElementById('ga-orb');
+    A.micBtn=document.getElementById('ga-mic'); A.wakeBtn=document.getElementById('ga-wake'); }
   _asstScroll(){ try{ const el=document.getElementById('ga-log'); if(el) el.scrollTop=el.scrollHeight; }catch(e){} }
   _asstFlush(){ const A=this._asst; this.setState({_asstTick:(this.state._asstTick||0)+1}); setTimeout(()=>this._asstScroll(),30); }
   onAsstInput(e){ this.setState({asstInput:(e&&e.target&&e.target.value)||''}); }
@@ -1527,11 +2006,13 @@ class Component extends DCLogic {
   _asstToggle(){ const A=this._asst; if(!A) return; (this.state.asstOpen||A.open)?this._asstClose():this._asstOpen(); }
   _asstOpen(){ const A=this._asst; if(!A) return; A.open=true;
     this.setState({asstOpen:true, agentId:null});
+    try{ if(A.panel) A.panel.setAttribute('aria-hidden','false'); }catch(e){}
     if(!A._greeted){ A._greeted=true; this._asstSay('assistant','Selam! Ben senin dijital ikizin. İstersen sohbet ederiz, istersen bir işini hallederim — “Core SDK’ya git”, “commit et”, “terminalde npm test çalıştır” ya da aklına takılan herhangi bir şeyi yaz.',{speak:false}); }
     setTimeout(()=>{ try{ const el=document.getElementById('ga-text'); if(el) el.focus(); }catch(e){} },80); }
-  _asstClose(){ const A=this._asst; if(!A) return; A.open=false; this.setState({asstOpen:false}); try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){} }
-  _asstSetState(s){ const A=this._asst; if(!A) return; const prev=A.state; A.state=s; const lbl={idle:'hazır — bir komut ver',listening:'dinliyorum…',working:'çalışıyorum…',speaking:'yanıtlıyorum…'}[s]||''; const col={idle:'#61dcff',listening:'#55e88b',working:'#4684f6',speaking:'#8ae7ff'}[s]||'#61dcff';
+  _asstClose(){ const A=this._asst; if(!A) return; A.open=false; this.setState({asstOpen:false}); try{ if(A.panel) A.panel.setAttribute('aria-hidden','true'); }catch(e){} try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){} }
+  _asstSetState(s){ const A=this._asst; if(!A) return; const prev=A.state; A.state=s; const lbl={idle:'hazır — bir komut ver',listening:'dinliyorum…',working:'çalışıyorum…',speaking:'yanıtlıyorum…'}[s]||''; const col={idle:'var(--gx-accent)',listening:'var(--gx-ok)',working:'var(--gx-info)',speaking:'var(--gx-accent)'}[s]||'var(--gx-accent)';
     A.statusLbl=lbl; A.dotCol=col;
+    A.statusPill={idle:'STATUS: READY',listening:'STATUS: LISTENING',working:'STATUS: WORKING',speaking:'STATUS: SPEAKING'}[s]||'STATUS: READY';
     if(s==='working'||prev==='working'||s!==prev) this.setState({_hubTick:(this.state._hubTick||0)+1}); }
   _asstSay(role,text,opts){ const A=this._asst; if(!A) return; opts=opts||{};
     const msg={role, text, isUser:role==='user', mono:!!opts.mono};
@@ -1602,7 +2083,9 @@ class Component extends DCLogic {
     if(!SR){ A.speak=false; this._asstSay('assistant','Bu ortamda ses tanıma yok — yazarak konuşabiliriz.',{speak:false}); return; }
     A.convo=true; A.speak=true; A._gotAny=false; this._asstMicBtn(true); this._asstStartRec(); this._asstMicMeter(true);
     this._asstSay('assistant','Seni dinliyorum, konuş. Bitince “dur” ya da “çekil” de, kapatırım.',{speak:false}); }
-  _asstMicBtn(on){ const A=this._asst; if(!A||!A.micBtn) return; A.micBtn.style.background=on?'rgba(85,232,139,.16)':'rgba(97,220,255,.08)'; A.micBtn.style.borderColor=on?'#55e88b':'rgba(97,220,255,.3)'; A.micBtn.style.color=on?'#55e88b':'#61dcff'; A.micBtn.textContent=on?'■':'🎙'; A.micBtn.title=on?'Dinlemeyi durdur':'Sesli komut'; }
+  _asstMicBtn(on){ const A=this._asst; if(!A||!A.micBtn) return; try{ A.micBtn.classList.toggle('on', !!on); A.micBtn.setAttribute('aria-pressed', on?'true':'false'); }catch(e){} A.micBtn.title=on?'Dinlemeyi durdur':'Voice On'; }
+  _asstChatMode(){ const A=this._asst; if(!A) return; if(A.sttMode==='command') this._asstCommandExit(''); else if(A.convo) this._asstConvoStop(''); A.speak=false; if(A.state==='listening') this._asstSetState('idle'); this.setState({_asstTick:(this.state._asstTick||0)+1}); }
+  _asstSetLang(lang){ const l=lang==='en'?'en':'tr'; this._lang=l; try{ localStorage.setItem('gxLang',l); }catch(e){} this._asstVoice=null; this._applyLang(); const A=this._asst; if(A&&A.rec){ try{ A.rec.lang=l==='en'?'en-US':'tr-TR'; }catch(e){} } this.setState({_asstTick:(this.state._asstTick||0)+1}); try{ if(window.galaxy&&window.galaxy.settingsGet&&window.galaxy.settingsSave){ window.galaxy.settingsGet().then(r=>{ const s=(r&&r.settings)||{}; window.galaxy.settingsSave(Object.assign({}, s, {lang:l})); }); } }catch(e){} }
   _asstStartRec(){ const A=this._asst; if(!A||!A.convo) return; const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return;
     try{ const rec=new SR(); A.rec=rec; rec.lang=(this._lang==='en')?'en-US':'tr-TR'; rec.interimResults=true; rec.continuous=true; rec.maxAlternatives=1;
       rec.onstart=()=>{ if(A.state!=='speaking'&&A.state!=='working') this._asstSetState('listening'); };
@@ -1628,7 +2111,7 @@ class Component extends DCLogic {
   _asstPauseRec(){ const A=this._asst; if(!A) return; A._recPaused=true; try{ if(A.rec){ A.rec.onend=null; A.rec.stop(); } }catch(e){} A.rec=null; }
   _asstResumeRec(){ const A=this._asst; if(!A||!A.convo) return; A._recPaused=false; if(!A.rec) this._asstStartRec(); }
   // ---- Native STT (macOS Speech) : "Hey Galaxy" uyandırma + sesli komut ----
-  _asstWakeBtnStyle(){ const A=this._asst; if(!A||!A.wakeBtn) return; const on=A.native&&A.wakeOn; A.wakeBtn.style.color=on?'#55e88b':'#9aa3c2'; A.wakeBtn.style.opacity=A.native?'1':'.4'; A.wakeBtn.title=A.native?(on?'Hep dinle AÇIK — “Hey Galaxy” de':'Hep dinle kapalı'):'Native ses tanıma yok'; }
+  _asstWakeBtnStyle(){ const A=this._asst; if(!A||!A.wakeBtn) return; const on=A.native&&A.wakeOn; try{ A.wakeBtn.classList.toggle('on', !!on); A.wakeBtn.setAttribute('aria-pressed', on?'true':'false'); }catch(e){} A.wakeBtn.style.opacity=A.native?'1':'.4'; A.wakeBtn.title=A.native?(on?'Hep dinle AÇIK — “Hey Galaxy” de':'Hep dinle kapalı'):'Native ses tanıma yok'; }
   _asstWakeToggle(){ const A=this._asst; if(!A) return; if(!A.native){ A.speak=false; this._asstSay('assistant','Bu ortamda native ses tanıma yok; mic tuşuyla konuşabiliriz.',{speak:false}); return; } A.wakeOn=!A.wakeOn; this._asstWakeBtnStyle(); if(A.wakeOn){ this._asstWakeStart(); this._asstSay('assistant','Tamam, artık “Hey Galaxy” diyerek beni çağırabilirsin.',{speak:false}); } else { if(A.sttMode!=='command'){ A.sttMode='off'; this._asstSttStop(); } this._asstSay('assistant','Hep dinleme kapandı. Mic tuşuyla yine konuşabiliriz.',{speak:false}); } }
   _asstSttStart(){ try{ if(window.galaxy&&window.galaxy.sttStart){ window.galaxy.sttStart(); this._asst._sttRunning=true; } }catch(e){} }
   _asstSttStop(){ try{ if(window.galaxy&&window.galaxy.sttStop){ window.galaxy.sttStop(); } }catch(e){} this._asst._sttRunning=false; }
@@ -1671,7 +2154,10 @@ class Component extends DCLogic {
     switch(name){
       case 'open_universe':{ const u=this._asstFindUni(arg); if(u){ this.selectUni(u.id); return '“'+u.name+'” evrenini açtım.'; } return arg?('“'+arg+'” diye bir evren bulamadım.'):null; }
       case 'open_project':{ const p=this._asstFindProject(arg); if(p){ this._gotoProject(p.id); return '“'+p.name+'” gezegenine indim.'; } return arg?('“'+arg+'” diye bir proje bulamadım.'):null; }
-      case 'open_tab':{ const map={genel:'Genel Bakış',evren:'Evren',pano:'Pano',db:'Veritabanı',docker:'Docker',zaman:'Zamanlayıcı',servers:'Sunucular'}; if(map[arg]){ this._openTab(arg); return map[arg]+' sekmesini açtım.'; } return null; }
+      case 'open_tab':{ const map={genel:'Genel Bakış',evren:'Evren',pano:'Pano',db:'Veritabanı',docker:'Docker',zaman:'Zamanlayıcı',dongu:'Döngü',posta:'Posta',servers:'Sunucular'}; if(map[arg]){ this._openTab(arg); return map[arg]+' sekmesini açtım.'; } return null; }
+      case 'cal_block': this._asstCalBlock(arg).then(r=>{ if(r) this._asstReply(r); }); return 'Takvime yazıyorum.';
+      case 'mail_brief': this._openTab('posta'); this.setState({mailPane:'compose', mailTo:this.state.mailTo||this._mailTo||'', mailSub:this.state.mailSub||'Galaxy', mailBody:this._mailItems().map(i=>i.kind+'\n'+i.text).join('\n\n')||this._asstBriefData()||''}); return 'Posta yazma alanını açtım.';
+      case 'mail_send': try{ if(window.galaxy&&window.galaxy.mcpCall) window.galaxy.mcpCall({alias:'send', args:this._mailArgs(arg||'','Galaxy')}).then(r=>this._asstReply((r&&r.ok)?'Posta gitti.':('Posta: '+((r&&r.error)||'MCP yok')))); }catch(e){} return 'Posta MCP’ye ilettim.';
       case 'open_git': if(!inProj) return 'Git için önce bir projeye girmem gerek.'; this._setLeftTab('git'); this.setState({gitCenter:'durum'}); return 'Git Merkezi’ni açtım.';
       case 'back': this.back&&this.back(); return 'Uzaya döndüm.';
       case 'git_push': if(!inProj) return 'Push için bir projeye girmem gerek.'; this.gitPush&&this.gitPush(); return 'Push ediyorum.';
@@ -1695,8 +2181,11 @@ class Component extends DCLogic {
     let um=n.match(/(.+?)\s*evren(?:ini|ine|i)?\s*(aç|geç|git|göster)?$/) || n.match(/^evren(?:i)?\s*(aç|değiştir)\s*(.+)$/);
     if(um){ const q=(um[1]&&!/^(aç|geç|git|göster|değiştir)$/.test(um[1])?um[1]:um[2]||'')||''; const r=this._asstDoAction('open_universe',q); if(r) return this._asstReply(r); }
     // 3) sekmeler
-    const tabs=[[/(pano|kanban|todo)/,'pano'],[/(docker|konteyner)/,'docker'],[/(veritaban|(^| )db( |$)|sql)/,'db'],[/(zamanlay|scheduler|zamanl)/,'zaman'],[/(sunucu|ssh)/,'servers'],[/(genel bak|overview)/,'genel']];
+    const tabs=[[/(pano|kanban|todo)/,'pano'],[/(docker|konteyner)/,'docker'],[/(veritaban|(^| )db( |$)|sql)/,'db'],[/(zamanlay|scheduler|zamanl)/,'zaman'],[/(dongu|döngü|canvas)/,'dongu'],[/(posta|mail|gmail)/,'posta'],[/(sunucu|ssh)/,'servers'],[/(genel bak|overview)/,'genel']];
     for(const [re,id] of tabs){ if(re.test(n)&&/(aç|göster|geç|git|bak)/.test(n)){ return this._asstReply(this._asstDoAction('open_tab',id)); } }
+    if(/(kilitle|odak blok|takvime yaz|cal_block)/.test(n) && /(\d{1,2})\s*[-–:.]/.test(n)){ this._asstCalBlock(text).then(r=>this._asstReply(r||'Takvime yazdım.')); return; }
+    if(/(posta brif|mail brif|brifing gönder|mail_brief)/.test(n)){ return this._asstReply(this._asstDoAction('mail_brief')); }
+    if(/(döngüyü? çalıştır|dongu calistir|loop run)/.test(n)){ this._openTab('dongu'); this._loopRunAll(); return this._asstReply('Döngüyü koşturuyorum.'); }
     // 4) git
     if(/\b(push|gönder)\b/.test(n)){ return this._asstReply(this._asstDoAction('git_push')); }
     if(/\b(pull|çek)\b/.test(n)){ return this._asstReply(this._asstDoAction('git_pull')); }
@@ -1769,6 +2258,6 @@ class Component extends DCLogic {
     group.rotation.x=0.62;
     const resize=()=>{const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
     this._onResize=resize;window.addEventListener('resize',resize);resize();
-    const loop=()=>{this._raf=requestAnimationFrame(loop); if(!this._reduced()) group.rotation.y+=0.00018; renderer.render(scene,camera);};loop();
+    const loop=()=>{this._raf=requestAnimationFrame(loop); if(this._uiTheme==='ev'||this._uiTheme==='apex') return; if(!this._reduced()) group.rotation.y+=0.00018; renderer.render(scene,camera);};loop();
   }
 }
