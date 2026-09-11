@@ -86,6 +86,15 @@ app.whenReady().then(async () => {
     check('assistant-universe', uniReply);
     const hasMic = await js(`!!document.getElementById('ga-mic') && !!document.getElementById('ga-wake')`);
     check('voice-ui', hasMic);
+    // ⌘K tek kapı: eşleşmeyen bir soru yazınca Galaxy'ye düşmeli (asistan log'una eklenmeli)
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'k',metaKey:true,bubbles:true})); true`);
+    await wait(250);
+    await js(`(function(){var i=document.getElementById('gx-palette-input');i.value='zzqx bu proje ya da komutla eşleşmez';i.dispatchEvent(new Event('input',{bubbles:true}));})(); true`);
+    await wait(150);
+    await js(`(function(){var i=document.getElementById('gx-palette-input');i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})(); true`);
+    await wait(400);
+    const paletteAsk = await js(`(document.getElementById('ga-log').innerText||'').includes('zzqx bu proje ya da komutla eşleşmez') && !document.getElementById('gx-palette-input')`);
+    check('palette-ask-galaxy', paletteAsk);
     await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Evren') b.click(); }); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); })(); true`);
     await wait(350);
     const railSel = `(function(){ var n=''; document.querySelectorAll('.gx-rail-row').forEach(function(el){ var st=el.getAttribute('style')||''; if(st.indexOf('var(--gx-accent)')>=0) n=(el.innerText||'').split('\\n')[0].trim(); }); return n; })()`;

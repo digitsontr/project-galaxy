@@ -80,6 +80,7 @@ class Component extends DCLogic {
   _railMove(dir){ const ids=this._railIds(); if(!ids.length) return; let i=ids.indexOf(this.state.selId); if(i<0) i=0; this.select(ids[(i+dir+ids.length)%ids.length]); }
   _paletteMove(dir){ const n=this._paletteLen||0; if(!n) return; const i=((this.state.paletteIdx||0)+dir+n)%n; this.setState({paletteIdx:i}); }
   _paletteGo(){ const fn=this._paletteFns&&this._paletteFns[this.state.paletteIdx||0]; if(fn) fn(); }
+  _paletteAskGalaxy(text){ this.setState({palette:false,query:'',paletteIdx:0}); this.assistantHandle(text); }
   componentDidMount(){
     this._key = (e) => {
       if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); this.setState({palette:true, moreOpen:false, paletteIdx:0, query:''}); }
@@ -260,7 +261,7 @@ class Component extends DCLogic {
     'İLERLEME':'PROGRESS','PLAN':'PLAN','NOTLAR':'NOTES','BAĞLANTILAR':'LINKS','ODAK':'FOCUS','KAYIT':'RECORD','AĞAÇ':'TREE','GİT':'GIT','Ağaç':'Tree','Kayıt':'Record','Git':'Git','Yörünge':'Orbit','Dosya':'File','📁 Klasörü Aç':'📁 Open Folder','Kaldır':'Remove','Hızlı not ekle… (Enter)':'Quick note… (Enter)','Gezegene İn ▸':'Land on Planet ▸','UZAY':'SPACE','README':'README','komut / istem yaz, Enter\'a bas…':'type a command / prompt, press Enter…','proje kökü':'project root','Yapılacaklar':'To Do','Günlük':'Log','ÇİFT TIK DÜZENLE':'DOUBLE-CLICK TO EDIT','Tıkla: tamam / beklemede':'Click: done / pending','tıkla: tamam':'click: done','Bir dosya seç':'Pick a file','Soldaki Ağaç’tan bir dosyaya tıkla — içerik burada açılır.':'Click a file in the Tree on the left — it opens here.','README’yi gizle (⌘\\)':'Hide README (⌘\\)','README’yi aç (⌘\\)':'Show README (⌘\\)',
     'BAĞLAM: Tüm evren':'CONTEXT: All universes','Sil':'Delete','Durum ver':'Give status','Yeni ajan ekle':'Add new agent',
     'GİT MERKEZİ':'GIT CENTER','DURUM':'STATUS','TAKIM AKIŞI':'TEAM FLOW','GEÇMİŞ':'HISTORY','GIT FLOW REHBERİ':'GIT FLOW GUIDE','Temel Git Komutları · ne işe yarar':'Basic Git Commands · what they do','Feature-branch Akışı':'Feature-branch Flow',
-    'Proje ara ya da komut…':'Search projects or command…','Ayarlar':'Settings','Yedekler':'Backups','Git Flow Rehberi':'Git Flow Guide',
+    'Proje ara, komut ya da Galaxy’ye sor…':'Search projects, run a command, or ask Galaxy…','Ayarlar':'Settings','Yedekler':'Backups','Git Flow Rehberi':'Git Flow Guide',
     'YEDEKLER':'BACKUPS','Geri Yükle':'Restore','Henüz yedek yok.':'No backups yet.',
     'README YOK (3)':'NO README (3)','GİZLENENLER (1)':'HIDDEN (1)',
     'Sol paneli aç/kapat':'Toggle left panel','Sağ paneli aç/kapat':'Toggle right panel',
@@ -1394,7 +1395,10 @@ class Component extends DCLogic {
     const searchable = realMode ? (this._allProjects||this.PROJECTS) : this.PROJECTS;
     const projRes=searchable.filter(p=>!q||trFold(p.name).includes(q)).slice(0,8).map(p=>({icon:'●',ic:statusColor(p.status),label:p.name,hint:'↵ GİT',fn:()=>this._gotoProject(p.id)}));
     const cmdRes=cmds.filter(c=>!q||trFold(c.label).includes(q));
-    const palAll=[...projRes,...cmdRes];
+    // ⌘K tek kapı: eşleşme olsun ya da olmasın, yazdığını doğrudan Galaxy'ye sorabilirsin.
+    const rawQ=String(st.query||'').trim();
+    const askRes=rawQ?[{icon:'🔮',ic:'#61dcff',label:`Galaxy’ye sor: "${rawQ}"`,hint:'↵ Sor',fn:()=>this._paletteAskGalaxy(rawQ)}]:[];
+    const palAll=[...projRes,...cmdRes,...askRes];
     this._paletteFns=palAll.map(r=>r.fn); this._paletteLen=palAll.length;
     const palIdx=Math.max(0, Math.min(st.paletteIdx||0, Math.max(0,palAll.length-1)));
     const paletteResults=palAll.map((r,i)=>({ icon:r.icon, label:r.label, hint:r.hint,
