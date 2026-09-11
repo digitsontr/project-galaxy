@@ -828,6 +828,7 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
         <sc-if value="{{ viewMapTitle }}" hint-placeholder-val="{{ true }}">
         <div style="position:absolute;top:22px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.5em;color:var(--gx-accent);text-transform:uppercase;opacity:.65;pointer-events:none">{{ mapHudLabel }}</div>
         </sc-if>
+        <div id="ga-orbwrap" class="ga-orbwrap" title="Galaxy Asistanı" role="button" tabindex="0" aria-label="Galaxy Asistanı" sc-camel-on-click="{{ asstToggle }}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);{{ asstOrbCenterStyle }}"><canvas id="ga-orb" width="222" height="222"></canvas></div>
         <sc-for list="{{ planets }}" as="pl" hint-placeholder-count="6">
           <button sc-camel-on-click="{{ pl.onClick }}" sc-camel-on-double-click="{{ pl.onEnter }}" title="Tık: seç · çift tık: in" style="{{ pl.style }}">
             <sc-if value="{{ pl.paper }}" hint-placeholder-val="{{ false }}"><span class="gx-pin"></span><div data-noi18n class="gx-paper-name">{{ pl.name }}</div><div class="gx-paper-meta">{{ pl.progLabel }}</div></sc-if>
@@ -1235,7 +1236,9 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
         </button>
       </sc-for>
       <button sc-camel-on-click="{{ agentAdd }}" title="Yeni ajan ekle" style="width:44px;height:44px;border-radius:50%;cursor:pointer;background:transparent;border:1px dashed color-mix(in srgb, var(--gx-accent) 40%, transparent);color:var(--gx-accent);font-size:18px;padding:0;line-height:1">+</button>
+      <sc-if value="{{ orbInRail }}" hint-placeholder-val="{{ true }}">
       <div id="ga-orbwrap" class="ga-orbwrap" title="Galaxy Asistanı" role="button" tabindex="0" aria-label="Galaxy Asistanı" sc-camel-on-click="{{ asstToggle }}" style="{{ asstOrbStyle }}"><canvas id="ga-orb" width="222" height="222"></canvas></div>
+      </sc-if>
     </div>
   </aside>
 

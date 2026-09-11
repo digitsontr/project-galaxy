@@ -450,7 +450,9 @@ class Component extends DCLogic {
       const cx=50+Math.cos(ang)*(gN>1?27:0), cy=50+Math.sin(ang)*(gN>1?30:0);
       const arr=groups[g], n=arr.length;
       arr.forEach((p,pi)=>{
-        const a2=(pi/Math.max(1,n))*Math.PI*2, rad=n>1?(8+(pi%3)*4):0;
+        // Gezegen sayısı ne olursa olsun küçük bir yarıçapla it: tam merkez (50,50)
+        // uzayın ortasındaki asistan güneşi için boş kalsın, üst üste binmesin.
+        const a2=(pi/Math.max(1,n))*Math.PI*2, rad=8+(pi%3)*4;
         p.x=Math.max(9,Math.min(91, cx+Math.cos(a2)*rad));
         p.y=Math.max(14,Math.min(82, cy+Math.sin(a2)*rad*0.82));
         p.size=Math.round(58 + (p.prog/100)*64 + (p.status==='active'?18:0));
@@ -1756,7 +1758,7 @@ class Component extends DCLogic {
           onClick:()=>{ this._gotoProject(p.id); this.setState({locOpen:false}); } };
       }),
       hasLocPlanets: (this._allProjects||[]).some(p=>p.universe===st.uniId),
-      viewGalaxy: space&&isEvren, viewPano: space&&st.tab==='pano', viewDb: space&&st.tab==='db', viewZaman: space&&st.tab==='zaman',
+      viewGalaxy: space&&isEvren, orbInRail: !(space&&isEvren), viewPano: space&&st.tab==='pano', viewDb: space&&st.tab==='db', viewZaman: space&&st.tab==='zaman',
       viewDongu: space&&st.tab==='dongu', viewPosta: space&&st.tab==='posta',
       viewGalaxyHud: this._uiTheme==='galaxy', notPaperMap: this._uiTheme==='galaxy',
       mapHudLabel: this._uiTheme==='ev'?'':'Aktif Geliştirme',
@@ -1941,6 +1943,8 @@ class Component extends DCLogic {
       asstWakeOn:(this._asst&&this._asst.wakeOn)?'true':'false',
       asstDotStyle:(()=>{ const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:9px;height:9px;border-radius:50%;background:${col};box-shadow:0 0 10px ${col};flex-shrink:0`; })(),
       asstOrbStyle:(()=>{ const n=!!st.agentId; const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:${n?'22px':'44px'};height:${n?'22px':'44px'};filter:drop-shadow(0 0 ${n?10:18}px ${col})`; })(),
+      // Uzayın merkezindeki "güneş" hâli — gezegenlerin yanında görünür kalsın diye daha büyük.
+      asstOrbCenterStyle:(()=>{ const n=!!st.agentId; const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:${n?'22px':'84px'};height:${n?'22px':'84px'};filter:drop-shadow(0 0 ${n?10:30}px ${col})`; })(),
       asstPanelStyle:`height:${st.asstOpen?Math.min((typeof window!=='undefined'?window.innerHeight:800)*0.7,520)+'px':'0'};opacity:${st.asstOpen?'1':'0'};pointer-events:${st.asstOpen?'auto':'none'}`,
       asstMsgs:((this._asst&&this._asst.msgs)||[]).map(m=>{ const me=!!m.isUser; const mono=!!m.mono;
         return { text:m.text, wrapStyle:`display:flex;${me?'justify-content:flex-end':''}`,
