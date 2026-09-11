@@ -387,37 +387,36 @@ Hedef: kişisel araçtan, bir geliştiricinin klonlayıp yıldızlayacağı **ye
 - [x] README sürüm / platform / Kadet-Komutan / dürüst Claude sınırı (bu belge)
 - [ ] İngilizce README + 60 sn demo (uzay, ikiz, git, döngü)
 - [ ] Boş evren turu: `git init` ile ilk gezegen, örnek ajan sorusu
-- [ ] Ölü katman temizliği (`galaxy-hud.js`, kök `index.html`, gömülü demo `PROJECTS`)
+- [x] Ölü katman temizliği (`galaxy-hud.js`, kök `index.html` kaldırıldı; gömülü demo `PROJECTS` main.js split'iyle zaten gitmişti)
 
 ### Faz 1 — sesli ikiz (demo’nun wow’u)
 
-Kodda duran, üründe kapalı: native STT, “Hey Galaxy”, TTS, mic metre, durum renkleri.
-
-- [ ] STT’yi aç: mic, wake word, **STATUS: LISTENING** pill, dalga, Chat \| Voice On \| TR/EN
-- [ ] Orb’u sağ alttan **uzayın merkezine** al (gezegenler yörüngede kalsın)
-- [ ] Komutan çubuğu: “Galaxy’ye söyle…” — ⌘K ile tek kapı; interim transcript canlı aksın
+- [x] STT açıldı: mic/wake HUD (`#ga-mic`, `#ga-wake`), native+`webkitSpeechRecognition`, “Hey Galaxy” uyandırma, Voice On/TR-EN metinleri arayüzde
+- [ ] Orb hâlâ sağ altta — **uzayın merkezine** taşınmadı
+- [ ] Komutan çubuğu tek kapı değil: ⌘K bir proje/komut paleti açıyor ("Proje ara ya da komut…"), "Galaxy'ye söyle…" ayrı bir kutu (`#ga-text`, orba tıklayınca) — ikisi henüz birleşmedi; interim transcript de yok
 - [ ] Tehlikeli işte netleştir (hangi gezegen, commit mi push mı) — Apex’in slayt öncesi 3 sorusu
-- [ ] Aksiyon kanıtı: toast + Aktivite şeridi (`CREATE_COMMIT`, `OPEN_PLANET`) + geri al
+- [ ] Aksiyon kanıtı: toast var (git/posta akışlarında) ama ayrı bir Aktivite şeridi (`CREATE_COMMIT`, `OPEN_PLANET`) + geri al yok
 
 ### Faz 2 — geliştirici döngüleri
 
 Apex WORKSPACE: Trigger → Gather → Work (model, short/long memory, araçlar) → Review → Learn → Notify. Gmail’de “Apex emails me”; “Waiting for my remarks.”
 
-- [ ] Döngü tuvali (yeni sekme veya gezegen katmanı): Tetik · Tara · İş · İncele · Bildir
-- [ ] Remarks → uzun bellek; çekirdek gerçekler tek kaynak (kimsin, evrenler, odak)
+- [x] Döngü tuvali temel akışı var: Tetik · Tara · İş · İncele · Bildir adımları arayüzde (`galaxy:loopGet/loopSave`)
+- [x] Remarks → uzun bellek: `loopRemarks` diskte kalıcı (çekirdek gerçekler için ayrı tek kaynak henüz yok)
 - [ ] ATLAS / NAVIGATOR / DOCUMENTOR / FORGE / MENTOR’a araç + son koşu nabzı; haritada düğüm
 - [ ] Sol sağlık şeridi: Claude CLI, GitHub, STT izni, SSH, (sonra) Gmail / Takvim
 - [ ] Varsayılan onay kartı; Komutan’da süreli “güvenilir oturum”; `--dangerously-skip-permissions` kalksın
 
 ### Faz 3 — dünyaya bağlan (dar Gmail / takvim)
 
-- [ ] **Gmail:** sabah brifingi, stale gezegen uyarısı, döngü çıktısı, PR özeti — gelen kutusu tarama yok
-- [ ] **Takvim:** “Pazar 10–12’yi bu gezegene kilitle” → olay yarat → **EVENT CREATED** kanıtı + sistem takviminde blok
+- [~] **Gmail:** Gmail'e özel değil, genel MCP alias sistemi (`galaxy:mcpList/mcpCall`) üzerinden gelen kutusu okuma + gönderme var; döngü çıktısını postayla iletme de var. Sabah brifingi / stale uyarısı hâlâ yalnız uygulama içi bildirim, postaya düşmüyor
+- [~] **Takvim:** “bu gezegene kilitle” → olay yarat → **EVENT CREATED** kanıtı çalışıyor, ama tamamen **Galaxy içi** (`d.calEvents`) — EventKit/sistem takvimine yazmıyor (koddaki not: *"takvim odak blokları; EventKit yok"*)
 - [ ] **GitHub:** Takım Akışı’ndaki PR şablonunu gerçek `gh pr create` / API’ye bağla; checks oku
 
 ### Faz 4 — global paket
 
-- [ ] `main.js` + asistan UI modüllere; `preview-sample.html` şişmesini kes (şu an ~1 MB)
+- [x] `main.js` → `lib/` + `ipc/` modüllerine bölündü (3300 satırdan ~185 satıra)
+- [~] `preview-sample.html` + `component.js` toplamı ~1 MB’den ~500 KB’a indi ama hâlâ büyük
 - [ ] Claude API BYOK — CLI’sız Windows ve (ileride) Mac App Store ajanları
 - [ ] Arayüz i18n TR/EN (onboarding var, ana UI gömülü)
 - [ ] Landing + gizlilik: local-first veri, isteğe bağlı model bulutu
@@ -428,8 +427,7 @@ Apex WORKSPACE: Trigger → Gather → Work (model, short/long memory, araçlar)
 | Konu | Durum |
 |------|--------|
 | Asistan `document.body`’ye inline style ile enjekte; v2 tasarım sistemi dışında | Faz 1 ile birleşir |
-| Panelde `#ga-mic` yok ama kod arıyor — ses UI’si yarım sökülmüş | Faz 1 |
-| `component.js` tek 1600+ satır sınıf; `main.js` ~80 IPC / 3300 satır | Faz 4 |
+| Takvim/döngü/posta tamamen yerel — hiçbiri gerçek dış sisteme (EventKit, Gmail gelen kutusu) yazmıyor | Faz 3 |
 | i18n yarım; asistan sistem promptu Türkçe sabit | Faz 4 |
 | README ile ikiz “tam yetkili”, pratikte onay yok (push/run) | Faz 2 Guard |
 
