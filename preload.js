@@ -100,6 +100,13 @@ contextBridge.exposeInMainWorld('galaxy', {
   openSettings: () => ipcRenderer.invoke('galaxy:openSettings'),
   settingsGet: () => ipcRenderer.invoke('galaxy:settingsGet'),
   settingsSave: (p) => ipcRenderer.invoke('galaxy:settingsSave', p),
+  calList: () => ipcRenderer.invoke('galaxy:calList'),
+  calSave: (ev) => ipcRenderer.invoke('galaxy:calSave', ev),
+  calDelete: (id) => ipcRenderer.invoke('galaxy:calDelete', id),
+  loopGet: () => ipcRenderer.invoke('galaxy:loopGet'),
+  loopSave: (p) => ipcRenderer.invoke('galaxy:loopSave', p),
+  mcpList: () => ipcRenderer.invoke('galaxy:mcpList'),
+  mcpCall: (opts) => ipcRenderer.invoke('galaxy:mcpCall', opts),
   backupList: () => ipcRenderer.invoke('galaxy:backupList'),
   backupRestore: (name) => ipcRenderer.invoke('galaxy:backupRestore', name),
 
