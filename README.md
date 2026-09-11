@@ -394,8 +394,8 @@ Hedef: kişisel araçtan, bir geliştiricinin klonlayıp yıldızlayacağı **ye
 - [x] STT açıldı: mic/wake HUD (`#ga-mic`, `#ga-wake`), native+`webkitSpeechRecognition`, “Hey Galaxy” uyandırma, Voice On/TR-EN metinleri arayüzde
 - [x] Orb, Evren sekmesi + uzay modundayken galaksinin tam merkezine taşındı (bir "güneş" gibi); diğer sekmelerde İSTASYON rayında kalıyor
 - [x] Komutan çubuğu tek kapı: ⌘K'da eşleşme olsun olmasın "🔮 Galaxy'ye sor: '...'" seçeneği var, Enter asistanı doğrudan açıp soruyu iletiyor (interim transcript hâlâ yok)
-- [ ] Tehlikeli işte netleştir (hangi gezegen, commit mi push mı) — Apex’in slayt öncesi 3 sorusu
-- [ ] Aksiyon kanıtı: toast var (git/posta akışlarında) ama ayrı bir Aktivite şeridi (`CREATE_COMMIT`, `OPEN_PLANET`) + geri al yok
+- [ ] Tehlikeli işte netleştir (hangi gezegen, commit mi push mı) — Apex’in slayt öncesi 3 sorusu; not: `gitPush()` sesli/yazılı komuttan da tetiklense zaten `askConfirm` onay kartı istiyor, hiçbir şey onaysız gitmiyor
+- [x] Aksiyon kanıtı: Aktivite şeridi (⌘K → Aktivite) — `CREATE_COMMIT`, `PUSH`, `OPEN_PLANET`, `HIDE_PLANET`, `CAL_EVENT` kayıtları + geri alınabilenlerde "↺ Geri al"
 
 ### Faz 2 — geliştirici döngüleri
 
