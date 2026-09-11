@@ -143,6 +143,22 @@ app.whenReady().then(async () => {
       return { txt: txt.slice(0,80), role: roleEl?roleEl.value:'', p1: p1?p1.value:'', obj: /\\[object Object\\]/.test(document.body.innerText||'') };
     })()`);
     check('agent-edit-content', form && /ATLAS/i.test(form.txt||'') && /CTO/i.test(form.role||'') && form.p1 && !form.obj, JSON.stringify(form));
+    // UI temizliği: Zamanlayıcı gerçek görev adını/saatini göstermeli (önceden hep "görev" + ham cron alanı düşüyordu)
+    const openMore = (label) => js(`(function(){
+      document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim().indexOf('Daha')===0) b.click(); });
+      return new Promise(function(res){ setTimeout(function(){
+        var items=document.querySelectorAll('button');
+        for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='${label}'){ items[i].click(); break; } }
+        setTimeout(res, 400);
+      }, 250); });
+    })()`);
+    await openMore('Zamanlayıcı');
+    const schedText = await js(`document.body.innerText||''`);
+    check('sched-real-name', /Nightly/.test(schedText) && /Her gün 02:00/.test(schedText) && !/^görev$/m.test(schedText), schedText.split('\n').filter(function(){return true;}).slice(0,1).join(''));
+    await openMore('Posta');
+    await wait(400);
+    const mailText = await js(`document.body.innerText||''`);
+    check('mail-eyebrow-dynamic', /POSTA · BAĞLI/.test(mailText) && !/STATUS · MAIL/.test(mailText), mailText.split('\n')[0]);
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('galaxy', {
   syncReadme: async () => ({ ok: true, added: 2, plan: [{ text: 'Görev bir', done: false }, { text: 'Görev iki', done: true }] }),
   readme: async () => ({ name: 'README.md', content: '# AlphaAPI\n\nBackend.' }),
   dbList: async () => [], dbTables: async () => ({ ok: true, tables: [] }),
-  scheduleList: async () => [{ id: 's1', name: 'Nightly', cron: '0 2 * * *', enabled: true }],
+  scheduleList: async () => [{ id: 's1', name: 'Nightly', agentId: 'a1', prompt: 'Durum raporu ver', type: 'daily', hour: 2, minute: 0, weekday: 1, enabled: true }],
   sshList: async () => [], sshKeys: async () => ({ ok: true, keys: ['id_ed25519'] }),
   todoList: async () => [{ id: 't1', text: 'API', done: false, status: 'todo' }],
   reports: async () => [], dockerStatus: async () => ({ ok: true, running: true, containers: 1, containersRunning: 1, images: 1 }),

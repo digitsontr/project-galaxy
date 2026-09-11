@@ -1423,7 +1423,7 @@ class Component extends DCLogic {
       {icon:'⚙',ic:'#c77bff',label:'Ayarlar',hint:'',fn:()=>{this.setState({palette:false,query:''}); if(window.galaxy&&window.galaxy.openSettings)try{window.galaxy.openSettings();}catch(e){}}},
       {icon:'⎇',ic:'#55e88b',label:'Git Flow Rehberi',hint:'',fn:()=>this.setState({palette:false,query:'',gitCenter:'rehber'})},
       {icon:'↺',ic:'#ffc861',label:'Yedekler',hint:'',fn:()=>this._openBackups()},
-      {icon:'📜',ic:'#8aa0ff',label:'Aktivite',hint:'',fn:()=>this.openActivity()},
+      {icon:'▤',ic:'#8aa0ff',label:'Aktivite',hint:'',fn:()=>this.openActivity()},
     ];
     const searchable = realMode ? (this._allProjects||this.PROJECTS) : this.PROJECTS;
     const projRes=searchable.filter(p=>!q||trFold(p.name).includes(q)).slice(0,8).map(p=>({icon:'●',ic:statusColor(p.status),label:p.name,hint:'↵ GİT',fn:()=>this._gotoProject(p.id)}));
@@ -1452,11 +1452,15 @@ class Component extends DCLogic {
           onDragStart:(e)=>{ this._dragTodo=t.id; }, onDelete:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this._todoDelete(t.id); } })) };
     });
 
+    const _schWhen=(s)=>{ if(s.when||s.cron||s.schedule) return s.when||s.cron||s.schedule;
+      const days=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+      const hh=String(s.hour!=null?s.hour:9).padStart(2,'0'), mm=String(s.minute!=null?s.minute:0).padStart(2,'0');
+      return s.type==='weekly' ? (days[s.weekday||1]+' '+hh+':'+mm) : ('Her gün '+hh+':'+mm); };
     const schRaw=(realMode && st._sched)
-      ? st._sched.map(s=>({when:s.when||s.cron||s.schedule||'—', task:s.task||s.label||[s.agent,s.action].filter(Boolean).join(' ')||'görev', next:s.next||s.nextRun||'—', on:s.enabled!==false&&s.on!==false, id:s.id}))
+      ? st._sched.map(s=>({when:_schWhen(s), task:s.name||s.task||s.label||[s.agent,s.action].filter(Boolean).join(' ')||'görev', next:s.next||s.nextRun||'—', on:s.enabled!==false&&s.on!==false, id:s.id, name:s.name}))
       : [{when:'Her sabah 09:00',task:'ATLAS durum raporu',next:'yarın 09:00',on:true,id:null},{when:'Pazartesi 10:00',task:'NAVIGATOR standup',next:'Pzt 10:00',on:true,id:null},{when:'Her gün 18:00',task:'DOCUMENTOR README kontrolü',next:'bugün 18:00',on:false,id:null}];
     const schedule=schRaw.map(s=>({ when:s.when, task:s.task, next:s.next, state:s.on?'AKTİF':'DURDU', hasId:!!s.id,
-      onRun:s.id?()=>this._schedRun(s.id):(()=>{}), onDelete:s.id?()=>this.askConfirm('"'+(s.name||'görev')+'" zamanlanmış görevini sil?',()=>this._schedDelete(s.id)):(()=>{}),
+      onRun:s.id?()=>this._schedRun(s.id):(()=>{}), onDelete:s.id?()=>this.askConfirm('"'+(s.name||s.task||'görev')+'" zamanlanmış görevini sil?',()=>this._schedDelete(s.id)):(()=>{}),
       dotStyle:`width:9px;height:9px;border-radius:50%;background:${s.on?'#55e88b':'#9aa3c2'};${s.on?'box-shadow:0 0 8px #55e88b':''}`,
       pillStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;padding:5px 10px;border:1px solid ${s.on?'rgba(85,232,139,.35)':'rgba(190,205,255,.16)'};color:${s.on?'#55e88b':'#9aa3c2'}` }));
 
@@ -1621,6 +1625,11 @@ class Component extends DCLogic {
         return { name:a.name, role:a.role, onClick:()=>this.setState({loopAgentId:a.id}),
           style:`flex:0 0 168px;text-align:left;padding:10px 12px;cursor:pointer;border-radius:12px;border:1px solid ${on?a.color:'var(--gx-line)'};background:var(--gx-panel);border-top:3px solid ${a.color};color:var(--gx-ink)` }; }),
       mailStatus: st.mailStatus||'', mailRefresh:()=>this._mailLoad(),
+      // Posta eyebrow'u artık gerçek MCP durumunu yansıtıyor (önceden hep sabit "uyarı" sarısıydı).
+      // Boş = henüz kontrol edilmedi (nötr); "yok/değil/✕" = sorunlu (sarı); aksi = bağlı (yeşil).
+      mailEyebrowDotStyle:(()=>{ const s=st.mailStatus||''; const bad=/yok|değil|^✕/.test(s); const unknown=!s;
+        const c=unknown?'var(--gx-faint)':(bad?'var(--gx-warn)':'var(--gx-ok)'); return `width:7px;height:7px;border-radius:50%;background:${c};box-shadow:0 0 8px ${c};flex-shrink:0`; })(),
+      mailEyebrowLabel:(()=>{ const s=st.mailStatus||''; const bad=/yok|değil|^✕/.test(s); return !s?'POSTA · KONTROL EDİLİYOR':(bad?'POSTA · MCP AYARLA':'POSTA · BAĞLI'); })(),
       mailPane: st.mailPane||'inbox',
       mailShowInbox: (st.mailPane||'inbox')!=='compose', mailShowCompose: st.mailPane==='compose',
       mailInboxTab:()=>this.setState({mailPane:'inbox'}), mailComposeTab:()=>this.setState({mailPane:'compose', mailTo:st.mailTo||this._mailTo||''}),
