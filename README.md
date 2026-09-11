@@ -392,8 +392,8 @@ Hedef: kişisel araçtan, bir geliştiricinin klonlayıp yıldızlayacağı **ye
 ### Faz 1 — sesli ikiz (demo’nun wow’u)
 
 - [x] STT açıldı: mic/wake HUD (`#ga-mic`, `#ga-wake`), native+`webkitSpeechRecognition`, “Hey Galaxy” uyandırma, Voice On/TR-EN metinleri arayüzde
-- [ ] Orb hâlâ sağ altta — **uzayın merkezine** taşınmadı
-- [ ] Komutan çubuğu tek kapı değil: ⌘K bir proje/komut paleti açıyor ("Proje ara ya da komut…"), "Galaxy'ye söyle…" ayrı bir kutu (`#ga-text`, orba tıklayınca) — ikisi henüz birleşmedi; interim transcript de yok
+- [x] Orb, Evren sekmesi + uzay modundayken galaksinin tam merkezine taşındı (bir "güneş" gibi); diğer sekmelerde İSTASYON rayında kalıyor
+- [x] Komutan çubuğu tek kapı: ⌘K'da eşleşme olsun olmasın "🔮 Galaxy'ye sor: '...'" seçeneği var, Enter asistanı doğrudan açıp soruyu iletiyor (interim transcript hâlâ yok)
 - [ ] Tehlikeli işte netleştir (hangi gezegen, commit mi push mı) — Apex’in slayt öncesi 3 sorusu
 - [ ] Aksiyon kanıtı: toast var (git/posta akışlarında) ama ayrı bir Aktivite şeridi (`CREATE_COMMIT`, `OPEN_PLANET`) + geri al yok
 
