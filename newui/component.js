@@ -10,7 +10,7 @@ class Component extends DCLogic {
     _dbTable:null, _dbTableData:null, _dbEdits:{}, _dbRowBusy:null, _dbDelRow:null, _dbRowMsg:'', _dbOffset:0, _dbOrderBy:'', _dbOrderDir:'', _dbNewOpen:false, _dbNewRow:{},
     dbForm:{name:'',type:'postgres',host:'localhost',port:'5432',database:'',user:'',password:'',file:''},
     agentInput:'', _agentBusy:false, consoleInput:'', _todos:null, todoInput:'', noteInput:'', linkInput:'', linkAdd:false,
-    _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null,
+    _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null, activityOpen:false, _activityTick:0,
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     _conBusy:false, _claudeOk:null, _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false,
@@ -53,7 +53,7 @@ class Component extends DCLogic {
   ];
 
   _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
-  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen); }
+  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen); }
   _reduced(){ try{ return !!(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
   _applyTheme(theme){
     const t=(theme==='ev'||theme==='apex')?theme:'galaxy';
@@ -631,9 +631,11 @@ class Component extends DCLogic {
   async calSave(){ const iso=this.state.calPickDay; if(!iso) return;
     const rec={ start:iso+'T'+this._calNormHm(this.state.calFormStart), end:iso+'T'+this._calNormHm(this.state.calFormEnd), planetId:this.state.calFormPlanet||'', title:this.state.calFormTitle||'Odak' };
     try{
-      if(window.galaxy&&window.galaxy.calSave){ const r=await window.galaxy.calSave(rec); if(r&&r.ok){ const ev=r.event||rec; this._calEvents=(this._calEvents||[]).filter(x=>x.id!==ev.id).concat([ev]); } else { this.toast('✕ '+((r&&r.error)||'kayıt yok'),'err'); return; } }
-      else { rec.id='cal-'+Date.now(); this._calEvents=(this._calEvents||[]).concat([rec]); }
+      let ev=rec;
+      if(window.galaxy&&window.galaxy.calSave){ const r=await window.galaxy.calSave(rec); if(r&&r.ok){ ev=r.event||rec; this._calEvents=(this._calEvents||[]).filter(x=>x.id!==ev.id).concat([ev]); } else { this.toast('✕ '+((r&&r.error)||'kayıt yok'),'err'); return; } }
+      else { ev.id='cal-'+Date.now(); this._calEvents=(this._calEvents||[]).concat([ev]); }
       this.toast('EVENT CREATED'); this.setState({_calTick:(this.state._calTick||0)+1});
+      this._logActivity('CAL_EVENT', ev.title+' · '+iso, {undo:()=>this._calDelete(ev.id)});
     }catch(e){ this.toast('✕ takvim hatası','err'); } }
   async _calDelete(id){ try{ if(window.galaxy&&window.galaxy.calDelete) await window.galaxy.calDelete(id); this._calEvents=(this._calEvents||[]).filter(x=>x.id!==id); this.setState({_calTick:(this.state._calTick||0)+1}); }catch(e){} }
   _asstCalNextDate(dow){ const now=new Date(); const d=new Date(now.getFullYear(), now.getMonth(), now.getDate()); const cur=(d.getDay()+6)%7; let add=(dow-cur+7)%7; if(add===0) add=7; d.setDate(d.getDate()+add); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -651,12 +653,14 @@ class Component extends DCLogic {
     const p=this._asstFindProject((n.replace(/pazar|pazartesi|sali|carsamba|persembe|cuma|cumartesi|bu gezegen(?:e|i)?|kilitle|saat|yi|ya/g,' ').trim()));
     if(p) planet=p.id;
     const rec={ start:iso+'T'+sh+':'+sm, end:iso+'T'+eh+':'+em, planetId:planet, title:'Odak' };
+    let ev=rec;
     try{
-      if(window.galaxy&&window.galaxy.calSave){ const r=await window.galaxy.calSave(rec); if(r&&r.ok){ this._calEvents=(this._calEvents||[]).concat([r.event||rec]); } }
-      else { rec.id='cal-'+Date.now(); this._calEvents=(this._calEvents||[]).concat([rec]); }
+      if(window.galaxy&&window.galaxy.calSave){ const r=await window.galaxy.calSave(rec); if(r&&r.ok){ ev=r.event||rec; this._calEvents=(this._calEvents||[]).concat([ev]); } }
+      else { ev.id='cal-'+Date.now(); this._calEvents=(this._calEvents||[]).concat([ev]); }
     }catch(e){}
     this.toast('EVENT CREATED'); this.setState({calPickDay:iso, toolsOpen:true, _calTick:(this.state._calTick||0)+1});
     const pname=(this.PROJECTS||[]).concat(this._allProjects||[]).find(x=>x.id===planet);
+    this._logActivity('CAL_EVENT', 'Odak · '+iso+(pname?(' · '+pname.name):''), {undo:()=>this._calDelete(ev.id)});
     return iso+' '+sh+':'+sm+'–'+eh+':'+em+' odak bloğu yazıldı'+(pname?(' · '+pname.name):'')+'.'; }
   // Özellik rehberi (app içi README) — F1 ya da alt bardan
   openGuide(){ this.setState({_guideOpen:true}); }
@@ -680,6 +684,16 @@ class Component extends DCLogic {
     clearTimeout(this._toastT); this._toastT=setTimeout(()=>{ if(this._toastN===id) this.setState({_toast:null}); },4000);
     if(kind==='err'){ clearTimeout(this._hubPulseT); this._hubPulseT=setTimeout(()=>this.setState({_hubPulse:null}),4000); } }
   _pulseHub(kind){ this.setState({_hubPulse:kind||'error'}); clearTimeout(this._hubPulseT); this._hubPulseT=setTimeout(()=>this.setState({_hubPulse:null}),4000); }
+  // Aktivite şeridi — toast'lar 4sn'de kaybolur, bu kalıcı bir eylem geçmişi (CREATE_COMMIT, PUSH, OPEN_PLANET, CAL_EVENT, HIDE_PLANET…).
+  // Bazı türler (undo verilirse) geri alınabilir; commit/push gibi git işlemleri sadece görülebilir kanıt olarak durur.
+  _logActivity(type,label,opts){ opts=opts||{}; this._activityLog=this._activityLog||[];
+    this._activityLog.unshift({id:'act'+Date.now()+Math.random().toString(36).slice(2,6), type, label:String(label||''), ts:Date.now(), undo:opts.undo||null, undone:false});
+    if(this._activityLog.length>30) this._activityLog.length=30;
+    this.setState({_activityTick:(this.state._activityTick||0)+1}); }
+  _undoActivity(id){ const a=(this._activityLog||[]).find(x=>x.id===id); if(!a||!a.undo||a.undone) return;
+    try{ a.undo(); a.undone=true; this.toast('↺ geri alındı'); }catch(e){}
+    this.setState({_activityTick:(this.state._activityTick||0)+1}); }
+  openActivity(){ this.setState({activityOpen:true,palette:false}); }
   // Global onay kartı: askConfirm(mesaj, fn, {title, detail, okLabel, kind:'danger'|'warn'})
   askConfirm(msg,fn,opts){ opts=opts||{}; this.setState({_confirm:{msg,fn,title:opts.title||'',detail:opts.detail||'',okLabel:opts.okLabel||'Sil',kind:opts.kind||'danger'}}); }
   runConfirm(){ const c=this.state._confirm; this.setState({_confirm:null}); if(c&&c.fn){ try{ c.fn(); }catch(e){} } }
@@ -997,7 +1011,8 @@ class Component extends DCLogic {
     this.askConfirm('"'+p.name+'" galaksiden gizlensin?', ()=>this._hideProject(),
       {title:'Gezegeni gizle', detail:'Klasör diskte kalır. Gizlenenler listesinden geri alabilirsin.', okLabel:'Gizle', kind:'warn'}); }
   async _hideProject(){ try{ const p=this.sel; const fn=(window.galaxy&&(window.galaxy.projectHide||window.galaxy.projectDelete));
-    if(p&&fn){ const r=await fn(p.id); if(r&&r.ok&&(!r.action||r.action!=='cancel')){ this.toast('✓ gizlendi'); this.setState({mode:'space', holdPlanet:false}); this._loadReal(); } }
+    if(p&&fn){ const r=await fn(p.id); if(r&&r.ok&&(!r.action||r.action!=='cancel')){ this.toast('✓ gizlendi'); this.setState({mode:'space', holdPlanet:false}); this._loadReal();
+      this._logActivity('HIDE_PLANET', p.name||'gezegen', {undo:()=>this._unhide(p.id)}); } }
   }catch(e){} }
   // ---------- EVREN sil ----------
   async _universeDelete(id){ try{ if(window.galaxy.universeDelete){ await window.galaxy.universeDelete(id); this.toast('✓ evren kaldırıldı'); await this._loadReal(); const first=(this._unis&&this._unis[0]&&this._unis[0].id)||null; this._applyUni(first); this.setState({uniId:first,mode:'space',tab:'genel'}); } }catch(e){} }
@@ -1164,10 +1179,12 @@ class Component extends DCLogic {
   gitUnstage(file){ const p=this.sel; if(p&&p.id) this._gitDo(window.galaxy.gitUnstage({projectId:p.id,file})); }
   gitStageAll(){ const p=this.sel; if(p&&p.id) this._gitDo(window.galaxy.gitStage({projectId:p.id})); }
   async gitCommit(){ const p=this.sel; const msg=String(this.state.gitMsg||'').trim(); if(!p||!p.id||!msg) return;
-    const r=await this._gitDo(window.galaxy.gitCommit({projectId:p.id,message:msg}),'✓ commit yapıldı'); if(r&&r.ok) this.setState({gitMsg:''}); }
+    const r=await this._gitDo(window.galaxy.gitCommit({projectId:p.id,message:msg}),'✓ commit yapıldı');
+    if(r&&r.ok){ this.setState({gitMsg:''}); this._logActivity('CREATE_COMMIT', (p.name||'proje')+': '+msg); } }
   gitPush(){ const p=this.sel; if(!p||!p.id) return; const g=this.state._git||{}; const ahead=g.ahead||0; const br=g.branch||p.branch||'dal';
-    this.askConfirm('"'+br+'" dalı uzağa gönderilsin mi?', ()=>{
-      this._gitDo(window.galaxy.gitPush({projectId:p.id}), '✓ '+br+' ← '+(ahead||1)+' commit');
+    this.askConfirm('"'+br+'" dalı uzağa gönderilsin mi?', async ()=>{
+      const r=await this._gitDo(window.galaxy.gitPush({projectId:p.id}), '✓ '+br+' ← '+(ahead||1)+' commit');
+      if(r&&r.ok) this._logActivity('PUSH', (p.name||'proje')+' · '+br+' ← '+(ahead||1)+' commit');
     }, {title:'Push', detail:ahead?(ahead+' commit gönderilecek.'):'Uzakla senkronla.', okLabel:'Push', kind:'warn'}); }
   gitPull(){ const p=this.sel; if(!p||!p.id) return; const g=this.state._git||{}; const behind=g.behind||0; const br=g.branch||p.branch||'dal';
     this._gitDo(window.galaxy.gitPull({projectId:p.id}), behind?('✓ '+br+' → '+behind+' commit'):'✓ pull edildi'); }
@@ -1274,7 +1291,8 @@ class Component extends DCLogic {
   rgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
 
   select(id){ this._planAuto=null; this.setState({selId:id, _fsCwd:'', _preview:null, _treeOpen:{}}); this._loadGit(); }
-  enter(){ this._planAuto=null; this._warp(()=>this.setState({mode:'planet', holdPlanet:true, moreOpen:false})); this._loadGit(); this._focusConsole(); }
+  enter(){ this._planAuto=null; const p=this.sel; this._warp(()=>this.setState({mode:'planet', holdPlanet:true, moreOpen:false})); this._loadGit(); this._focusConsole();
+    if(p) this._logActivity('OPEN_PLANET', p.name||'gezegen', {undo:()=>this.back()}); }
   back(){
     if(this.state.mode==='space' && this.state.holdPlanet){
       this._warp(()=>this.setState({mode:'planet', tab:'evren', moreOpen:false}));
@@ -1393,6 +1411,7 @@ class Component extends DCLogic {
       {icon:'⚙',ic:'#c77bff',label:'Ayarlar',hint:'',fn:()=>{this.setState({palette:false,query:''}); if(window.galaxy&&window.galaxy.openSettings)try{window.galaxy.openSettings();}catch(e){}}},
       {icon:'⎇',ic:'#55e88b',label:'Git Flow Rehberi',hint:'',fn:()=>this.setState({palette:false,query:'',gitCenter:'rehber'})},
       {icon:'↺',ic:'#ffc861',label:'Yedekler',hint:'',fn:()=>this._openBackups()},
+      {icon:'📜',ic:'#8aa0ff',label:'Aktivite',hint:'',fn:()=>this.openActivity()},
     ];
     const searchable = realMode ? (this._allProjects||this.PROJECTS) : this.PROJECTS;
     const projRes=searchable.filter(p=>!q||trFold(p.name).includes(q)).slice(0,8).map(p=>({icon:'●',ic:statusColor(p.status),label:p.name,hint:'↵ GİT',fn:()=>this._gotoProject(p.id)}));
@@ -1804,6 +1823,15 @@ class Component extends DCLogic {
       agFormTitle: (st.agentForm&&st.agentForm.id)?('Düzenle · '+(st.agentForm.name||'ajan')):'Yeni ajan',
       backupsOpen: st.backupsOpen, closeBackups:()=>this.setState({backupsOpen:false}),
       backupList:((st._backups)||[]).map(b=>({name:b.name,date:b.date||'',size:b.size?Math.round(b.size/1024)+' KB':'',onRestore:()=>this._restoreBackup(b.name)})),
+      // Aktivite şeridi — kalıcı eylem kanıtı (toast'lar 4sn'de kaybolur, bu kalıcı geçmiş).
+      activityOpen: st.activityOpen, closeActivity:()=>this.setState({activityOpen:false}),
+      activityList:(()=>{ const meta={ CREATE_COMMIT:{icon:'⎇',type:'COMMIT',color:'#55e88b'}, PUSH:{icon:'↑',type:'PUSH',color:'#61dcff'}, OPEN_PLANET:{icon:'●',type:'GEZEGEN',color:'#9aa3c2'}, HIDE_PLANET:{icon:'◌',type:'GİZLENDİ',color:'#ffc861'}, CAL_EVENT:{icon:'◷',type:'TAKVİM',color:'#c77bff'} };
+        const ago=(ts)=>{ const s=Math.max(0,Math.floor((Date.now()-ts)/1000)); if(s<60) return 'şimdi'; const m=Math.floor(s/60); if(m<60) return m+'dk önce'; const h=Math.floor(m/60); if(h<24) return h+'sa önce'; return Math.floor(h/24)+'g önce'; };
+        return (this._activityLog||[]).map(a=>{ const m=meta[a.type]||{icon:'•',type:a.type,color:'#9aa3c2'};
+          return { id:a.id, icon:m.icon, typeLabel:m.type, iconStyle:`color:${m.color};width:20px;text-align:center;flex-shrink:0`,
+            label:a.label, ago:ago(a.ts), hasUndo:!!a.undo&&!a.undone, undone:!!a.undone,
+            onUndo:()=>this._undoActivity(a.id) }; }); })(),
+      noActivity: !(this._activityLog&&this._activityLog.length),
       hasBackups:!!(st._backups&&st._backups.length), noBackups:!!(st._backups&&!st._backups.length),
       contextChip: (st.mode==='planet'||st.holdPlanet)? sel.name : 'Tüm evren',
       paletteOpen: st.palette, paletteResults, warping: st.warping,

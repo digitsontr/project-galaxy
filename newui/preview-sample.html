@@ -1398,6 +1398,18 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
     </div>
   </sc-if>
 
+  <sc-if value="{{ activityOpen }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ closeActivity }}" style="position:fixed;inset:0;z-index:45;background:rgba(4,6,12,.72);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;animation:popIn .2s ease both">
+      <div sc-camel-on-click="{{ stop }}" style="width:520px;max-width:90vw;border:1px solid rgba(190,205,255,.24);background:linear-gradient(172deg,rgba(13,18,36,.98),rgba(5,8,18,.99))">
+        <div style="display:flex;align-items:center;padding:16px 18px;border-bottom:1px solid var(--gx-line);font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.1em;color:var(--gx-accent)">AKTİVİTE<span sc-camel-on-click="{{ closeActivity }}" style="margin-left:auto;color:var(--gx-dim);cursor:pointer">✕</span></div>
+        <div style="padding:8px 0;max-height:52vh;overflow-y:auto">
+          <sc-for list="{{ activityList }}" as="a" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:12px;padding:11px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;border-bottom:1px solid var(--gx-line-soft)"><span style="{{ a.iconStyle }}">{{ a.icon }}</span><span style="flex:1;min-width:0"><span data-noi18n style="color:var(--gx-dim);font-size:10px;letter-spacing:.08em;display:block">{{ a.typeLabel }} · {{ a.ago }}</span><span data-noi18n style="color:var(--gx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:340px">{{ a.label }}</span></span><sc-if value="{{ a.hasUndo }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ a.onUndo }}" style="border:1px solid var(--gx-line);background:transparent;color:var(--gx-dim);font-size:11px;padding:5px 11px;cursor:pointer;font-family:inherit;flex-shrink:0">↺ Geri al</button></sc-if><sc-if value="{{ a.undone }}" hint-placeholder-val="{{ false }}"><span style="color:var(--gx-dim);font-size:10px;flex-shrink:0">geri alındı</span></sc-if></div></sc-for>
+          <sc-if value="{{ noActivity }}" hint-placeholder-val="{{ true }}"><div style="padding:22px 18px;color:var(--gx-dim);font-size:13px;text-align:center">Henüz aktivite yok. Commit, push, gezegene giriş gibi eylemler burada birikir.</div></sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ guideOpen }}" hint-placeholder-val="{{ false }}">
     <div sc-camel-on-click="{{ closeGuide }}" style="position:fixed;inset:0;z-index:70;background:rgba(3,5,10,.86);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:5vh 4vw;animation:popIn .18s ease both">
       <div sc-camel-on-click="{{ stop }}" style="width:900px;max-width:96vw;height:86vh;display:flex;flex-direction:column;border:1px solid rgba(190,205,255,.22);background:linear-gradient(172deg,rgba(11,15,30,.99),rgba(4,7,16,1));box-shadow:0 40px 120px rgba(0,0,0,.8);border-radius:14px">

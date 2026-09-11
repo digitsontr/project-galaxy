@@ -103,6 +103,21 @@ app.whenReady().then(async () => {
     await wait(250);
     const jkB = await js(railSel);
     check('sprint-e-jk', !!jkA && !!jkB && jkA !== jkB, jkA + ' → ' + jkB);
+    // Aktivite şeridi: gezegene gir → OPEN_PLANET kaydı düşmeli → Geri al uzaya döndürmeli
+    await js(`(function(){ var b=document.querySelector('main button'); if(b) b.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})); })(); true`);
+    await wait(500);
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'k',metaKey:true,bubbles:true})); true`);
+    await wait(250);
+    await js(`(function(){var i=document.getElementById('gx-palette-input');i.value='Aktivite';i.dispatchEvent(new Event('input',{bubbles:true}));})(); true`);
+    await wait(150);
+    await js(`(function(){var i=document.getElementById('gx-palette-input');i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})(); true`);
+    await wait(300);
+    const actEntry = await js(`(document.body.innerText||'').includes('GEZEGEN') && (document.body.innerText||'').includes('Geri al')`);
+    check('activity-log', actEntry);
+    await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='↺ Geri al') b.click(); }); })(); true`);
+    await wait(600);
+    const backToSpace = await js(`(document.body.innerText||'').includes('PROJELER')`);
+    check('activity-undo', backToSpace);
     await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); var b=document.querySelector('button[title="ATLAS"]'); if(b) b.click(); })(); true`);
     await wait(400);
     await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Düzenle') b.click(); }); })(); true`);
