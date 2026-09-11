@@ -45,6 +45,8 @@ function staticChecks() {
     const onb = fs.readFileSync(path.join(ROOT, 'onboarding.html'), 'utf8');
     check('settings-prefs', /prefs-nav/.test(onb) && /STATUS · KAPTAN/.test(onb) && /id="prefsSave"/.test(onb) && /theme-card/.test(onb) && /Görünüm/.test(onb) && /id="themeApex"/.test(onb) && /id="themeEv"/.test(onb), '');
     check('sprint-l-health', /Sistem sağlığı/.test(h) && /healthItems/.test(h) && /galaxy:githubCheck/.test(fs.readFileSync(path.join(ROOT, 'lib', 'data.js'), 'utf8')), '');
+    // Gerçek ama boş evren listesinde sahte demo evrenler (İş Evreni/Papilon/Arşiv) ASLA gösterilmemeli.
+    check('no-fake-universes-in-real-mode', /\(!realMode \? \[\{name:'İş Evreni'/.test(h), '');
   } catch (e) { check('static-read', false, e.message); }
 }
 

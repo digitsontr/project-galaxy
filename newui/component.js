@@ -1581,11 +1581,12 @@ class Component extends DCLogic {
     const dockerStatusText = !realMode ? 'Docker motoru çalışıyor · 3 konteyner · 2 çalışıyor'
       : (ds ? (ds.mas?'Docker bu sürümde kullanılamıyor':(ds.installed===false?'Docker kurulu değil':(ds.running?`Docker çalışıyor · ${ds.containers||0} konteyner · ${ds.containersRunning||0} çalışıyor · ${ds.images||0} imaj`:'Docker motoru durdu — başlatmak için ▸ tıkla'))) : 'Docker durumu okunuyor…');
 
-    // Gerçek evrenler (yoksa örnek). Karta tıklayınca O evrenin galaksisine geçilir.
+    // Gerçek evrenler; yalnız ÖNİZLEME modunda (gerçek veri yokken) örnek kartlar gösterilir.
+    // Gerçek uygulamada evren gerçekten boşsa (yeni kurulum) sahte veri GÖSTERME — kullanıcıyı yanıltır.
     const uniSrc = (this._unis && this._unis.length) ? this._unis
-      : [{name:'İş Evreni',path:'~/Projects',planets:6,systems:2,active:4,color:'#61dcff',id:null},
+      : (!realMode ? [{name:'İş Evreni',path:'~/Projects',planets:6,systems:2,active:4,color:'#61dcff',id:null},
          {name:'Papilon',path:'~/Papilon',planets:4,systems:1,active:2,color:'#c77bff',id:null},
-         {name:'Arşiv',path:'~/Archive',planets:9,systems:3,active:0,color:'#8a8fa8',id:null}];
+         {name:'Arşiv',path:'~/Archive',planets:9,systems:3,active:0,color:'#8a8fa8',id:null}] : []);
     const universes=uniSrc.map(u=>{ const c=u.color; const on=!!u.id && u.id===st.uniId; const th=this._theme();
       return {name:u.name,path:u.path,planets:u.planets,systems:u.systems,active:u.active,
       cardStyle:`border:1px solid ${on?th.acc:this.rgba(c,.32)};background:linear-gradient(165deg,${this.rgba(c,.12)},color-mix(in srgb, var(--gx-panel) 90%, transparent));box-shadow:${on?`0 0 0 1px ${th.acc},0 0 26px ${this.rgba(th.acc,.28)}`:`0 10px 28px rgba(0,0,0,.22)`}`,
