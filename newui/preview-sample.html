@@ -572,6 +572,30 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
   .gx-mail-from{font-size:12px;color:var(--gx-accent);margin-bottom:3px}
   .gx-mail-sub{font-size:14px;font-weight:500}
   .gx-mail-sn{font-size:12px;color:var(--gx-dim);margin-top:4px;line-height:1.4}
+  .tr-split{display:grid;grid-template-columns:180px 240px 1fr;gap:14px;min-height:0}
+  .tr-cats,.tr-items,.tr-reader{border:1px solid var(--gx-line);background:var(--gx-panel);border-radius:14px;overflow:auto;min-height:0}
+  .tr-cats{display:flex;flex-direction:column;gap:3px;padding:10px}
+  .tr-items{display:flex;flex-direction:column;gap:2px;padding:8px}
+  .tr-reader{padding:0;display:flex;flex-direction:column}
+  .tr-reader-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--gx-line);flex-shrink:0}
+  .tr-reader-title{font-size:16px;font-weight:600;color:var(--gx-ink)}
+  .tr-reader-empty{padding:40px 20px;text-align:center;color:var(--gx-dim);font-size:13.5px}
+  .tr-prose{padding:20px 26px 32px;overflow:auto;font-size:14px;line-height:1.65;color:var(--gx-ink)}
+  .tr-prose h3{font-size:16px;font-weight:600;color:var(--gx-accent);margin:20px 0 8px}
+  .tr-prose h3:first-child{margin-top:0}
+  .tr-prose h4,.tr-prose h5,.tr-prose h6{color:var(--gx-ink);margin:14px 0 6px}
+  .tr-prose p{margin:0 0 10px;color:var(--gx-dim)}
+  .tr-prose ul{margin:0 0 12px;padding-left:22px;color:var(--gx-dim)}
+  .tr-prose li{margin-bottom:4px}
+  .tr-prose strong{color:var(--gx-ink)}
+  .tr-prose .tr-gap{height:8px}
+  .tr-prose .tr-code{background:rgba(4,6,12,.6);border:1px solid var(--gx-line);border-radius:10px;padding:12px 14px;margin:0 0 10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.55;color:#c9d6ff}
+  .tr-prose .tr-out{background:rgba(85,232,139,.06);border:1px solid rgba(85,232,139,.22);border-radius:8px;padding:10px 12px;margin:0 0 10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#9fe8bc;white-space:pre-wrap}
+  .tr-prose .tr-out.tr-err{background:rgba(255,107,122,.08);border-color:rgba(255,107,122,.28);color:#ffb0ba}
+  .tr-prose .tr-img{max-width:100%;border-radius:8px;margin:0 0 12px;border:1px solid var(--gx-line)}
+  .tr-prose .tr-md{margin-bottom:6px}
+  .tr-prose .tr-slide{border:1px solid var(--gx-line-soft);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:rgba(13,18,36,.4)}
+  .tr-prose .tr-slide-no{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--gx-faint);margin-bottom:6px}
   .gx-chrome{background:var(--gx-panel)!important;border-color:var(--gx-line)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
   .gx-mark{background:var(--gx-accent);box-shadow:0 0 12px var(--gx-accent)}
   #appShell button:focus-visible,#appShell [tabindex]:focus-visible{outline:2px solid var(--gx-accent);outline-offset:2px}
@@ -1090,6 +1114,47 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
             </div>
             <div><button sc-camel-on-click="{{ mailSend }}" class="gx-run" style="padding:10px 16px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;border:1px solid var(--gx-accent);color:#04121c;background:var(--gx-accent);border-radius:10px">Gönder</button></div>
           </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ viewEgitim }}" hint-placeholder-val="{{ false }}">
+      <div class="gx-mail">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.28em;color:var(--gx-accent);text-transform:uppercase;margin-bottom:8px">EĞİTİMLERİM · YEREL</div>
+            <div style="font-size:26px;font-weight:500;letter-spacing:-.02em;color:var(--gx-ink);margin-bottom:6px">Eğitimlerim</div>
+            <div style="font-size:13.5px;color:var(--gx-dim);max-width:60ch;line-height:1.55" data-noi18n>{{ trainingRoot }} klasöründeki ders materyallerin — Word, PowerPoint, Colab defterleri ve kod alıştırmaları burada okunabilir hâlde.</div>
+          </div>
+          <button sc-camel-on-click="{{ trainingRefresh }}" style="padding:10px 14px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;border:1px solid var(--gx-line);color:var(--gx-dim);background:transparent;border-radius:10px">Yenile</button>
+        </div>
+        <sc-if value="{{ trainingLoading }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-dim);font-size:13px;padding:20px 0">Klasör taranıyor…</div></sc-if>
+        <sc-if value="{{ hasTrainingErr }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-warn);font-size:13px;padding:20px 0" data-noi18n>{{ trainingErr }}</div></sc-if>
+        <sc-if value="{{ trainingEmpty }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-dim);font-size:13px;padding:20px 0">Klasörde okunabilir bir ders materyali bulunamadı.</div></sc-if>
+        <sc-if value="{{ hasTrainingCats }}" hint-placeholder-val="{{ false }}">
+        <div class="tr-split">
+          <div class="tr-cats">
+            <sc-for list="{{ trainingCats }}" as="c" hint-placeholder-count="4">
+              <button sc-camel-on-click="{{ c.onClick }}" style="{{ c.style }}"><span data-noi18n>{{ c.name }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.7">{{ c.count }}</span></button>
+            </sc-for>
+          </div>
+          <div class="tr-items">
+            <sc-for list="{{ trainingItems }}" as="it" hint-placeholder-count="6">
+              <button sc-camel-on-click="{{ it.onClick }}" style="{{ it.style }}"><span>{{ it.icon }}</span><span data-noi18n style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.title }}</span></button>
+            </sc-for>
+          </div>
+          <div class="tr-reader">
+            <sc-if value="{{ trainingReaderOpen }}" hint-placeholder-val="{{ false }}">
+              <div class="tr-reader-head">
+                <span data-noi18n class="tr-reader-title">{{ trainingReaderTitle }}</span>
+                <button sc-camel-on-click="{{ trainingOpenOriginal }}" title="Finder'da göster" style="margin-left:auto;padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--gx-line);color:var(--gx-dim);background:transparent;border-radius:8px">Finder’da göster</button>
+              </div>
+              <sc-if value="{{ trainingReaderBusy }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-dim);font-size:13px;padding:18px">Okunuyor…</div></sc-if>
+              <div id="tr-reader" class="tr-prose"></div>
+            </sc-if>
+            <sc-if value="{{ trainingReaderEmpty }}" hint-placeholder-val="{{ true }}"><div class="tr-reader-empty">Soldan bir ders seç.</div></sc-if>
+          </div>
+        </div>
         </sc-if>
       </div>
     </sc-if>

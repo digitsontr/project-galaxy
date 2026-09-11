@@ -230,6 +230,14 @@ Postgres / MySQL / SQLite sunucularını ekle (parolalar macOS `safeStorage` ile
 - **Uzak terminal:** sunucuda gömülü terminal — **login kabuk** (`bash -l`) kullanır; böylece uzak `PATH` senin kendi terminalindekiyle aynıdır (docker/node/nvm/brew komutları bulunur).
 - ControlMaster multiplexing, `accept-new` host-key politikası, yapılandırılabilir zaman aşımı (Ayarlar).
 
+### 🎓 EĞİTİMLERİM — yerel ders materyalleri
+
+`~/Desktop/yazılım` klasöründeki ders materyallerini (Word, PowerPoint, isimsiz Colab/Jupyter defterleri, `.py` alıştırmaları) tarar ve okunabilir hâle çevirir — kaynak dosyalara hiç yazmaz, yalnız bir dönüşüm önbelleği tutar (`lib/trainings.js`).
+
+- **Kategori → ders → okuma paneli:** sol iki sütun klasör adına göre kategorize edilmiş dersleri listeler (C#, Java, Python, React, Yapay Zeka…), sağdaki panel seçilen dersi düzenli tipografiyle gösterir.
+- **Desteklenen türler:** `.docx` (kalın/italik/liste korunur), `.pptx` (slayt slayt), isimsiz Colab/Jupyter defterleri (markdown hücreleri + kod + çıktı + grafik görselleri), `.py` kaynak dosyaları. `.zip` arşivleri içerik olarak açılmaz, **Finder’da göster** ile erişilir.
+- Her ders tek tıkla **Finder’da göster** ile orijinal dosyaya gider.
+
 ---
 
 ## Yapay zekâ ajanların

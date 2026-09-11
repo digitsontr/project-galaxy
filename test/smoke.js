@@ -45,6 +45,7 @@ function staticChecks() {
     const onb = fs.readFileSync(path.join(ROOT, 'onboarding.html'), 'utf8');
     check('settings-prefs', /prefs-nav/.test(onb) && /STATUS · KAPTAN/.test(onb) && /id="prefsSave"/.test(onb) && /theme-card/.test(onb) && /Görünüm/.test(onb) && /id="themeApex"/.test(onb) && /id="themeEv"/.test(onb), '');
     check('sprint-l-health', /Sistem sağlığı/.test(h) && /healthItems/.test(h) && /galaxy:githubCheck/.test(fs.readFileSync(path.join(ROOT, 'lib', 'data.js'), 'utf8')), '');
+    check('sprint-m-egitim', /Eğitimlerim/.test(h) && /tr-reader/.test(h) && fs.existsSync(path.join(ROOT, 'lib', 'trainings.js')), '');
     // Gerçek ama boş evren listesinde sahte demo evrenler (İş Evreni/Papilon/Arşiv) ASLA gösterilmemeli.
     check('no-fake-universes-in-real-mode', /\(!realMode \? \[\{name:'İş Evreni'/.test(h), '');
   } catch (e) { check('static-read', false, e.message); }
@@ -161,6 +162,15 @@ app.whenReady().then(async () => {
     await wait(400);
     const mailText = await js(`document.body.innerText||''`);
     check('mail-eyebrow-dynamic', /POSTA · BAĞLI/.test(mailText) && !/STATUS · MAIL/.test(mailText), mailText.split('\n')[0]);
+    // Eğitimlerim: kategoriler listelenmeli, bir derse tıklayınca okuma paneline gerçek içerik dolmalı
+    await openMore('Eğitimlerim');
+    await wait(400);
+    const egitimList = await js(`document.body.innerText||''`);
+    check('training-list', /Python/.test(egitimList) && /Yapay Zeka/.test(egitimList), '');
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('Döngüler')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(500);
+    const readerHtml = await js(`(function(){ var el=document.getElementById('tr-reader'); return el?el.innerHTML:''; })()`);
+    check('training-reader', /tr-code/.test(readerHtml) && /range\(3\)/.test(readerHtml), readerHtml.slice(0,40));
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

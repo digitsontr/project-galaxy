@@ -11,6 +11,7 @@ class Component extends DCLogic {
     dbForm:{name:'',type:'postgres',host:'localhost',port:'5432',database:'',user:'',password:'',file:''},
     agentInput:'', _agentBusy:false, consoleInput:'', _todos:null, todoInput:'', noteInput:'', linkInput:'', linkAdd:false,
     _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null, activityOpen:false, _activityTick:0,
+    _trainings:null, _trainingErr:'', _trainingCat:'', trainingSel:null, _trainingBusy:false, _trainingItem:null,
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     _conBusy:false, _claudeOk:null, _githubOk:null, _githubMsg:'', _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false,
@@ -716,7 +717,7 @@ class Component extends DCLogic {
     const ns={tab:id, agentId:null, moreOpen:false};
     if(fromPlanet){ ns.mode='space'; ns.holdPlanet=true; }
     else if(this.state.mode!=='space') ns.mode='space';
-    if(id==='dongu'||id==='posta'){ ns.leftCollapsed=true; ns.rightCollapsed=true; ns.hudOpen=false; }
+    if(id==='dongu'||id==='posta'||id==='egitim'){ ns.leftCollapsed=true; ns.rightCollapsed=true; ns.hudOpen=false; }
     this.setState(ns); this._onTabOpen(id);
   }
   // Sekme açılınca ilgili veriyi tazele — konteyner/DB/sunucu vb. güncel görünsün
@@ -727,6 +728,7 @@ class Component extends DCLogic {
     else if(id==='zaman'){ if(window.galaxy&&window.galaxy.scheduleList) window.galaxy.scheduleList().then(s=>this.setState({_sched:s||[]})); this._loadReports&&this._loadReports(); }
     else if(id==='dongu') this._loopLoad();
     else if(id==='posta') this._mailLoad();
+    else if(id==='egitim') this._trainingLoad();
   }catch(e){} }
   _loopAgent(){ const st=this.state; return (this.AGENTS||[]).find(a=>a.id===st.loopAgentId)||(this.AGENTS||[])[0]||null; }
   _loopNodes(){
@@ -883,6 +885,29 @@ class Component extends DCLogic {
         if(r&&r.ok) this._mailInbox();
       } else this.setState({mailStatus:''});
     }catch(e){ this.setState({mailStatus:'MCP yok'}); } }
+  // ---------- EĞİTİMLERİM ----------
+  async _trainingLoad(){
+    if(this._trainings) return; // klasör taraması ucuz değil; sekmeye her dönüşte tekrar tarama
+    try{
+      if(!(window.galaxy&&window.galaxy.trainingList)){ this.setState({_trainingErr:'Bu ortamda eğitim modülü yok'}); return; }
+      const r=await window.galaxy.trainingList();
+      if(!r||!r.ok){ this.setState({_trainingErr:(r&&r.error)||'okunamadı'}); return; }
+      this._trainings=r.categories||[]; this._trainingRoot=r.root||'';
+      const first=this._trainings[0];
+      this.setState({_trainingErr:'', _trainingCat:(first&&first.key)||''});
+    }catch(e){ this.setState({_trainingErr:'okunamadı'}); }
+  }
+  _trainingRefresh(){ this._trainings=null; this._trainingLoad(); }
+  async _trainingOpen(id){
+    this.setState({trainingSel:id, _trainingBusy:true, _trainingItem:null});
+    try{
+      const r=await window.galaxy.trainingRead(id);
+      if(r&&r.ok){ this._trainingHtml=r.html; this.setState({_trainingBusy:false, _trainingItem:{title:r.title,kind:r.kind}}); }
+      else { this._trainingHtml='<p><em>'+((r&&r.error)||'okunamadı')+'</em></p>'; this.setState({_trainingBusy:false, _trainingItem:{title:'Hata',kind:''}}); }
+    }catch(e){ this._trainingHtml='<p><em>okunamadı</em></p>'; this.setState({_trainingBusy:false, _trainingItem:{title:'Hata',kind:''}}); }
+    setTimeout(()=>{ const el=document.getElementById('tr-reader'); if(el) el.innerHTML=this._trainingHtml||''; },30);
+  }
+  _trainingOpenOriginal(){ const id=this.state.trainingSel; if(id&&window.galaxy&&window.galaxy.trainingOpenOriginal) try{ window.galaxy.trainingOpenOriginal(id); }catch(e){} }
   _mailReply(){
     const sel=this.state.mailSel||{};
     const from=String(sel.from||'').replace(/^.*<([^>]+)>\s*$/,'$1').trim();
@@ -1324,9 +1349,9 @@ class Component extends DCLogic {
 
     const kadet=false;
     // Üst: Özet / Evren / Pano. DB·Docker·Zaman·SSH Daha menüsünde.
-    const tabDefAll=[['genel','Özet'],['evren','Evren'],['pano','Pano'],['db','DB'],['docker','Docker'],['zaman','Zamanlayıcı'],['dongu','Döngü'],['posta','Posta'],['servers','Sunucular']];
+    const tabDefAll=[['genel','Özet'],['evren','Evren'],['pano','Pano'],['db','DB'],['docker','Docker'],['zaman','Zamanlayıcı'],['dongu','Döngü'],['posta','Posta'],['servers','Sunucular'],['egitim','Eğitimlerim']];
     const primaryIds=['genel','evren','pano'];
-    const moreIds=['db','docker','zaman','dongu','posta','servers'];
+    const moreIds=['db','docker','zaman','dongu','posta','servers','egitim'];
     const tabDef=tabDefAll.filter(([id])=>primaryIds.includes(id));
     const tabBtn=(active)=>`font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.02em;padding:6px 12px;cursor:pointer;border-radius:8px;border:none;background:${active?'color-mix(in srgb, var(--gx-accent) 16%, transparent)':'transparent'};box-shadow:${active?'inset 0 0 0 1px color-mix(in srgb, var(--gx-accent) 50%, transparent)':'none'};color:${active?'var(--gx-accent)':'var(--gx-dim)'};transition:background .22s,color .22s`;
     const tabs=tabDef.map(([id,label])=>({id,label,style:tabBtn(st.tab===id),onClick:()=>this._openTab(id)}));
@@ -1647,6 +1672,25 @@ class Component extends DCLogic {
       onMailBody:(e)=>this.setState({mailBody:(e&&e.target&&e.target.value)||''}),
       mailSend:()=>this._mailSend(), mailPickFiles:()=>this._mailPickFiles(),
       mailAtts:(st.mailAtts||[]).map((a,i)=>({name:a.name, icon:a.icon||'📄', onRemove:()=>this._mailRemoveAtt(i)})),
+      // ---------- EĞİTİMLERİM ----------
+      trainingLoading: this._trainings===null && !st._trainingErr,
+      trainingErr: st._trainingErr||'', hasTrainingErr: !!st._trainingErr,
+      trainingRoot: this._trainingRoot||'',
+      trainingEmpty: !!(this._trainings && !this._trainings.length),
+      hasTrainingCats: !!(this._trainings && this._trainings.length),
+      trainingCats:(this._trainings||[]).map(c=>{ const on=c.key===st._trainingCat; return {
+        key:c.key, name:c.name, count:c.count, active:on,
+        onClick:()=>this.setState({_trainingCat:c.key}),
+        style:`display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:9px 12px;cursor:pointer;border:none;border-radius:8px;background:${on?'color-mix(in srgb, var(--gx-accent) 12%, transparent)':'transparent'};color:${on?'var(--gx-accent)':'var(--gx-ink)'};font-family:'Space Grotesk',sans-serif;font-size:13px` }; }),
+      trainingItems:(()=>{ const cat=(this._trainings||[]).find(c=>c.key===st._trainingCat); if(!cat) return [];
+        const icon={docx:'📄',pptx:'▤',notebook:'◆',code:'⌁',archive:'🗀'};
+        return cat.items.map(it=>{ const on=it.id===st.trainingSel; return { id:it.id, title:it.title, icon:icon[it.kind]||'•', sizeKb:it.sizeKb, active:on,
+          onClick:()=>this._trainingOpen(it.id),
+          style:`display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;cursor:pointer;border:none;border-radius:8px;background:${on?'rgba(97,220,255,.1)':'transparent'};border-left:2px solid ${on?'var(--gx-accent)':'transparent'};color:${on?'var(--gx-ink)':'var(--gx-dim)'};font-size:13px` }; }); })(),
+      trainingReaderOpen: !!st.trainingSel, trainingReaderEmpty: !st.trainingSel, trainingReaderTitle:(st._trainingItem&&st._trainingItem.title)||'',
+      trainingReaderBusy: !!st._trainingBusy,
+      trainingOpenOriginal:()=>this._trainingOpenOriginal(),
+      trainingRefresh:()=>this._trainingRefresh(),
       serverList:((st._servers)||[]).map(s=>({ name:s.name, host:[s.host||s.alias,s.user].filter(Boolean).join(' · '), roots:(s.roots&&s.roots.length)?(s.roots.length+' kök'):'',
         onScan:()=>this.srvScan(s.id), onEdit:()=>this.openSrvEdit(s), onDelete:()=>this.askConfirm('"'+(s.name||'sunucu')+'" sunucusunu kaldır?',()=>this.srvDelete(s.id)), onTerm:()=>this.openSrvTerm(s),
         dotStyle:`width:9px;height:9px;border-radius:50%;background:#61dcff;flex-shrink:0` })),
@@ -1800,7 +1844,7 @@ class Component extends DCLogic {
       }),
       hasLocPlanets: (this._allProjects||[]).some(p=>p.universe===st.uniId),
       viewGalaxy: space&&isEvren, orbInRail: !(space&&isEvren), viewPano: space&&st.tab==='pano', viewDb: space&&st.tab==='db', viewZaman: space&&st.tab==='zaman',
-      viewDongu: space&&st.tab==='dongu', viewPosta: space&&st.tab==='posta',
+      viewDongu: space&&st.tab==='dongu', viewPosta: space&&st.tab==='posta', viewEgitim: space&&st.tab==='egitim',
       viewGalaxyHud: this._uiTheme==='galaxy', notPaperMap: this._uiTheme==='galaxy',
       mapHudLabel: this._uiTheme==='ev'?'':'Aktif Geliştirme',
       viewMapTitle: this._uiTheme!=='ev',

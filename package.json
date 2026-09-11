@@ -106,6 +106,7 @@
   },
   "dependencies": {
     "electron-updater": "^6.3.9",
+    "jszip": "^3.10.2",
     "mysql2": "^3.11.5",
     "pg": "^8.13.1",
     "sql.js": "^1.12.0"

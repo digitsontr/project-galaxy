@@ -66,6 +66,17 @@ contextBridge.exposeInMainWorld('galaxy', {
   },
   claudeCheck: async () => ({ ok: true, path: '/usr/local/bin/claude' }),
   githubCheck: async () => ({ ok: true }),
+  trainingList: async () => ({ ok: true, root: '~/Desktop/yazılım', categories: [
+    { key: 'python', name: 'Python', count: 2, items: [
+      { id: 'p1', title: 'Döngüler', kind: 'code', sizeKb: 1 },
+      { id: 'p2', title: 'Rapor', kind: 'docx', sizeKb: 3 },
+    ] },
+    { key: 'yapay zeka', name: 'Yapay Zeka', count: 1, items: [
+      { id: 'y1', title: 'KNN', kind: 'notebook', sizeKb: 5 },
+    ] },
+  ] }),
+  trainingRead: async (id) => ({ ok: true, title: id === 'p1' ? 'Döngüler' : 'İçerik', kind: 'code', html: '<pre class="tr-code"><code>for i in range(3):\n    print(i)</code></pre>' }),
+  trainingOpenOriginal: async () => ({ ok: true }),
   gitInit: async () => ({ ok: true }),
   projectHide: async () => ({ ok: true, action: 'hidden' }),
   syncReadme: async () => ({ ok: true, added: 0, plan: [] }),

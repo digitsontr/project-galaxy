@@ -21,6 +21,7 @@ require('./ipc/core')(g);
 require('./ipc/db-git')(g);
 require('./ipc/ai-runtime')(g);
 require('./ipc/infra')(g);
+require('./lib/trainings')(g);
 
 const {
   APP_DIR, DATA_DIR, IS_MAS, migrateLegacyData, restoreBookmarks,
