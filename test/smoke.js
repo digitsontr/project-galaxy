@@ -28,9 +28,22 @@ function staticChecks() {
     }
     check('index-nonempty', h.length > 50000, h.length + ' bytes');
     check('workshop-stage', /Bir dosya seç/.test(h) && /Yörünge/.test(h) && !/belgede ara/.test(h), '');
-    check('sprint-c-copy', /Evren bağla/.test(h) && /git init/.test(h) && /README.den çek/.test(h) && /confirmOkLabel/.test(h), '');
-    check('sprint-d-twin', /id="ga-root"/.test(h) && /id="ga-panel"/.test(h) && /id="ga-orbwrap"/.test(h) && !/<div id="ga-mic"/.test(h), '');
-    check('sprint-e-a11y', /prefers-reduced-motion/.test(h) && /#9aa3c2/.test(h), '');
+    check('sprint-c-copy', /Evren bağla/.test(h) && /git init/.test(h) && /README.den/.test(h) && /confirmOkLabel/.test(h), '');
+    check('sprint-d-twin', /id="ga-root"/.test(h) && /id="ga-panel"/.test(h) && /id="ga-orbwrap"/.test(h), '');
+    check('sprint-f-stt', /id="ga-mic"/.test(h) && /id="ga-wake"/.test(h) && /Dinliyor/.test(h) && /Voice On/.test(h) && /STATUS: READY/.test(h), '');
+    check('sprint-g-cal', /calDayOpen/.test(h) && /EVENT CREATED/.test(h) && /Kilitle/.test(h), '');
+    check('sprint-h-loop', /Döngü/.test(h) && /Tetik/.test(h) && /Bildir/.test(h), '');
+    check('sprint-i-posta', /Posta/.test(h) && /mail_send/.test(h) && /Gelen/.test(h) && /Yaz/.test(h) && /mailShowCompose/.test(h), '');
+    check('sprint-j-split', fs.existsSync(path.join(ROOT, 'lib', 'config.js')) && fs.existsSync(path.join(ROOT, 'ipc', 'core.js')) && fs.existsSync(path.join(ROOT, 'lib', 'mcp-client.js')), '');
+    check('sprint-k-fonts', (h.match(/data:font\/woff2/g) || []).length === 0 && fs.existsSync(path.join(ROOT, 'newui', 'assets', 'fonts')), '');
+    check('sprint-e-a11y', /prefers-reduced-motion/.test(h) && /#9aa3c2/.test(h) && /aria-label/.test(h) && /role="banner"/.test(h), '');
+    check('agent-edit-form', /value="\{\{ agFormPrompt \}\}"/.test(h) && /agFormRole/.test(h) && /Kişilik/.test(h) && /Tek tık komutlar/.test(h) && !/>\{\{ agFormPrompt \}\}<\/textarea>/.test(h), '');
+    check('ux-shell', /planSections/.test(h) && /pvMd/.test(h) && /pvHtml/.test(h) && /mailPickFiles/.test(h) && /Git nedir/.test(h) && /gx-md-doc/.test(h) && /_toggleTree/.test(h) && /--gx-ok/.test(h) && /asstStatusPill/.test(h), '');
+    const dbGit = fs.readFileSync(path.join(ROOT, 'ipc', 'db-git.js'), 'utf8');
+    const uiSrc = fs.readFileSync(path.join(ROOT, 'newui', 'component.js'), 'utf8');
+    check('db-agent-sql-guard', /parseAgentSql/.test(dbGit) && /session limit/.test(dbGit) && /_sqlLooks/.test(uiSrc) && /you've hit/.test(uiSrc), '');
+    const onb = fs.readFileSync(path.join(ROOT, 'onboarding.html'), 'utf8');
+    check('settings-prefs', /prefs-nav/.test(onb) && /STATUS · KAPTAN/.test(onb) && /id="prefsSave"/.test(onb) && /theme-card/.test(onb) && /Görünüm/.test(onb) && /id="themeApex"/.test(onb) && /id="themeEv"/.test(onb), '');
   } catch (e) { check('static-read', false, e.message); }
 }
 
@@ -71,17 +84,28 @@ app.whenReady().then(async () => {
     await wait(500);
     const uniReply = await js(`(document.getElementById('ga-log').innerText||'').includes('evren')`);
     check('assistant-universe', uniReply);
-    // Mic/voice kapalı olmalı (yazışma modu)
-    const noMic = await js(`!document.getElementById('ga-mic') && !document.getElementById('ga-wake')`);
-    check('voice-disabled', noMic);
+    const hasMic = await js(`!!document.getElementById('ga-mic') && !!document.getElementById('ga-wake')`);
+    check('voice-ui', hasMic);
     await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Evren') b.click(); }); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); })(); true`);
     await wait(350);
-    const railSel = `(function(){ var n=''; document.querySelectorAll('[style*="8px 18px"]').forEach(function(el){ var st=el.getAttribute('style')||''; if(st.indexOf('transparent')<0) n=(el.innerText||'').split('\\n')[0].trim(); }); return n; })()`;
+    const railSel = `(function(){ var n=''; document.querySelectorAll('.gx-rail-row').forEach(function(el){ var st=el.getAttribute('style')||''; if(st.indexOf('var(--gx-accent)')>=0) n=(el.innerText||'').split('\\n')[0].trim(); }); return n; })()`;
     const jkA = await js(railSel);
     await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'j',bubbles:true})); true`);
     await wait(250);
     const jkB = await js(railSel);
     check('sprint-e-jk', !!jkA && !!jkB && jkA !== jkB, jkA + ' → ' + jkB);
+    await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); var b=document.querySelector('button[title="ATLAS"]'); if(b) b.click(); })(); true`);
+    await wait(400);
+    await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Düzenle') b.click(); }); })(); true`);
+    await wait(450);
+    const form = await js(`(function(){
+      var ta=document.querySelector('textarea');
+      var roleEl=document.querySelector('input[placeholder*="standup"]');
+      var p1=document.querySelector('input[placeholder*="Standup"]') || document.querySelector('input[placeholder*="Durum"]');
+      var txt=ta?(ta.value||ta.textContent||''):'';
+      return { txt: txt.slice(0,80), role: roleEl?roleEl.value:'', p1: p1?p1.value:'', obj: /\\[object Object\\]/.test(document.body.innerText||'') };
+    })()`);
+    check('agent-edit-content', form && /ATLAS/i.test(form.txt||'') && /CTO/i.test(form.role||'') && form.p1 && !form.obj, JSON.stringify(form));
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

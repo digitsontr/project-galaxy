@@ -13,11 +13,17 @@ const universes = [{ id: 'u', name: 'Şirket', subtitle: '~/work', count: 4 }, {
 let claudeCb = null, shellCb = null;
 
 contextBridge.exposeInMainWorld('galaxy', {
-  load: async () => ({ universes, projects, agents: [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff' }], alerts: [], settings: { lang: 'tr' }, ignored: [] }),
+  load: async () => ({ universes, projects, agents: [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], alerts: [], settings: { lang: 'tr' }, ignored: [] }),
   profileGet: async () => ({ lang: 'tr', name: 'Furkan' }),
-  settingsGet: async () => ({ settings: { lang: 'tr', focusMin: 25 } }),
+  settingsGet: async () => ({ settings: { lang: 'tr', focusMin: 25, uiTheme: 'galaxy' } }),
   gitLog: async () => ({ ok: true, branch: 'main', ahead: 1, behind: 0, commits: [{ h: 'a1b2c3d', an: 'Furkan', ad: '2s', s: 'fix' }], files: [], dirty: 2, dirtyFiles: [], staged: 0, branches: ['main', 'dev'] }),
   tree: async () => [{ name: 'src', dir: true, children: [{ name: 'index.js', dir: false }] }, { name: 'README.md', dir: false }],
+  file: async ({ rel }) => {
+    const name = (rel||'README.md').split('/').pop();
+    const html = /\.html?$/i.test(rel||'');
+    return { name, rel, kind: html ? 'html' : (/\.md$/i.test(rel||'') ? 'markdown' : 'text'), url: html ? 'about:blank' : undefined, content: html ? '<h1>Demo</h1><p>Sayfa.</p>' : '# LinguMonster\n\n**Uygulama** metni.\n\n## Ne Yapar?\n\n- [ ] Görev bir\n- [x] Görev iki\n' };
+  },
+  syncReadme: async () => ({ ok: true, added: 2, plan: [{ text: 'Görev bir', done: false }, { text: 'Görev iki', done: true }] }),
   readme: async () => ({ name: 'README.md', content: '# AlphaAPI\n\nBackend.' }),
   dbList: async () => [], dbTables: async () => ({ ok: true, tables: [] }),
   scheduleList: async () => [{ id: 's1', name: 'Nightly', cron: '0 2 * * *', enabled: true }],
@@ -38,6 +44,25 @@ contextBridge.exposeInMainWorld('galaxy', {
     setTimeout(tick, 20); return { ok: true };
   },
   sttAvailable: async () => ({ ok: false }),
+  calList: async () => [],
+  calSave: async (ev) => ({ ok: true, event: Object.assign({ id: 'cal-mock' }, ev) }),
+  calDelete: async () => ({ ok: true }),
+  loopGet: async () => ({ ok: true, remarks: '', lastRun: null }),
+  loopSave: async () => ({ ok: true }),
+  mcpList: async () => ({ ok: true, tools: [{ name: 'search_emails' }, { name: 'read_email' }, { name: 'send_email' }], aliases: { list: 'search_emails', read: 'read_email', brief: 'send_email', send: 'send_email' } }),
+  mcpCall: async ({ alias, name }) => {
+    if (alias === 'list' || name === 'search_emails') {
+      return { ok: true, result: { content: [{ type: 'text', text: JSON.stringify([
+        { id: 'm1', from: 'atlas@galaxy', subject: 'Haftalık durum', snippet: 'Hacı Takip 21g sessiz', date: '2026-08-18' },
+        { id: 'm2', from: 'nav@galaxy', subject: 'Plan uyarısı', snippet: '3 açık madde', date: '2026-08-17' }
+      ]) }] } };
+    }
+    if (alias === 'read' || name === 'read_email') {
+      return { ok: true, result: { content: [{ type: 'text', text: 'From: atlas@galaxy\nSubject: Haftalık durum\n\nHacı Takip 21 gündür telemetri açık.' }] } };
+    }
+    if (alias === 'brief' || alias === 'send') return { ok: true, result: { content: [{ type: 'text', text: 'sent' }] } };
+    return { ok: false, error: 'mock' };
+  },
   claudeCheck: async () => ({ ok: true, path: '/usr/local/bin/claude' }),
   gitInit: async () => ({ ok: true }),
   projectHide: async () => ({ ok: true, action: 'hidden' }),
@@ -50,5 +75,5 @@ contextBridge.exposeInMainWorld('galaxy', {
   onClaude: (cb) => { claudeCb = cb; }, onShell: (cb) => { shellCb = cb; }, onStt: () => {},
   onAgent: () => {}, onScheduleDone: () => {}, onDockerLog: () => {},
   openFile: () => {}, openFolder: () => {}, openTerminal: () => {}, openSettings: () => {}, openClaude: () => {},
-  pickFolder: async () => null, pickFiles: async () => null, agentsFull: async () => [], backupList: async () => []
+  pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], agentSave: async () => ({ ok: true, id: 'a1' }), backupList: async () => []
 });
