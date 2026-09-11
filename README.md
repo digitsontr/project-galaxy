@@ -404,7 +404,7 @@ Apex WORKSPACE: Trigger → Gather → Work (model, short/long memory, araçlar)
 - [x] Döngü tuvali temel akışı var: Tetik · Tara · İş · İncele · Bildir adımları arayüzde (`galaxy:loopGet/loopSave`)
 - [x] Remarks → uzun bellek: `loopRemarks` diskte kalıcı (çekirdek gerçekler için ayrı tek kaynak henüz yok)
 - [ ] ATLAS / NAVIGATOR / DOCUMENTOR / FORGE / MENTOR’a araç + son koşu nabzı; haritada düğüm
-- [ ] Sol sağlık şeridi: Claude CLI, GitHub, STT izni, SSH, (sonra) Gmail / Takvim
+- [x] Sağlık göstergesi: Claude CLI, GitHub, SSH, STT — üst barda ⌘K'nın yanında 4 ikon+nokta (tasarım gereği "sol şerit" değil, grid'i bozmamak için üst bar; Gmail/Takvim henüz yok)
 - [ ] Varsayılan onay kartı; Komutan’da süreli “güvenilir oturum”; `--dangerously-skip-permissions` kalksın
 
 ### Faz 3 — dünyaya bağlan (dar Gmail / takvim)
