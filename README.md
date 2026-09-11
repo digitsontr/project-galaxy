@@ -403,7 +403,7 @@ Apex WORKSPACE: Trigger → Gather → Work (model, short/long memory, araçlar)
 
 - [x] Döngü tuvali temel akışı var: Tetik · Tara · İş · İncele · Bildir adımları arayüzde (`galaxy:loopGet/loopSave`)
 - [x] Remarks → uzun bellek: `loopRemarks` diskte kalıcı (çekirdek gerçekler için ayrı tek kaynak henüz yok)
-- [ ] ATLAS / NAVIGATOR / DOCUMENTOR / FORGE / MENTOR’a araç + son koşu nabzı; haritada düğüm
+- [~] ATLAS / NAVIGATOR / DOCUMENTOR / FORGE / MENTOR’a **son koşu nabzı** eklendi (İSTASYON'da koşarken yanıp sönen nokta + "son koşu Xdk önce" tooltip'i) — **araç erişimi** ve **haritada düğüm** hâlâ yok: araç erişimi izin-modeli kararına bağlı (bkz. Guard), harita düğümü ayrı bir görsel tasarım işi
 - [x] Sağlık göstergesi: Claude CLI, GitHub, SSH, STT — üst barda ⌘K'nın yanında 4 ikon+nokta (tasarım gereği "sol şerit" değil, grid'i bozmamak için üst bar; Gmail/Takvim henüz yok)
 - [ ] Varsayılan onay kartı; Komutan’da süreli “güvenilir oturum”; `--dangerously-skip-permissions` kalksın
 
