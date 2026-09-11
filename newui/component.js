@@ -12,7 +12,7 @@ class Component extends DCLogic {
     agentInput:'', _agentBusy:false, consoleInput:'', _todos:null, todoInput:'', noteInput:'', linkInput:'', linkAdd:false,
     _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null, activityOpen:false, _activityTick:0,
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
-    _conBusy:false, _claudeOk:null, _hubPulse:null, planInput:'',
+    _conBusy:false, _claudeOk:null, _githubOk:null, _githubMsg:'', _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false,
     schAddOpen:false, _schResult:'', schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},
     consoleH:240, agentFormOpen:false, agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''},
@@ -517,6 +517,7 @@ class Component extends DCLogic {
     this._loadServers();
     this._loadReports();
     this._probeClaude();
+    this._probeGithub();
     this._calLoad();
     this._loopLoad();
   }
@@ -525,6 +526,13 @@ class Component extends DCLogic {
       if(window.galaxy&&window.galaxy.claudeCheck){ const r=await window.galaxy.claudeCheck(); this.setState({_claudeOk:!!(r&&r.ok)}); }
       else this.setState({_claudeOk:true});
     }catch(e){ this.setState({_claudeOk:true}); }
+  }
+  // Sol/üst sağlık şeridi — Faz 2: Claude CLI, GitHub, SSH, STT izni tek bakışta.
+  async _probeGithub(){
+    try{
+      if(window.galaxy&&window.galaxy.githubCheck){ const r=await window.galaxy.githubCheck(); this.setState({_githubOk:!!(r&&r.ok), _githubMsg:(r&&r.error)||''}); }
+      else this.setState({_githubOk:true});
+    }catch(e){ this.setState({_githubOk:true}); }
   }
   // ---------- Zamanlanmış görev raporları ----------
   async _loadReports(){ try{ if(window.galaxy&&window.galaxy.reports){ this.setState({_reports:(await window.galaxy.reports())||[]}); } }catch(e){} }
@@ -1799,6 +1807,17 @@ class Component extends DCLogic {
       isClaude: st.consoleTab==='claude', isBash: st.consoleTab==='bash',
       claudeLines, bashLines, emptyClaude:claudeLines.length===0, emptyBash:bashLines.length===0,
       claudeMissing:st._claudeOk===false, claudeReady:st._claudeOk!==false,
+      // Sağlık şeridi — Faz 2: tek bakışta Claude CLI / GitHub / SSH / STT durumu (üst bar, ⌘K'nın yanı).
+      healthItems:(()=>{ const sttOn=!!(this._asst&&this._asst.native);
+        const items=[
+          {k:'claude', ic:'⌁', ok:st._claudeOk!==false, label:'Claude CLI', detail:st._claudeOk===false?'bulunamadı — Ayarlar’dan yolu düzelt':'hazır'},
+          {k:'github', ic:'⎇', ok:st._githubOk!==false, label:'GitHub', detail:st._githubOk===false?(st._githubMsg||'oturum yok'):'bağlı'},
+          {k:'ssh', ic:'🖧', ok:!!(st._sshKeys&&st._sshKeys.length), label:'SSH', detail:(st._sshKeys&&st._sshKeys.length)?st._sshKeys.length+' anahtar':'~/.ssh altında anahtar yok'},
+          {k:'stt', ic:'◉', ok:sttOn, label:'Ses tanıma', detail:sttOn?'native STT hazır':'kapalı — mic ile de yazabilirsin'},
+        ];
+        return items.map(h=>({ key:h.k, icon:h.ic, title:h.label+' · '+h.detail,
+          dotStyle:`width:6px;height:6px;border-radius:50%;background:${h.ok?'var(--gx-ok)':'var(--gx-faint)'};${h.ok?'box-shadow:0 0 6px var(--gx-ok)':''}`,
+          style:`display:flex;align-items:center;gap:4px;font-size:12px;color:${h.ok?'var(--gx-dim)':'var(--gx-faint)'};opacity:${h.ok?'1':'.55'}` })); })(),
       consoleInput: st.consoleInput, onConsoleInput:(e)=>this.onConsoleInput(e), onConsoleKey:(e)=>this.onConsoleKey(e), sendConsole:()=>this.sendConsole(),
       consolePrompt: st.consoleTab==='bash'?'$':'›', focusConsole:()=>this._focusConsole(),
       consolePlaceholder: st.consoleTab==='bash'?'komut yaz, Enter ile çalıştır…':'Claude\'a yaz, Enter ile gönder…',

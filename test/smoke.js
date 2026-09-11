@@ -44,6 +44,7 @@ function staticChecks() {
     check('db-agent-sql-guard', /parseAgentSql/.test(dbGit) && /session limit/.test(dbGit) && /_sqlLooks/.test(uiSrc) && /you've hit/.test(uiSrc), '');
     const onb = fs.readFileSync(path.join(ROOT, 'onboarding.html'), 'utf8');
     check('settings-prefs', /prefs-nav/.test(onb) && /STATUS · KAPTAN/.test(onb) && /id="prefsSave"/.test(onb) && /theme-card/.test(onb) && /Görünüm/.test(onb) && /id="themeApex"/.test(onb) && /id="themeEv"/.test(onb), '');
+    check('sprint-l-health', /Sistem sağlığı/.test(h) && /healthItems/.test(h) && /galaxy:githubCheck/.test(fs.readFileSync(path.join(ROOT, 'lib', 'data.js'), 'utf8')), '');
   } catch (e) { check('static-read', false, e.message); }
 }
 
@@ -86,6 +87,8 @@ app.whenReady().then(async () => {
     check('assistant-universe', uniReply);
     const hasMic = await js(`!!document.getElementById('ga-mic') && !!document.getElementById('ga-wake')`);
     check('voice-ui', hasMic);
+    const health = await js(`[].slice.call(document.querySelectorAll('[aria-label="Sistem sağlığı"] span[title]')).map(function(s){return s.getAttribute('title');})`);
+    check('health-strip', Array.isArray(health) && health.length===4 && /Claude CLI/.test(health[0]) && /GitHub/.test(health[1]) && /SSH/.test(health[2]) && /Ses tanıma/.test(health[3]), health.join(' | '));
     // ⌘K tek kapı: eşleşmeyen bir soru yazınca Galaxy'ye düşmeli (asistan log'una eklenmeli)
     await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'k',metaKey:true,bubbles:true})); true`);
     await wait(250);

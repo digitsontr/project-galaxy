@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('galaxy', {
   projectHide: (projectId) => ipcRenderer.invoke('galaxy:projectHide', projectId),
   projectUnhide: (projectId) => ipcRenderer.invoke('galaxy:projectUnhide', projectId),
   claudeCheck: () => ipcRenderer.invoke('galaxy:claudeCheck'),
+  githubCheck: () => ipcRenderer.invoke('galaxy:githubCheck'),
   gitLog: (projectId) => ipcRenderer.invoke('galaxy:gitLog', projectId),
   gitStage: (opts) => ipcRenderer.invoke('galaxy:gitStage', opts),
   gitUnstage: (opts) => ipcRenderer.invoke('galaxy:gitUnstage', opts),

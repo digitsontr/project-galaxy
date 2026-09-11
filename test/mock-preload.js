@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('galaxy', {
     return { ok: false, error: 'mock' };
   },
   claudeCheck: async () => ({ ok: true, path: '/usr/local/bin/claude' }),
+  githubCheck: async () => ({ ok: true }),
   gitInit: async () => ({ ok: true }),
   projectHide: async () => ({ ok: true, action: 'hidden' }),
   syncReadme: async () => ({ ok: true, added: 0, plan: [] }),

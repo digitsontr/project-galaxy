@@ -678,6 +678,9 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
       </sc-if>
     </nav>
     <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end">
+      <div role="status" aria-label="Sistem sağlığı" style="display:flex;align-items:center;gap:10px;padding:0 4px">
+        <sc-for list="{{ healthItems }}" as="h" hint-placeholder-count="4"><span title="{{ h.title }}" style="{{ h.style }}"><span>{{ h.icon }}</span><span style="{{ h.dotStyle }}"></span></span></sc-for>
+      </div>
       <button sc-camel-on-click="{{ openPalette }}" title="Komut paleti" aria-label="Komut paleti" style="display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);background:transparent;border:1px solid var(--gx-line);padding:6px 10px;cursor:pointer;border-radius:8px"><span style="color:var(--gx-accent)">⌕</span><span style="padding:2px 6px;border:1px solid var(--gx-line);font-size:10px;border-radius:4px">⌘K</span></button>
       <button sc-camel-on-click="{{ openSettings }}" title="Ayarlar" aria-label="Ayarlar" class="gx-icon">⚙</button>
     </div>
