@@ -910,8 +910,22 @@ class Component extends DCLogic {
     setTimeout(()=>{ const el=document.getElementById('tr-reader'); if(el) el.innerHTML=this._trainingHtml||''; },30);
   }
   _trainingOpenOriginal(){ const id=this.state.trainingSel; if(id&&window.galaxy&&window.galaxy.trainingOpenOriginal) try{ window.galaxy.trainingOpenOriginal(id); }catch(e){} }
-  _trainingSetMode(mode){ this.setState({trainingMode:mode}); if(mode==='sinav' && !this.state._quiz && !this.state._quizBusy) this._quizNext(); }
+  _trainingSetMode(mode){ this.setState({trainingMode:mode}); if(mode==='sinav' && !this.state._quiz && !this.state._quizScope && !this.state._quizBusy) this._quizNext(); }
+  // Sınav "kapsamı": null ise tüm derslerden rastgele (quizRandom); doluysa TEK bir dersin
+  // kendi soru setinde ilerler (quizGet ile önceden çekilmiş, sırayla gösterilir).
   async _quizNext(){
+    const scope=this.state._quizScope;
+    if(scope){
+      const nextIdx=scope.idx+1;
+      if(nextIdx<scope.questions.length){
+        this.setState({_quizPicked:null, _quizScope:Object.assign({},scope,{idx:nextIdx}),
+          _quiz:{id:scope.id, title:scope.title, category:scope.category, question:scope.questions[nextIdx]}});
+      } else {
+        // set tükendi — "tamamlandı" ekranı gösterilsin
+        this.setState({_quizPicked:null, _quiz:null, _quizScope:Object.assign({},scope,{idx:nextIdx})});
+      }
+      return;
+    }
     const avoidRel=this.state._quiz&&this.state._quiz.rel;
     this.setState({_quizBusy:true, _quizPicked:null, _quizErr:''});
     try{
@@ -923,6 +937,25 @@ class Component extends DCLogic {
   _quizPick(i){ const q=this.state._quiz; if(this.state._quizPicked!=null||!q) return;
     const correct=q.question.correct===i;
     this.setState({_quizPicked:i, _quizRight:this.state._quizRight+(correct?1:0), _quizWrong:this.state._quizWrong+(correct?0:1)}); }
+  // Okuma panelindeki "Bu dersten pratik yap" — bu dersin TÜM sorularını çeker (önbelleğe
+  // alınmışsa anında, değilse Claude ile üretilir), sırayla gösterir.
+  async _quizStartLesson(id){
+    if(!id) return;
+    this.setState({trainingMode:'sinav', _quizBusy:true, _quizPicked:null, _quizErr:'', _quiz:null, _quizScope:null});
+    try{
+      const r=await window.galaxy.quizGet(id);
+      if(r&&r.ok&&r.questions&&r.questions.length){
+        const cat=(this._trainings||[]).find(c=>(c.items||[]).some(it=>it.id===id));
+        const catName=(cat&&cat.name)||'';
+        this.setState({_quizBusy:false, _quizRight:0, _quizWrong:0,
+          _quizScope:{id, title:r.title, category:catName, questions:r.questions, idx:0},
+          _quiz:{id, title:r.title, category:catName, question:r.questions[0]}});
+      } else this.setState({_quizBusy:false, _quizErr:(r&&r.error)||'bu ders için soru üretilemedi'});
+    }catch(e){ this.setState({_quizBusy:false, _quizErr:'bu ders için soru üretilemedi'}); }
+  }
+  _quizExitScope(){ this.setState({_quizScope:null, _quiz:null, _quizPicked:null, _quizErr:''}); this._quizNext(); }
+  _quizRetryScope(){ const scope=this.state._quizScope; if(!scope) return;
+    this.setState({_quizPicked:null, _quizRight:0, _quizWrong:0, _quizScope:Object.assign({},scope,{idx:0}), _quiz:{id:scope.id,title:scope.title,category:scope.category,question:scope.questions[0]}}); }
   // ---------- Eğitim CRUD: ekle / sil ----------
   _trainingOpenAdd(){ this.setState({trainingAddOpen:true, _trainingAddCat:this.state._trainingCat||'', trainingAddNewCat:'', _trainingAddFiles:[], _trainingAddErr:''}); }
   _trainingCloseAdd(){ this.setState({trainingAddOpen:false}); }
@@ -1745,6 +1778,7 @@ class Component extends DCLogic {
           rowStyle:`display:flex;align-items:center;gap:2px;border-radius:8px;background:${on?'rgba(97,220,255,.1)':'transparent'};border-left:2px solid ${on?'var(--gx-accent)':'transparent'}`,
           style:`display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-align:left;padding:9px 6px 9px 10px;cursor:pointer;border:none;background:transparent;color:${on?'var(--gx-ink)':'var(--gx-dim)'};font-size:13px` }; }); })(),
       trainingReaderOpen: !!st.trainingSel, trainingReaderEmpty: !st.trainingSel, trainingReaderTitle:(st._trainingItem&&st._trainingItem.title)||'',
+      trainingPracticeThis:()=>this._quizStartLesson(st.trainingSel),
       trainingReaderBusy: !!st._trainingBusy,
       trainingOpenOriginal:()=>this._trainingOpenOriginal(),
       trainingRefresh:()=>this._trainingRefresh(),
@@ -1772,6 +1806,10 @@ class Component extends DCLogic {
       quizScoreText: st._quizRight+' doğru · '+st._quizWrong+' yanlış',
       quizExplain: (st._quiz&&st._quiz.question&&st._quiz.question.explain)||'',
       quizNext:()=>this._quizNext(),
+      quizScopeActive: !!st._quizScope,
+      quizProgress: st._quizScope ? `${Math.min(st._quizScope.idx+1, st._quizScope.questions.length)} / ${st._quizScope.questions.length}` : '',
+      quizScopeDone: !!(st._quizScope && st._quizScope.idx>=st._quizScope.questions.length),
+      quizExitScope:()=>this._quizExitScope(), quizRetryScope:()=>this._quizRetryScope(),
       quizOptions:(()=>{ const q=st._quiz&&st._quiz.question; if(!q) return [];
         return (q.options||[]).map((opt,i)=>{ const picked=st._quizPicked;
           const isPicked=picked===i, isCorrect=q.correct===i;

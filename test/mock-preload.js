@@ -79,8 +79,9 @@ contextBridge.exposeInMainWorld('galaxy', {
   trainingOpenOriginal: async () => ({ ok: true }),
   trainingAdd: async () => ({ ok: true, id: 'new1' }),
   trainingDelete: async () => ({ ok: true }),
-  quizGet: async () => ({ ok: true, title: 'Döngüler', questions: [
+  quizGet: async () => ({ ok: true, title: 'Rapor', questions: [
     { q: 'range(3) kaç eleman üretir?', options: ['2', '3', '4', '0'], correct: 1, explain: 'range(3) → 0,1,2, yani 3 eleman.' },
+    { q: 'print() ne işe yarar?', options: ['Dosya siler', 'Ekrana yazdırır', 'Sunucu başlatır', 'Değişken silinir'], correct: 1, explain: 'print() konsola çıktı basar.' },
   ] }),
   quizRandom: async () => ({ ok: true, id: 'p1', rel: 'python/donguler.py', category: 'Python', title: 'Döngüler',
     question: { q: 'range(3) kaç eleman üretir?', options: ['2', '3', '4', '0'], correct: 1, explain: 'range(3) → 0,1,2, yani 3 eleman.' } }),

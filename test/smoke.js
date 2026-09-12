@@ -208,6 +208,28 @@ app.whenReady().then(async () => {
     await wait(400);
     const deletedText = await js(`document.body.innerText||''`);
     check('training-delete', /silindi/.test(deletedText), '');
+    // Derse özel pratik: "Bu dersten pratik yap" bu dersin TÜM sorularını sırayla sunmalı,
+    // her soru cevaplanabilmeli, set bitince skorla "tamamlandı" ekranı çıkmalı.
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='Oku'){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('Döngüler')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(400);
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('pratik yap')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(600);
+    const lessonQ1 = await js(`document.body.innerText||''`);
+    check('lesson-quiz-start', /Soru 1 \/ 2/.test(lessonQ1) && /range\(3\)/.test(lessonQ1), '');
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='3'){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('Sonraki soru')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(400);
+    const lessonQ2 = await js(`document.body.innerText||''`);
+    check('lesson-quiz-advance', /Soru 2 \/ 2/.test(lessonQ2) && /print\(\)/.test(lessonQ2), '');
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('Ekrana yazdırır')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('Sonraki soru')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(400);
+    const lessonDone = await js(`document.body.innerText||''`);
+    check('lesson-quiz-done', /tamamladın/.test(lessonDone) && /2 doğru · 0 yanlış/.test(lessonDone), '');
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

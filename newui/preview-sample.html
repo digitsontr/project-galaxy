@@ -1146,9 +1146,20 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
         <sc-if value="{{ trainingEmpty }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-dim);font-size:13px;padding:20px 0">Klasörde okunabilir bir ders materyali bulunamadı.</div></sc-if>
         <sc-if value="{{ trainingModeSinav }}" hint-placeholder-val="{{ false }}">
           <div class="tr-quiz">
-            <div class="tr-quiz-score" data-noi18n>{{ quizScoreText }}</div>
+            <div class="tr-quiz-score" data-noi18n>{{ quizScoreText }}<sc-if value="{{ quizScopeActive }}" hint-placeholder-val="{{ false }}"> · Soru {{ quizProgress }}</sc-if></div>
+            <sc-if value="{{ quizScopeActive }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ quizExitScope }}" style="margin-bottom:10px;background:none;border:none;color:var(--gx-dim);font-size:11px;cursor:pointer;text-decoration:underline">← Tüm derslerden rastgele dene</button></sc-if>
             <sc-if value="{{ quizBusy }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-dim);font-size:13px;padding:30px 0;text-align:center">Soru hazırlanıyor… (ilk seferde 10-30 sn sürebilir)</div></sc-if>
             <sc-if value="{{ hasQuizErr }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-warn);font-size:13px;padding:20px 0;text-align:center" data-noi18n>{{ quizErr }}</div></sc-if>
+            <sc-if value="{{ quizScopeDone }}" hint-placeholder-val="{{ false }}">
+              <div class="tr-quiz-card" style="text-align:center;align-items:center">
+                <div class="tr-quiz-q">Bu dersi tamamladın 🎉</div>
+                <div style="color:var(--gx-dim);font-size:13px;margin-bottom:6px" data-noi18n>{{ quizScoreText }}</div>
+                <div style="display:flex;gap:10px;margin-top:8px">
+                  <button sc-camel-on-click="{{ quizRetryScope }}" style="padding:9px 16px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;border:1px solid var(--gx-line);color:var(--gx-dim);background:transparent;border-radius:10px">↺ Tekrar Dene</button>
+                  <button sc-camel-on-click="{{ quizExitScope }}" class="gx-run" style="padding:9px 16px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;border:1px solid var(--gx-accent);color:#04121c;background:var(--gx-accent);border-radius:10px">Tüm derslerden rastgele</button>
+                </div>
+              </div>
+            </sc-if>
             <sc-if value="{{ hasQuiz }}" hint-placeholder-val="{{ false }}">
               <div class="tr-quiz-card">
                 <div class="tr-quiz-ctx" data-noi18n>{{ quizCategory }} · {{ quizLessonTitle }}</div>
@@ -1184,7 +1195,8 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
             <sc-if value="{{ trainingReaderOpen }}" hint-placeholder-val="{{ false }}">
               <div class="tr-reader-head">
                 <span data-noi18n class="tr-reader-title">{{ trainingReaderTitle }}</span>
-                <button sc-camel-on-click="{{ trainingOpenOriginal }}" title="Finder'da göster" style="margin-left:auto;padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--gx-line);color:var(--gx-dim);background:transparent;border-radius:8px">Finder’da göster</button>
+                <button sc-camel-on-click="{{ trainingPracticeThis }}" style="margin-left:auto;padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--gx-accent);color:var(--gx-accent);background:color-mix(in srgb, var(--gx-accent) 8%, transparent);border-radius:8px">🎯 Bu dersten pratik yap</button>
+                <button sc-camel-on-click="{{ trainingOpenOriginal }}" title="Finder'da göster" style="padding:6px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--gx-line);color:var(--gx-dim);background:transparent;border-radius:8px">Finder’da göster</button>
               </div>
               <sc-if value="{{ trainingReaderBusy }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-dim);font-size:13px;padding:18px">Okunuyor…</div></sc-if>
               <div id="tr-reader" class="tr-prose"></div>
