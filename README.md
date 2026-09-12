@@ -232,12 +232,12 @@ Postgres / MySQL / SQLite sunucularını ekle (parolalar macOS `safeStorage` ile
 
 ### 🎓 EĞİTİMLERİM — yerel ders materyalleri
 
-`~/Desktop/yazılım` klasöründeki ders materyallerini (Word, PowerPoint, isimsiz Colab/Jupyter defterleri, `.py` alıştırmaları) tarar ve okunabilir hâle çevirir — kaynak dosyalara hiç yazmaz, yalnız bir dönüşüm önbelleği tutar (`lib/trainings.js`).
+`~/Desktop/yazılım` klasöründeki ders materyallerini (Word, PowerPoint, isimsiz Colab/Jupyter defterleri, `.py` alıştırmaları) tarar ve okunabilir hâle çevirir. Mevcut belgelerin içeriğine dokunmaz; yalnız bir dönüşüm önbelleği tutar, ekleme/silmede kaynak klasöre yazar (`lib/trainings.js`).
 
-- **Kategori → ders → okuma paneli:** sol iki sütun klasör adına göre kategorize edilmiş dersleri listeler (C#, Java, Python, React, Yapay Zeka…), sağdaki panel seçilen dersi düzenli tipografiyle gösterir.
-- **Desteklenen türler:** `.docx` (kalın/italik/liste korunur), `.pptx` (slayt slayt), isimsiz Colab/Jupyter defterleri (markdown hücreleri + kod + çıktı + grafik görselleri), `.py` kaynak dosyaları. `.zip` arşivleri içerik olarak açılmaz, **Finder’da göster** ile erişilir.
-- Her ders tek tıkla **Finder’da göster** ile orijinal dosyaya gider.
-- **Sınav modu:** üstteki Oku/Sınav geçişiyle açılır. Rastgele bir ders seçilir, sorular Claude ile (henüz üretilmemişse) 6 adet çoktan seçmeli olarak üretilip dosya değişmediği sürece kalıcı önbellekte tutulur — aynı ders bir daha üretilmez. Cevap seçilince doğru/yanlış renklenir, açıklama + skor + sonraki soru gelir.
+- **Kategori → ders → okuma paneli:** sol iki sütun klasör adına göre kategorize edilmiş dersleri listeler (C#, Java, Python, React, Yapay Zeka…), sağdaki panel seçilen dersi düzenli tipografiyle gösterir. Word'ün doğrudan kalınlık yanında **stil-referanslı** ("Strong" vb.) kalınlıkları da tanır, numaralı müfredat konuları ile alt etiketleri iki ayrı seviyede (h3/h4) gösterir — belgeler arası tutarlı bir okuma standardı.
+- **Desteklenen türler:** `.docx`, `.pptx` (slayt slayt), isimsiz Colab/Jupyter defterleri (markdown hücreleri + kod + çıktı + grafik görselleri — Colab'a yapıştırılan görseller dahil), `.py` kaynak dosyaları. `.zip` arşivleri içerik olarak açılmaz, **Finder’da göster** ile erişilir.
+- **Belge ekle/sil:** "+ Belge Ekle" ile mevcut ya da yeni bir kategoriye dosya eklenir (kopyalanır); her dersin yanındaki ✕ ile silinir (kalıcı değil, Çöp Kutusu'na taşınır).
+- **Sınav modu:** üstteki Oku/Sınav geçişiyle açılır — tüm derslerden rastgele sorar. Okuma panelindeki **🎯 Bu dersten pratik yap** ise o dersin tüm sorularını sırayla sunar ("Soru 2/6"), set bitince skorla tamamlanma ekranı + tekrar dene seçeneği gelir. Sorular Claude ile (henüz üretilmemişse) 6 adet çoktan seçmeli olarak üretilip dosya değişmediği sürece kalıcı önbellekte tutulur. Cevap seçilince doğru/yanlış renklenir, açıklama + skor gelir.
 
 ---
 
