@@ -77,6 +77,8 @@ contextBridge.exposeInMainWorld('galaxy', {
   ] }),
   trainingRead: async (id) => ({ ok: true, title: id === 'p1' ? 'Döngüler' : 'İçerik', kind: 'code', html: '<pre class="tr-code"><code>for i in range(3):\n    print(i)</code></pre>' }),
   trainingOpenOriginal: async () => ({ ok: true }),
+  trainingAdd: async () => ({ ok: true, id: 'new1' }),
+  trainingDelete: async () => ({ ok: true }),
   quizGet: async () => ({ ok: true, title: 'Döngüler', questions: [
     { q: 'range(3) kaç eleman üretir?', options: ['2', '3', '4', '0'], correct: 1, explain: 'range(3) → 0,1,2, yani 3 eleman.' },
   ] }),

@@ -188,6 +188,26 @@ app.whenReady().then(async () => {
     await wait(300);
     const quizA = await js(`document.body.innerText||''`);
     check('quiz-answer', /1 doğru/.test(quizA) && /Sonraki soru/.test(quizA), '');
+    // Eğitim CRUD: + Belge Ekle formu açılıp dosya seçilip eklenince toast + otomatik açılış olmalı
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='Oku'){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='+ Belge Ekle'){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('Dosya Seç')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='Ekle'){ items[i].click(); return true; } } return false; })()`);
+    await wait(600);
+    const addedText = await js(`document.body.innerText||''`);
+    check('training-add', /eklendi/.test(addedText), '');
+    // Silme: onay kartı çıkmalı, onaylayınca toast gelmeli
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].title||'')==='Sil'){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    const confirmShown = await js(`document.body.innerText||''`);
+    check('training-delete-confirm', /Çöp Kutusu/.test(confirmShown), '');
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').indexOf('Çöp Kutusuna Taşı')>=0){ items[i].click(); return true; } } return false; })()`);
+    await wait(400);
+    const deletedText = await js(`document.body.innerText||''`);
+    check('training-delete', /silindi/.test(deletedText), '');
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

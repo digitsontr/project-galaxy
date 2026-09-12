@@ -1137,6 +1137,7 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
               <button sc-camel-on-click="{{ trainingTabOku }}" style="{{ trainingTabOkuStyle }}">Oku</button>
               <button sc-camel-on-click="{{ trainingTabSinav }}" style="{{ trainingTabSinavStyle }}">Sınav</button>
             </div>
+            <button sc-camel-on-click="{{ trainingOpenAdd }}" style="padding:10px 14px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;border:1px solid var(--gx-accent);color:var(--gx-accent);background:color-mix(in srgb, var(--gx-accent) 8%, transparent);border-radius:10px">+ Belge Ekle</button>
             <button sc-camel-on-click="{{ trainingRefresh }}" style="padding:10px 14px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;border:1px solid var(--gx-line);color:var(--gx-dim);background:transparent;border-radius:10px">Yenile</button>
           </div>
         </div>
@@ -1173,7 +1174,10 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
           </div>
           <div class="tr-items">
             <sc-for list="{{ trainingItems }}" as="it" hint-placeholder-count="6">
-              <button sc-camel-on-click="{{ it.onClick }}" style="{{ it.style }}"><span>{{ it.icon }}</span><span data-noi18n style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.title }}</span></button>
+              <div style="{{ it.rowStyle }}">
+                <button sc-camel-on-click="{{ it.onClick }}" style="{{ it.style }}"><span>{{ it.icon }}</span><span data-noi18n style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.title }}</span></button>
+                <button sc-camel-on-click="{{ it.onDelete }}" title="Sil" style="flex-shrink:0;background:none;border:none;color:var(--gx-faint);cursor:pointer;padding:0 10px 0 2px;font-size:12px">✕</button>
+              </div>
             </sc-for>
           </div>
           <div class="tr-reader">
@@ -1508,6 +1512,28 @@ html[data-theme="apex"] .ga-panel{clip-path:polygon(0 0, calc(100% - 16px) 0, 10
         <div style="padding:8px 0;max-height:52vh;overflow-y:auto">
           <sc-for list="{{ activityList }}" as="a" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:12px;padding:11px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;border-bottom:1px solid var(--gx-line-soft)"><span style="{{ a.iconStyle }}">{{ a.icon }}</span><span style="flex:1;min-width:0"><span data-noi18n style="color:var(--gx-dim);font-size:10px;letter-spacing:.08em;display:block">{{ a.typeLabel }} · {{ a.ago }}</span><span data-noi18n style="color:var(--gx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:340px">{{ a.label }}</span></span><sc-if value="{{ a.hasUndo }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ a.onUndo }}" style="border:1px solid var(--gx-line);background:transparent;color:var(--gx-dim);font-size:11px;padding:5px 11px;cursor:pointer;font-family:inherit;flex-shrink:0">↺ Geri al</button></sc-if><sc-if value="{{ a.undone }}" hint-placeholder-val="{{ false }}"><span style="color:var(--gx-dim);font-size:10px;flex-shrink:0">geri alındı</span></sc-if></div></sc-for>
           <sc-if value="{{ noActivity }}" hint-placeholder-val="{{ true }}"><div style="padding:22px 18px;color:var(--gx-dim);font-size:13px;text-align:center">Henüz aktivite yok. Commit, push, gezegene giriş gibi eylemler burada birikir.</div></sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ trainingAddOpen }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ trainingCloseAdd }}" style="position:fixed;inset:0;z-index:45;background:rgba(4,6,12,.72);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;animation:popIn .2s ease both">
+      <div sc-camel-on-click="{{ stop }}" style="width:480px;max-width:90vw;border:1px solid rgba(190,205,255,.24);background:linear-gradient(172deg,rgba(13,18,36,.98),rgba(5,8,18,.99));border-radius:14px">
+        <div style="display:flex;align-items:center;padding:16px 18px;border-bottom:1px solid var(--gx-line);font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.1em;color:var(--gx-accent)">BELGE EKLE<span sc-camel-on-click="{{ trainingCloseAdd }}" style="margin-left:auto;color:var(--gx-dim);cursor:pointer">✕</span></div>
+        <div style="padding:18px;display:flex;flex-direction:column;gap:14px">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gx-dim);text-transform:uppercase;margin-bottom:8px">Kategori</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><sc-for list="{{ trainingAddCats }}" as="c" hint-placeholder-count="4"><button sc-camel-on-click="{{ c.onClick }}" style="{{ c.style }}"><span data-noi18n>{{ c.name }}</span></button></sc-for></div>
+            <input data-noi18n value="{{ trainingAddNewCat }}" placeholder="…ya da yeni bir kategori adı yaz" sc-camel-on-input="{{ onTrainingAddNewCat }}" style="width:100%;box-sizing:border-box;background:var(--gx-panel-2);border:1px solid var(--gx-line);color:var(--gx-ink);border-radius:8px;padding:9px 11px;font-family:'Space Grotesk',sans-serif;font-size:13px;outline:none" />
+          </div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gx-dim);text-transform:uppercase;margin-bottom:8px">Dosya(lar)</div>
+            <button sc-camel-on-click="{{ trainingPickFiles }}" style="padding:9px 14px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;border:1px dashed var(--gx-accent);color:var(--gx-accent);background:transparent;border-radius:8px;width:100%">📎 Dosya Seç (.docx, .pptx, .py, .zip…)</button>
+            <sc-if value="{{ hasTrainingAddFiles }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:5px;margin-top:8px"><sc-for list="{{ trainingAddFiles }}" as="f" hint-placeholder-count="1"><div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gx-dim)"><span data-noi18n style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.name }}</span><button sc-camel-on-click="{{ f.onRemove }}" style="border:none;background:none;color:var(--gx-err);cursor:pointer;padding:0 4px">✕</button></div></sc-for></div></sc-if>
+          </div>
+          <sc-if value="{{ hasTrainingAddErr }}" hint-placeholder-val="{{ false }}"><div style="color:var(--gx-warn);font-size:12px" data-noi18n>{{ trainingAddErr }}</div></sc-if>
+          <button sc-camel-on-click="{{ trainingSubmitAdd }}" class="gx-run" style="padding:10px 16px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;border:1px solid var(--gx-accent);color:#04121c;background:var(--gx-accent);border-radius:10px">{{ trainingAddBusyLabel }}</button>
         </div>
       </div>
     </div>

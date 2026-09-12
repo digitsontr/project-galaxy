@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld('galaxy', {
   trainingList: () => ipcRenderer.invoke('galaxy:trainingList'),
   trainingRead: (id) => ipcRenderer.invoke('galaxy:trainingRead', id),
   trainingOpenOriginal: (id) => ipcRenderer.invoke('galaxy:trainingOpenOriginal', id),
+  trainingAdd: (opts) => ipcRenderer.invoke('galaxy:trainingAdd', opts),
+  trainingDelete: (id) => ipcRenderer.invoke('galaxy:trainingDelete', id),
   quizGet: (id) => ipcRenderer.invoke('galaxy:quizGet', id),
   quizRandom: (avoidRel) => ipcRenderer.invoke('galaxy:quizRandom', avoidRel),
   gitLog: (projectId) => ipcRenderer.invoke('galaxy:gitLog', projectId),

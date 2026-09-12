@@ -13,6 +13,7 @@ class Component extends DCLogic {
     _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null, activityOpen:false, _activityTick:0,
     _trainings:null, _trainingErr:'', _trainingCat:'', trainingSel:null, _trainingBusy:false, _trainingItem:null,
     trainingMode:'oku', _quiz:null, _quizBusy:false, _quizPicked:null, _quizErr:'', _quizRight:0, _quizWrong:0,
+    trainingAddOpen:false, _trainingAddCat:'', trainingAddNewCat:'', _trainingAddFiles:[], _trainingAddBusy:false, _trainingAddErr:'',
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     _conBusy:false, _claudeOk:null, _githubOk:null, _githubMsg:'', _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false,
@@ -55,7 +56,7 @@ class Component extends DCLogic {
   ];
 
   _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
-  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen); }
+  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen); }
   _reduced(){ try{ return !!(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
   _applyTheme(theme){
     const t=(theme==='ev'||theme==='apex')?theme:'galaxy';
@@ -922,6 +923,47 @@ class Component extends DCLogic {
   _quizPick(i){ const q=this.state._quiz; if(this.state._quizPicked!=null||!q) return;
     const correct=q.question.correct===i;
     this.setState({_quizPicked:i, _quizRight:this.state._quizRight+(correct?1:0), _quizWrong:this.state._quizWrong+(correct?0:1)}); }
+  // ---------- Eğitim CRUD: ekle / sil ----------
+  _trainingOpenAdd(){ this.setState({trainingAddOpen:true, _trainingAddCat:this.state._trainingCat||'', trainingAddNewCat:'', _trainingAddFiles:[], _trainingAddErr:''}); }
+  _trainingCloseAdd(){ this.setState({trainingAddOpen:false}); }
+  _trainingSetAddCat(key){ this.setState({_trainingAddCat:key, trainingAddNewCat:''}); }
+  onTrainingAddNewCat(e){ this.setState({trainingAddNewCat:(e&&e.target&&e.target.value)||'', _trainingAddCat:''}); }
+  async _trainingPickFiles(){
+    try{ if(!(window.galaxy&&window.galaxy.pickFiles)) return;
+      const r=await window.galaxy.pickFiles();
+      const arr=(Array.isArray(r)?r:(r?[r]:[])).map(f=>({ path:(f&&f.path)||f, name:(f&&f.name)||String((f&&f.path)||f||'').split(/[\\/]/).pop() })).filter(f=>f.path);
+      if(arr.length) this.setState({_trainingAddFiles:arr, _trainingAddErr:''});
+    }catch(e){}
+  }
+  _trainingRemoveAddFile(i){ this.setState({_trainingAddFiles:this.state._trainingAddFiles.filter((_,idx)=>idx!==i)}); }
+  async _trainingSubmitAdd(){
+    if(this.state._trainingAddBusy) return;
+    const files=this.state._trainingAddFiles||[];
+    if(!files.length){ this.setState({_trainingAddErr:'Önce bir dosya seç.'}); return; }
+    const categoryKey=this.state._trainingAddCat||'';
+    const newCategory=String(this.state.trainingAddNewCat||'').trim();
+    if(!categoryKey && !newCategory){ this.setState({_trainingAddErr:'Bir kategori seç ya da yeni bir kategori adı yaz.'}); return; }
+    this.setState({_trainingAddBusy:true, _trainingAddErr:''});
+    let lastId=null, failCount=0;
+    for(const f of files){
+      try{ const r=await window.galaxy.trainingAdd({sourcePath:f.path, categoryKey, newCategory});
+        if(r&&r.ok) lastId=r.id; else failCount++;
+      }catch(e){ failCount++; }
+    }
+    this._trainings=null; // yeniden taransın
+    this.setState({_trainingAddBusy:false, trainingAddOpen:false, _trainingAddFiles:[]});
+    await this._trainingLoad();
+    if(failCount) this.toast('✕ '+failCount+' dosya eklenemedi','err'); else this.toast('✓ eklendi');
+    if(lastId){ const cat=(this._trainings||[]).find(c=>(c.items||[]).some(it=>it.id===lastId)); if(cat) this.setState({_trainingCat:cat.key}); this._trainingOpen(lastId); }
+  }
+  _trainingDeleteItem(id,title){
+    this.askConfirm('"'+(title||'ders')+'" silinsin mi? (Çöp Kutusu’na taşınır)', async ()=>{
+      try{ const r=await window.galaxy.trainingDelete(id); if(r&&r.ok){ this.toast('✓ silindi'); this._trainings=null;
+          if(this.state.trainingSel===id) this.setState({trainingSel:null});
+          await this._trainingLoad(); } else this.toast('✕ '+((r&&r.error)||'silinemedi'),'err'); }
+      catch(e){ this.toast('✕ silinemedi','err'); }
+    }, {title:'Dersi sil', okLabel:'Çöp Kutusuna Taşı', kind:'warn'});
+  }
   _mailReply(){
     const sel=this.state.mailSel||{};
     const from=String(sel.from||'').replace(/^.*<([^>]+)>\s*$/,'$1').trim();
@@ -1699,12 +1741,25 @@ class Component extends DCLogic {
       trainingItems:(()=>{ const cat=(this._trainings||[]).find(c=>c.key===st._trainingCat); if(!cat) return [];
         const icon={docx:'📄',pptx:'▤',notebook:'◆',code:'⌁',archive:'🗀'};
         return cat.items.map(it=>{ const on=it.id===st.trainingSel; return { id:it.id, title:it.title, icon:icon[it.kind]||'•', sizeKb:it.sizeKb, active:on,
-          onClick:()=>this._trainingOpen(it.id),
-          style:`display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;cursor:pointer;border:none;border-radius:8px;background:${on?'rgba(97,220,255,.1)':'transparent'};border-left:2px solid ${on?'var(--gx-accent)':'transparent'};color:${on?'var(--gx-ink)':'var(--gx-dim)'};font-size:13px` }; }); })(),
+          onClick:()=>this._trainingOpen(it.id), onDelete:()=>this._trainingDeleteItem(it.id,it.title),
+          rowStyle:`display:flex;align-items:center;gap:2px;border-radius:8px;background:${on?'rgba(97,220,255,.1)':'transparent'};border-left:2px solid ${on?'var(--gx-accent)':'transparent'}`,
+          style:`display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-align:left;padding:9px 6px 9px 10px;cursor:pointer;border:none;background:transparent;color:${on?'var(--gx-ink)':'var(--gx-dim)'};font-size:13px` }; }); })(),
       trainingReaderOpen: !!st.trainingSel, trainingReaderEmpty: !st.trainingSel, trainingReaderTitle:(st._trainingItem&&st._trainingItem.title)||'',
       trainingReaderBusy: !!st._trainingBusy,
       trainingOpenOriginal:()=>this._trainingOpenOriginal(),
       trainingRefresh:()=>this._trainingRefresh(),
+      trainingOpenAdd:()=>this._trainingOpenAdd(), trainingCloseAdd:()=>this._trainingCloseAdd(),
+      trainingAddOpen: !!st.trainingAddOpen,
+      trainingAddCats:(this._trainings||[]).map(c=>{ const on=c.key===st._trainingAddCat; return { key:c.key, name:c.name,
+        onClick:()=>this._trainingSetAddCat(c.key),
+        style:`padding:6px 12px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;border:1px solid ${on?'var(--gx-accent)':'var(--gx-line)'};background:${on?'rgba(97,220,255,.12)':'transparent'};color:${on?'var(--gx-accent)':'var(--gx-dim)'};border-radius:8px` }; }),
+      trainingAddNewCat: st.trainingAddNewCat||'', onTrainingAddNewCat:(e)=>this.onTrainingAddNewCat(e),
+      trainingPickFiles:()=>this._trainingPickFiles(),
+      trainingAddFiles:(st._trainingAddFiles||[]).map((f,i)=>({ name:f.name, onRemove:()=>this._trainingRemoveAddFile(i) })),
+      hasTrainingAddFiles: !!(st._trainingAddFiles&&st._trainingAddFiles.length),
+      trainingAddBusy: !!st._trainingAddBusy, hasTrainingAddErr: !!st._trainingAddErr, trainingAddErr: st._trainingAddErr||'',
+      trainingAddBusyLabel: st._trainingAddBusy?'Ekleniyor…':'Ekle',
+      trainingSubmitAdd:()=>this._trainingSubmitAdd(),
       trainingModeOku: (st.trainingMode||'oku')==='oku', trainingModeSinav: st.trainingMode==='sinav',
       trainingTabOku:()=>this._trainingSetMode('oku'), trainingTabSinav:()=>this._trainingSetMode('sinav'),
       trainingTabOkuStyle: tabBtn((st.trainingMode||'oku')==='oku'), trainingTabSinavStyle: tabBtn(st.trainingMode==='sinav'),
