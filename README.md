@@ -237,6 +237,7 @@ Postgres / MySQL / SQLite sunucularını ekle (parolalar macOS `safeStorage` ile
 - **Kategori → ders → okuma paneli:** sol iki sütun klasör adına göre kategorize edilmiş dersleri listeler (C#, Java, Python, React, Yapay Zeka…), sağdaki panel seçilen dersi düzenli tipografiyle gösterir.
 - **Desteklenen türler:** `.docx` (kalın/italik/liste korunur), `.pptx` (slayt slayt), isimsiz Colab/Jupyter defterleri (markdown hücreleri + kod + çıktı + grafik görselleri), `.py` kaynak dosyaları. `.zip` arşivleri içerik olarak açılmaz, **Finder’da göster** ile erişilir.
 - Her ders tek tıkla **Finder’da göster** ile orijinal dosyaya gider.
+- **Sınav modu:** üstteki Oku/Sınav geçişiyle açılır. Rastgele bir ders seçilir, sorular Claude ile (henüz üretilmemişse) 6 adet çoktan seçmeli olarak üretilip dosya değişmediği sürece kalıcı önbellekte tutulur — aynı ders bir daha üretilmez. Cevap seçilince doğru/yanlış renklenir, açıklama + skor + sonraki soru gelir.
 
 ---
 
