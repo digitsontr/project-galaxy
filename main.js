@@ -1,4 +1,13 @@
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, globalShortcut, dialog, safeStorage } = require('electron');
+
+// Tek örnek kilidi — uygulama tray'de arka planda kalmaya devam ettiği için (window-all-closed'da
+// çıkmıyor), kullanıcı simgeye/kısayola tekrar tıklarsa ikinci bir süreç açılıp aynı
+// galaxy-data.json'a eşzamanlı yazabilir (veri kaybı riski). İkinci süreç hemen kapanır,
+// birincisi mevcut pencereyi öne getirir (macOS ve Windows'ta aynı şekilde çalışır).
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0);
+}
+
 const fs = require('fs');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
@@ -183,4 +192,11 @@ app.on('window-all-closed', () => { /* tray'de yaşamaya devam et */ });
 app.on('activate', () => {
   const wins = BrowserWindow.getAllWindows().filter(w => w !== quickWin);
   if (!wins.length) { if (needsOnboarding()) createOnboardingWindow(); else createWindow(); }
+});
+// İkinci bir kopya açılmaya çalışıldığında (kısayol/simge tekrar tıklanınca) yeni pencere AÇMA —
+// mevcut pencereyi öne getir. Böylece aynı veri dosyasına iki süreç birden yazamaz.
+app.on('second-instance', () => {
+  const wins = BrowserWindow.getAllWindows().filter(w => w !== quickWin);
+  if (wins.length) { const w = wins[0]; if (w.isMinimized()) w.restore(); w.show(); w.focus(); }
+  else if (needsOnboarding()) createOnboardingWindow(); else createWindow();
 });
