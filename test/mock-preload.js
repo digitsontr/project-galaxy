@@ -77,6 +77,11 @@ contextBridge.exposeInMainWorld('galaxy', {
   ] }),
   trainingRead: async (id) => ({ ok: true, title: id === 'p1' ? 'Döngüler' : 'İçerik', kind: 'code', html: '<pre class="tr-code"><code>for i in range(3):\n    print(i)</code></pre>' }),
   trainingOpenOriginal: async () => ({ ok: true }),
+  quizGet: async () => ({ ok: true, title: 'Döngüler', questions: [
+    { q: 'range(3) kaç eleman üretir?', options: ['2', '3', '4', '0'], correct: 1, explain: 'range(3) → 0,1,2, yani 3 eleman.' },
+  ] }),
+  quizRandom: async () => ({ ok: true, id: 'p1', rel: 'python/donguler.py', category: 'Python', title: 'Döngüler',
+    question: { q: 'range(3) kaç eleman üretir?', options: ['2', '3', '4', '0'], correct: 1, explain: 'range(3) → 0,1,2, yani 3 eleman.' } }),
   gitInit: async () => ({ ok: true }),
   projectHide: async () => ({ ok: true, action: 'hidden' }),
   syncReadme: async () => ({ ok: true, added: 0, plan: [] }),

@@ -12,6 +12,7 @@ class Component extends DCLogic {
     agentInput:'', _agentBusy:false, consoleInput:'', _todos:null, todoInput:'', noteInput:'', linkInput:'', linkAdd:false,
     _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null, activityOpen:false, _activityTick:0,
     _trainings:null, _trainingErr:'', _trainingCat:'', trainingSel:null, _trainingBusy:false, _trainingItem:null,
+    trainingMode:'oku', _quiz:null, _quizBusy:false, _quizPicked:null, _quizErr:'', _quizRight:0, _quizWrong:0,
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     _conBusy:false, _claudeOk:null, _githubOk:null, _githubMsg:'', _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false,
@@ -908,6 +909,19 @@ class Component extends DCLogic {
     setTimeout(()=>{ const el=document.getElementById('tr-reader'); if(el) el.innerHTML=this._trainingHtml||''; },30);
   }
   _trainingOpenOriginal(){ const id=this.state.trainingSel; if(id&&window.galaxy&&window.galaxy.trainingOpenOriginal) try{ window.galaxy.trainingOpenOriginal(id); }catch(e){} }
+  _trainingSetMode(mode){ this.setState({trainingMode:mode}); if(mode==='sinav' && !this.state._quiz && !this.state._quizBusy) this._quizNext(); }
+  async _quizNext(){
+    const avoidRel=this.state._quiz&&this.state._quiz.rel;
+    this.setState({_quizBusy:true, _quizPicked:null, _quizErr:''});
+    try{
+      const r=await window.galaxy.quizRandom(avoidRel);
+      if(r&&r.ok) this.setState({_quizBusy:false, _quiz:r});
+      else this.setState({_quizBusy:false, _quiz:null, _quizErr:(r&&r.error)||'sınav üretilemedi'});
+    }catch(e){ this.setState({_quizBusy:false, _quiz:null, _quizErr:'sınav üretilemedi'}); }
+  }
+  _quizPick(i){ const q=this.state._quiz; if(this.state._quizPicked!=null||!q) return;
+    const correct=q.question.correct===i;
+    this.setState({_quizPicked:i, _quizRight:this.state._quizRight+(correct?1:0), _quizWrong:this.state._quizWrong+(correct?0:1)}); }
   _mailReply(){
     const sel=this.state.mailSel||{};
     const from=String(sel.from||'').replace(/^.*<([^>]+)>\s*$/,'$1').trim();
@@ -1691,6 +1705,28 @@ class Component extends DCLogic {
       trainingReaderBusy: !!st._trainingBusy,
       trainingOpenOriginal:()=>this._trainingOpenOriginal(),
       trainingRefresh:()=>this._trainingRefresh(),
+      trainingModeOku: (st.trainingMode||'oku')==='oku', trainingModeSinav: st.trainingMode==='sinav',
+      trainingTabOku:()=>this._trainingSetMode('oku'), trainingTabSinav:()=>this._trainingSetMode('sinav'),
+      trainingTabOkuStyle: tabBtn((st.trainingMode||'oku')==='oku'), trainingTabSinavStyle: tabBtn(st.trainingMode==='sinav'),
+      // ---------- SINAV ----------
+      quizBusy: !!st._quizBusy, hasQuizErr: !!st._quizErr, quizErr: st._quizErr||'',
+      hasQuiz: !!(st._quiz && !st._quizBusy),
+      quizCategory: (st._quiz&&st._quiz.category)||'', quizLessonTitle: (st._quiz&&st._quiz.title)||'',
+      quizQuestion: (st._quiz&&st._quiz.question&&st._quiz.question.q)||'',
+      quizPicked: st._quizPicked!=null,
+      quizScoreText: st._quizRight+' doğru · '+st._quizWrong+' yanlış',
+      quizExplain: (st._quiz&&st._quiz.question&&st._quiz.question.explain)||'',
+      quizNext:()=>this._quizNext(),
+      quizOptions:(()=>{ const q=st._quiz&&st._quiz.question; if(!q) return [];
+        return (q.options||[]).map((opt,i)=>{ const picked=st._quizPicked;
+          const isPicked=picked===i, isCorrect=q.correct===i;
+          let bg='rgba(13,18,36,.6)', border='var(--gx-line)', color='var(--gx-ink)';
+          if(picked!=null){
+            if(isCorrect){ bg='rgba(85,232,139,.12)'; border='var(--gx-ok)'; color='var(--gx-ok)'; }
+            else if(isPicked){ bg='rgba(255,107,122,.1)'; border='var(--gx-err)'; color='var(--gx-err)'; }
+          }
+          return { idx:i, text:opt, onClick:()=>this._quizPick(i),
+            style:`display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 16px;cursor:${picked!=null?'default':'pointer'};border:1px solid ${border};background:${bg};color:${color};border-radius:10px;font-size:14px` }; }); })(),
       serverList:((st._servers)||[]).map(s=>({ name:s.name, host:[s.host||s.alias,s.user].filter(Boolean).join(' · '), roots:(s.roots&&s.roots.length)?(s.roots.length+' kök'):'',
         onScan:()=>this.srvScan(s.id), onEdit:()=>this.openSrvEdit(s), onDelete:()=>this.askConfirm('"'+(s.name||'sunucu')+'" sunucusunu kaldır?',()=>this.srvDelete(s.id)), onTerm:()=>this.openSrvTerm(s),
         dotStyle:`width:9px;height:9px;border-radius:50%;background:#61dcff;flex-shrink:0` })),

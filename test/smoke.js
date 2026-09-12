@@ -46,6 +46,7 @@ function staticChecks() {
     check('settings-prefs', /prefs-nav/.test(onb) && /STATUS · KAPTAN/.test(onb) && /id="prefsSave"/.test(onb) && /theme-card/.test(onb) && /Görünüm/.test(onb) && /id="themeApex"/.test(onb) && /id="themeEv"/.test(onb), '');
     check('sprint-l-health', /Sistem sağlığı/.test(h) && /healthItems/.test(h) && /galaxy:githubCheck/.test(fs.readFileSync(path.join(ROOT, 'lib', 'data.js'), 'utf8')), '');
     check('sprint-m-egitim', /Eğitimlerim/.test(h) && /tr-reader/.test(h) && fs.existsSync(path.join(ROOT, 'lib', 'trainings.js')), '');
+    check('sprint-n-sinav', /tr-quiz-card/.test(h) && /Sonraki soru/.test(h) && /galaxy:quizRandom/.test(fs.readFileSync(path.join(ROOT, 'lib', 'trainings.js'), 'utf8')), '');
     // Gerçek ama boş evren listesinde sahte demo evrenler (İş Evreni/Papilon/Arşiv) ASLA gösterilmemeli.
     check('no-fake-universes-in-real-mode', /\(!realMode \? \[\{name:'İş Evreni'/.test(h), '');
   } catch (e) { check('static-read', false, e.message); }
@@ -171,6 +172,16 @@ app.whenReady().then(async () => {
     await wait(500);
     const readerHtml = await js(`(function(){ var el=document.getElementById('tr-reader'); return el?el.innerHTML:''; })()`);
     check('training-reader', /tr-code/.test(readerHtml) && /range\(3\)/.test(readerHtml), readerHtml.slice(0,40));
+    // Sınav: rastgele soru gelmeli, cevaplayınca doğru/yanlış işaretlenip açıklama+"sonraki soru" çıkmalı
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='Sınav'){ items[i].click(); return true; } } return false; })()`);
+    await wait(500);
+    const quizQ = await js(`document.body.innerText||''`);
+    // .tr-quiz-ctx text-transform:uppercase uygular; innerText görsel dönüşümü yansıtır (DÖNGÜLER), bu yüzden case-insensitive kontrol.
+    check('quiz-question', /range\(3\)/.test(quizQ) && /python/i.test(quizQ) && /döngüler/i.test(quizQ), '');
+    await js(`(function(){ var items=document.querySelectorAll('button'); for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='3'){ items[i].click(); return true; } } return false; })()`);
+    await wait(300);
+    const quizA = await js(`document.body.innerText||''`);
+    check('quiz-answer', /1 doğru/.test(quizA) && /Sonraki soru/.test(quizA), '');
   } catch (e) { check('runtime', false, e.message); }
   finish();
 
