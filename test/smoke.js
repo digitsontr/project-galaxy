@@ -47,6 +47,12 @@ function staticChecks() {
     check('sprint-l-health', /Sistem sağlığı/.test(h) && /healthItems/.test(h) && /galaxy:githubCheck/.test(fs.readFileSync(path.join(ROOT, 'lib', 'data.js'), 'utf8')), '');
     check('sprint-m-egitim', /Eğitimlerim/.test(h) && /tr-reader/.test(h) && fs.existsSync(path.join(ROOT, 'lib', 'trainings.js')), '');
     check('sprint-n-sinav', /tr-quiz-card/.test(h) && /Sonraki soru/.test(h) && /galaxy:quizRandom/.test(fs.readFileSync(path.join(ROOT, 'lib', 'trainings.js'), 'utf8')), '');
+    // Eğitim doküman kalitesi: gerçek klasörde bulunan iki düzeltilmiş sorun bir daha çıkmasın —
+    // (1) not defterlerine yapıştırılan görseller markdown "![](data:image/…)" olarak kalıyordu,
+    // (2) Word'ün stil-referanslı kalınları (<w:rStyle>) doğrudan <w:b/> olmadığı için kaçırılıyordu.
+    const trainingsSrc = fs.readFileSync(path.join(ROOT, 'lib', 'trainings.js'), 'utf8');
+    check('training-md-image', /const img = line\.match/.test(trainingsSrc) && /data:image/.test(trainingsSrc), '');
+    check('training-style-bold', /rStyle/.test(trainingsSrc) && /parseBoldItalicStyles/.test(trainingsSrc), '');
     // Gerçek ama boş evren listesinde sahte demo evrenler (İş Evreni/Papilon/Arşiv) ASLA gösterilmemeli.
     check('no-fake-universes-in-real-mode', /\(!realMode \? \[\{name:'İş Evreni'/.test(h), '');
   } catch (e) { check('static-read', false, e.message); }
