@@ -109,6 +109,8 @@ Kod hazır: uygulama paketli (DMG) sürümde açılışta güncellemeleri sessiz
 
 Not: MAS sürümünde ve `npm start` geliştirme modunda updater bilinçli olarak kapalıdır.
 
+Gizlilik metni (mağaza formu + kullanıcıya): `docs/PRIVACY.md`. Windows NSIS / smoke: `docs/WINDOWS.md`.
+
 ## 3. Sürüm çıkarken kontrol listesi
 
 - [ ] `package.json > version` yükseltildi

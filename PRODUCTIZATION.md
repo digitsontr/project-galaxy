@@ -1,6 +1,10 @@
 # Project Galaxy — Ürünleştirme Yol Haritası
 
-Hedef: kişisel araçtan, satılabilir bir macOS ürününe. İki dağıtım hedefi birlikte hazırlanıyor: **Developer ID ile doğrudan dağıtım** (notarized DMG — tam özellik) ve **Mac App Store** (sandbox; ajanlar API moduna geçene dek kısıtlı). Adım adım yayınlama: `docs/RELEASE.md`.
+Hedef: ücretsiz **Mac App Store** + **Microsoft Store** vitrini; sideload’da tam ürün. Ürün kuzeyi README **Yol haritası**. Bu belge paket / imza / mağaza.
+
+Mağaza vitrini ajan satmaz: harita, git, dosya, pano, DB, Docker. Claude CLI / bash sandbox’ta kapalı. Tam ikiz = DMG/NSIS veya sonra BYOK.
+
+İki dağıtım hedefi: **Developer ID ile doğrudan dağıtım** (notarized DMG — tam özellik) ve **Mac App Store** (sandbox; ajanlar API moduna geçene dek kısıtlı). Adım adım yayınlama: `docs/RELEASE.md`.
 
 ---
 
@@ -35,6 +39,15 @@ Hedef: kişisel araçtan, satılabilir bir macOS ürününe. İki dağıtım hed
 - [ ] Fiyatlandırma önerisi: tek seferlik $29-49 veya $5/ay; 14 gün deneme
 - [ ] Gizlilik politikası + KVKK/GDPR metni (veri lokalde kalıyor — güçlü satış argümanı!)
 - [ ] Beta programı: 10-20 geliştiriciye TestFlight benzeri dağıtım (DMG + geri bildirim formu)
+
+## Faz 5 — Microsoft Store (ücretsiz, Windows)
+
+Sideload NSIS tam ürün kalır. Store vitrini MAS ile aynı: harita, gezegen, git, pano, DB, Docker. Ajan / Git-Bash vaat etme.
+
+- [ ] electron-builder `appx` / `msix` hedefi + Partner Center yayıncı kimliği
+- [ ] Ekran görüntüleri: ajan rayı kapalı (Özet, Evren, DB, Docker)
+- [ ] Gizlilik: veri yerelde; isteğe bağlı model anahtarı sonra
+- [ ] İnceleme notu: sandbox/CLI ajan yok — dürüst boş durum
 
 ## Faz 4 — Mac App Store
 - [x] App Sandbox uyumu: security-scoped bookmarks ile klasör erişimi (onboarding klasör seçiciden), `entitlements.mas.plist` + inherit hazır

@@ -29,7 +29,8 @@ Bu dosya, App Store Connect formlarına **kopyala-yapıştır** hazır içerikti
 > • Otomatik hiyerarşi — klasörlerini tarar, proje/çatı ayrımını kendi yapar
 > • Git zaman çizelgesi + yeni başlayanlar için adım adım Git Flow rehberi
 > • Pano (todo), günlük, hızlı not (⌘⇧G) ve ⌘K hızlı arama
-> • Veritabanı görüntüleyici: PostgreSQL/MySQL/SQLite, salt-okunur, şema diyagramı
+> • Veritabanı: PostgreSQL/MySQL/SQLite — tablo, hücre, SQL (yazma onaylı)
+> • Docker: konteyner başlat/durdur, log, imaj
 > • Verin yalnızca senin diskinde: günlük yedek + yerel git geçmişi. Bulut yok, hesap yok, telemetri yok.
 >
 > İlk açılışta seni bir defalığına tanır: dilini, adını, klasörlerini seçersin — gerisi otomatik.
@@ -43,7 +44,8 @@ Bu dosya, App Store Connect formlarına **kopyala-yapıştır** hazır içerikti
 > • Automatic hierarchy — scans your folders, tells projects from containers
 > • Git timeline plus a step-by-step Git Flow guide for beginners
 > • Kanban board, captain's log, quick note (⌘⇧G) and ⌘K quick search
-> • Read-only database viewer: PostgreSQL/MySQL/SQLite with schema diagrams
+> • Databases: PostgreSQL/MySQL/SQLite — tables, cells, confirmed write SQL
+> • Docker: start/stop containers, logs, images
 > • Your data stays on your disk: daily backups + local git history. No cloud, no account, no telemetry.
 
 **Anahtar kelimeler (100 kr):**
@@ -54,7 +56,7 @@ Bu dosya, App Store Connect formlarına **kopyala-yapıştır** hazır içerikti
 ## Gizlilik formu ("App Privacy")
 
 - **Data Collection:** "Data Not Collected" — uygulama hiçbir veri toplamaz, hiçbir sunucuya bağlanmaz (kullanıcının kendi eklediği veritabanı sunucuları hariç; onlar da kullanıcının kendi altyapısıdır).
-- Gizlilik politikası URL'si zorunlu: bir sayfa gerekir (landing page'e "verileriniz cihazınızda kalır" metni yeterli). Henüz site yoksa GitHub Pages'te tek sayfalık `privacy.html` aç.
+- Gizlilik politikası URL'si zorunlu: bir sayfa gerekir (landing page'e "verileriniz cihazınızda kalır" metni yeterli). Kaynak metin: **`docs/PRIVACY.md`** — GitHub Pages’te `privacy.html` olarak yayınla veya README’deki özeti bağla.
 
 ## İnceleme notları (App Review Notes alanına)
 
@@ -62,12 +64,13 @@ Bu dosya, App Store Connect formlarına **kopyala-yapıştır** hazır içerikti
 
 ## Ekran görüntüleri (zorunlu: 1280×800 / 1440×900 / 2560×1600 / 2880×1800)
 
+- [ ] Özet — bugün masası + DB/Docker kapısı (sağ ajan rayı **kapalı**)
 - [ ] Uzay modu — evren geneli (nebula arka planıyla)
 - [ ] Gezegen modu — yörüngede dosyalar + README paneli
 - [ ] GİT MERKEZİ — Git Flow rehberi sekmesi
-- [ ] Pano (todo kolonları)
-- [ ] DB görüntüleyici — şema diyagramı
-- İpucu: `⌘⇧5` ile pencere görüntüsü al; onboarding'de İngilizce seçip bir set de EN al (mağaza yerelleştirmesi için).
+- [ ] DB — bağlantı + tablo
+- [ ] Docker — konteyner listesi
+- İpucu: ajan rayını kapalı bırak. `⌘⇧5` ile pencere görüntüsü; onboarding'de İngilizce seçip bir set de EN al. Microsoft Store için aynı kareler 1366×768 / 1920×1080.
 
 ## Bilinen sınırlar (bu build'de bilinçli kapalı)
 

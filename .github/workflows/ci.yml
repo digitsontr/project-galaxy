@@ -30,3 +30,24 @@ jobs:
           set -o pipefail
           env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/smoke.js 2>/dev/null | tee smoke.log
           grep -q "geçti" smoke.log && ! grep -q "BAŞARISIZ" smoke.log
+
+  smoke-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bağımlılıkları kur
+        run: npm install --no-audit --no-fund
+      - name: Arayüzü derle
+        run: python newui/build.py
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -o pipefail
+          env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/smoke.js 2>/dev/null | tee smoke.log
+          grep -q "geçti" smoke.log && ! grep -q "BAŞARISIZ" smoke.log
