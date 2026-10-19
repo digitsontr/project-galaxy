@@ -1,5 +1,790 @@
-'use strict';
 // Sprint J — davranış taşındı; kopyalanmadı.
+// Faz 5: eval-blob açıldı — gövde birebir aynı kod; artık satır satır okunur, diff'lenir,
+// hata izinde gerçek satır numarası verir. with(g) bilinçli: çıplak isimler paylaşılan g'ye
+// çözülür, g.X = ... atamaları bu modülün çıktısıdır. (Bu yüzden dosya başında 'use strict' yok.)
 module.exports = function register(g) {
-  Function('g', 'with (g) {\n' + "/* ==================== UZAK SUNUCU (SSH) ====================\n * Uzak bir makineyi \"evren\" olarak eklemenin temeli. Kimlik do\u011frulama\n * tamamen sistemin ssh'\u0131na b\u0131rak\u0131l\u0131r: mevcut anahtarlar\u0131n ve ~/.ssh/config\n * Host takma adlar\u0131n \u00e7al\u0131\u015f\u0131r \u2014 uygulama H\u0130\u00c7B\u0130R parola saklamaz.\n * BatchMode=yes sayesinde parola sorulacak bir durumda komut as\u0131l\u0131 kalmaz,\n * temiz bir hata d\u00f6ner. ControlMaster ile ayn\u0131 ba\u011flant\u0131 yeniden kullan\u0131l\u0131r,\n * b\u00f6ylece art arda \u00e7a\u011fr\u0131lar (tarama, git, dosya) tek el s\u0131k\u0131\u015fmayla akar.\n */\n\n// Kontrol soketi (ControlMaster multiplexing) i\u00e7in TABAN dizin. \u0130ki k\u0131s\u0131t:\n//  1) BO\u015eLUKSUZ olmal\u0131 \u2014 DATA_DIR macOS'ta \"Application Support\" bo\u015flu\u011fu i\u00e7erir, ssh -o de\u011ferini bozar.\n//  2) KISA olmal\u0131 \u2014 unix soket yolu macOS'ta 104 bayt s\u0131n\u0131rl\u0131; ssh %C'yi ~40 hex'e a\u00e7ar ve\n//     master soketi kurarken ~18 karakterlik ge\u00e7ici sonek ekler. os.tmpdir() (/var/folders/\u2026) ~48\n//     karakter oldu\u011fundan s\u0131n\u0131r\u0131 a\u015far. /tmp k\u0131sa ve bo\u015fluksuz.\nconst SSH_CTL_DIR = process.platform === 'win32' ? '' : '/tmp/.pgssh';\n\nfunction sshBaseArgs(srv) {\n  let to = 8; try { to = getSettings(loadData()).sshTimeout; } catch (e) {}\n  const args = [\n    '-o', 'BatchMode=yes',\n    '-o', 'ConnectTimeout=' + to,\n    '-o', 'StrictHostKeyChecking=accept-new'\n  ];\n  // Multiplexing'i yaln\u0131z yol bo\u015fluksuz VE yeterince k\u0131saysa a\u00e7 (yoksa bozuk/uzun soket \u00fcretme).\n  if (SSH_CTL_DIR) {\n    try { fs.mkdirSync(SSH_CTL_DIR, { recursive: true }); } catch (e) {}\n    const ctlPath = path.join(SSH_CTL_DIR, '%C');\n    // ger\u00e7ek uzunluk \u2248 taban + '/' + 40 (%C) + 18 (ssh ge\u00e7ici sonek); 100 bayt\u0131n alt\u0131nda kalmal\u0131\n    if (!/\\s/.test(ctlPath) && (SSH_CTL_DIR.length + 1 + 40 + 18) < 100) {\n      args.push('-o', 'ControlMaster=auto', '-o', 'ControlPersist=90', '-o', 'ControlPath=' + ctlPath);\n    }\n  }\n  if (srv.port && +srv.port !== 22) args.push('-p', String(+srv.port));\n  // Anahtar dosyas\u0131 verilmi\u015fse yaln\u0131z onu kullan. Yolu ak\u0131ll\u0131ca \u00e7\u00f6z:\n  //  ~ geni\u015flet \u00b7 mutlak yolu oldu\u011fu gibi \u00b7 \u00c7IPLAK dosya ad\u0131n\u0131 (\u00f6r. \"id_ed25519\") ~/.ssh alt\u0131nda ara.\n  // (ssh -i g\u00f6reli yolu \u00c7ALI\u015eMA D\u0130Z\u0130N\u0130NE g\u00f6re \u00e7\u00f6zer, ~/.ssh'a de\u011fil \u2014 \u00e7\u0131plak ad bu y\u00fczden bulunam\u0131yordu.)\n  if (srv.key) {\n    let k = String(srv.key).trim().replace(/^~(?=\\/|$)/, os.homedir());\n    if (!path.isAbsolute(k)) k = k.includes('/') ? path.resolve(os.homedir(), k) : path.join(os.homedir(), '.ssh', k);\n    // Anahtar dosyas\u0131 GER\u00c7EKTEN varsa yaln\u0131z onu kullan; yoksa -i EKLEME \u2192 agent/varsay\u0131lan anahtarlara d\u00fc\u015f\n    // (kullan\u0131c\u0131 yanl\u0131\u015f/olmayan bir ad yazm\u0131\u015fsa \u00f6l\u00fc uca girmesin).\n    if (fs.existsSync(k)) args.push('-o', 'IdentitiesOnly=yes', '-i', k);\n  }\n  return args;\n}\n\n// Hedef: ya ~/.ssh/config'teki Host takma ad\u0131, ya user@host\nfunction sshTarget(srv) {\n  if (srv.alias) return srv.alias;\n  return (srv.user ? srv.user + '@' : '') + srv.host;\n}\n\nfunction sshExec(srv, remoteCmd, timeout) {\n  return new Promise(resolve => {\n    const args = [...sshBaseArgs(srv), sshTarget(srv), remoteCmd];\n    execFile('ssh', args, { env: ENV, timeout: timeout || 25000, maxBuffer: 16 * 1024 * 1024 },\n      (err, stdout, stderr) => {\n        if (err) {\n          const raw = String(stderr || err.message || '').trim();\n          resolve({ ok: false, error: sshFriendly(raw), raw });\n        } else resolve({ ok: true, out: String(stdout || ''), warn: String(stderr || '').trim() });\n      });\n  });\n}\n\n// ssh'\u0131n ham hatalar\u0131n\u0131 kullan\u0131c\u0131n\u0131n anlayaca\u011f\u0131 h\u00e2le \u00e7evir\nfunction sshFriendly(raw) {\n  const r = String(raw || '');\n  if (/Permission denied/i.test(r)) {\n    return 'Kimlik do\u011frulama ba\u015far\u0131s\u0131z \u2014 sunucu anahtar\u0131n\u0131 kabul etmedi. Genel anahtar\u0131n\u0131 sunucudaki ~/.ssh/authorized_keys dosyas\u0131na ekle (ssh-copy-id ile).';\n  }\n  if (/Could not resolve hostname|Name or service not known/i.test(r)) return 'Sunucu ad\u0131 \u00e7\u00f6z\u00fclemedi \u2014 adresi kontrol et.';\n  if (/Connection refused/i.test(r)) return 'Ba\u011flant\u0131 reddedildi \u2014 sunucuda SSH kapal\u0131 ya da port yanl\u0131\u015f olabilir.';\n  if (/Connection timed out|Operation timed out/i.test(r)) return 'Ba\u011flant\u0131 zaman a\u015f\u0131m\u0131na u\u011frad\u0131 \u2014 sunucu eri\u015filebilir de\u011fil ya da g\u00fcvenlik duvar\u0131 engelliyor.';\n  if (/Host key verification failed/i.test(r)) return 'Sunucu anahtar\u0131 do\u011frulanamad\u0131 \u2014 known_hosts kayd\u0131 de\u011fi\u015fmi\u015f olabilir.';\n  if (/no matching host key|no matching key exchange/i.test(r)) return 'SSH s\u00fcr\u00fcm/algoritma uyu\u015fmazl\u0131\u011f\u0131 \u2014 sunucu \u00e7ok eski olabilir.';\n  return r.split('\\n').filter(Boolean).slice(-1)[0] || 'SSH ba\u011flant\u0131s\u0131 kurulamad\u0131';\n}\n\n// ~/.ssh/config i\u00e7indeki Host takma adlar\u0131 (joker olanlar hari\u00e7) \u2014 se\u00e7ici i\u00e7in\n// ~/.ssh alt\u0131ndaki \u00f6zel anahtar dosyalar\u0131 (.pub olmayanlar) \u2014 form se\u00e7ici i\u00e7in\nipcMain.handle('galaxy:sshKeys', () => {\n  try {\n    const dir = path.join(os.homedir(), '.ssh');\n    const names = fs.readdirSync(dir).filter(f => {\n      if (f.endsWith('.pub') || f === 'config' || f === 'known_hosts' || f.startsWith('known_hosts')\n        || f === 'authorized_keys' || f === 'agent') return false;\n      try { return fs.statSync(path.join(dir, f)).isFile(); } catch (e) { return false; }\n    });\n    return { ok: true, keys: names.map(n => ({ name: n, path: path.join(dir, n) })) };\n  } catch (e) { return { ok: true, keys: [] }; }\n});\n\nipcMain.handle('galaxy:sshConfigHosts', () => {\n  try {\n    const cfg = fs.readFileSync(path.join(os.homedir(), '.ssh', 'config'), 'utf8');\n    const hosts = [];\n    let cur = null;\n    for (const line of cfg.split('\\n')) {\n      const mh = line.match(/^\\s*Host\\s+(.+)$/i);\n      if (mh) {\n        for (const name of mh[1].trim().split(/\\s+/)) {\n          if (name.includes('*') || name.includes('?')) continue;\n          cur = { alias: name, host: '', user: '', port: 0 };\n          hosts.push(cur);\n        }\n        continue;\n      }\n      if (!cur) continue;\n      const mk = line.match(/^\\s*(HostName|User|Port)\\s+(.+)$/i);\n      if (mk) {\n        const k = mk[1].toLowerCase(), v = mk[2].trim();\n        if (k === 'hostname') cur.host = v;\n        else if (k === 'user') cur.user = v;\n        else if (k === 'port') cur.port = +v || 0;\n      }\n    }\n    return { ok: true, hosts };\n  } catch (e) { return { ok: true, hosts: [] }; }\n});\n\nipcMain.handle('galaxy:sshList', () => (loadData().servers || []));\n\nipcMain.handle('galaxy:sshSave', (e, srv) => {\n  if (!srv || !srv.name) return { ok: false, error: 'Ad gerekli' };\n  if (!srv.alias && !srv.host) return { ok: false, error: 'Sunucu adresi ya da ~/.ssh/config takma ad\u0131 gerekli' };\n  const data = loadData();\n  data.servers = data.servers || [];\n  if (!srv.id) srv.id = 'srv' + Date.now();\n  const clean = {\n    id: srv.id,\n    name: String(srv.name).slice(0, 60),\n    alias: String(srv.alias || '').slice(0, 120),\n    host: String(srv.host || '').slice(0, 200),\n    user: String(srv.user || '').slice(0, 60),\n    port: +srv.port || 0,\n    key: String(srv.key || '').slice(0, 400),\n    kind: (srv.kind === 'windows' || srv.kind === 'posix') ? srv.kind : '',\n    // uzak evrenin k\u00f6kleri: hangi klas\u00f6rlerin alt\u0131ndaki projeler taranacak\n    roots: (Array.isArray(srv.roots) ? srv.roots : []).slice(0, 12)\n      .map(r => ({ name: String(r.name || '').slice(0, 60), path: String(r.path || '').slice(0, 400) }))\n      .filter(r => r.path)\n  };\n  const idx = data.servers.findIndex(s => s.id === srv.id);\n  if (idx >= 0) data.servers[idx] = clean; else data.servers.push(clean);\n  saveData(data);\n  return { ok: true, id: srv.id };\n});\n\nipcMain.handle('galaxy:sshDelete', (e, id) => {\n  const data = loadData();\n  data.servers = (data.servers || []).filter(s => s.id !== id);\n  saveData(data);\n  return { ok: true };\n});\n\nconst getServer = id => (loadData().servers || []).find(s => s.id === id);\n\n/* PowerShell'e komut g\u00f6ndermenin dayan\u0131kl\u0131 yolu: ssh \u2192 cmd.exe \u2192 powershell\n   zincirinde t\u0131rnak ka\u00e7\u0131\u015f\u0131 g\u00fcvenilmezdir. -EncodedCommand (UTF-16LE base64)\n   bu sorunu tamamen ortadan kald\u0131r\u0131r. */\nfunction psCommand(script) {\n  return 'powershell -NoProfile -EncodedCommand ' + Buffer.from(script, 'utf16le').toString('base64');\n}\n\n// Uzak makine POSIX mi Windows mu? \u00d6nce POSIX denenir, olmazsa PowerShell.\nasync function sshProbe(srv) {\n  const p = await sshExec(srv,\n    'echo \"GX|$(uname -s)|$(uname -m)|$(hostname)|$(whoami)|$(git --version 2>/dev/null | head -1)|$(docker --version 2>/dev/null | head -1)\"',\n    20000);\n  if (p.ok) {\n    const l = (p.out.split('\\n').find(x => x.startsWith('GX|')) || '').split('|');\n    // cmd.exe de bu komutu \"\u00e7al\u0131\u015ft\u0131r\u0131p\" sa\u00e7ma \u00e7\u0131kt\u0131 verebilir; uname sonucu bo\u015fsa POSIX de\u011fildir\n    if (l[1]) {\n      return { ok: true, kind: 'posix', os: l[1], arch: l[2] || '', hostname: l[3] || '', user: l[4] || '', git: l[5] || '', docker: l[6] || '' };\n    }\n  }\n  const w = await sshExec(srv, psCommand(`\n$ErrorActionPreference='SilentlyContinue'\n$g = (& git --version 2>$null) | Select-Object -First 1\n$d = (& docker --version 2>$null) | Select-Object -First 1\nWrite-Output (\"GX|Windows|{0}|{1}|{2}|{3}|{4}|{5}\" -f $env:PROCESSOR_ARCHITECTURE, $env:COMPUTERNAME, $env:USERNAME, $g, $d, $PSVersionTable.PSVersion.ToString())\n`), 25000);\n  if (w.ok) {\n    const l = (w.out.split('\\n').find(x => x.startsWith('GX|')) || '').split('|');\n    if (l[1]) {\n      return { ok: true, kind: 'windows', os: 'Windows', arch: l[2] || '', hostname: l[3] || '', user: l[4] || '', git: l[5] || '', docker: l[6] || '', powershell: l[7] || '' };\n    }\n  }\n  return { ok: false, error: (p.ok ? null : p.error) || (w.ok ? 'Uzak kabuk tan\u0131namad\u0131' : w.error) };\n}\n\n// Ba\u011flant\u0131 testi: kimlik do\u011frulama + uzak ortam k\u00fcnyesi (POSIX ve Windows)\nipcMain.handle('galaxy:sshTest', async (e, srvRaw) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const srv = (srvRaw && srvRaw.id && !srvRaw.host && !srvRaw.alias) ? getServer(srvRaw.id) : srvRaw;\n  if (!srv) return { ok: false, error: 'Sunucu bulunamad\u0131' };\n  const r = await sshProbe(srv);\n  if (!r.ok) return r;\n  // alg\u0131lanan kabuk t\u00fcr\u00fcn\u00fc kaydet ki tarama do\u011fru beti\u011fi kullans\u0131n\n  if (srv.id) {\n    const data = loadData();\n    const s = (data.servers || []).find(x => x.id === srv.id);\n    if (s && s.kind !== r.kind) { s.kind = r.kind; saveData(data); }\n  }\n  return r;\n});\n\n/* Uzak k\u00f6kteki projeleri TEK ssh \u00e7a\u011fr\u0131s\u0131nda tarar.\n   Her proje i\u00e7in: ad, yol, git mi, dal, son commit, son de\u011fi\u015fiklik, README, 30g aktivite.\n   \u00c7\u0131kt\u0131 sat\u0131r format\u0131:  P|ad|yol|isGit|dal|commitEpoch|mtimeEpoch|readmeAd\u0131|act30 */\nconst REMOTE_SCAN = `\nfor ROOT in %ROOTS%; do\n  [ -d \"$ROOT\" ] || continue\n  for D in \"$ROOT\"/*/; do\n    [ -d \"$D\" ] || continue\n    D=\"\\${D%/}\"\n    NAME=$(basename \"$D\")\n    case \"$NAME\" in .*|node_modules|venv|__pycache__) continue;; esac\n    ISGIT=0; BRANCH=\"\"; CEPOCH=0; ACT30=0\n    if [ -d \"$D/.git\" ]; then\n      ISGIT=1\n      BRANCH=$(git -C \"$D\" rev-parse --abbrev-ref HEAD 2>/dev/null)\n      CEPOCH=$(git -C \"$D\" log -1 --format=%ct 2>/dev/null)\n      ACT30=$(git -C \"$D\" log --since=30.days --oneline 2>/dev/null | wc -l | tr -d ' ')\n    fi\n    MEPOCH=$(find \"$D\" -maxdepth 2 -type f -not -path '*/.git/*' -newermt '1970-01-01' -printf '%T@\\\\n' 2>/dev/null | sort -rn | head -1 | cut -d. -f1)\n    [ -z \"$MEPOCH\" ] && MEPOCH=$(stat -c %Y \"$D\" 2>/dev/null || stat -f %m \"$D\" 2>/dev/null)\n    README=\"\"\n    for F in README.md readme.md README.MD README; do\n      [ -f \"$D/$F\" ] && README=\"$F\" && break\n    done\n    echo \"P|$NAME|$D|$ISGIT|$BRANCH|\\${CEPOCH:-0}|\\${MEPOCH:-0}|$README|\\${ACT30:-0}\"\n  done\ndone\n`;\n\n/* Windows kar\u015f\u0131l\u0131\u011f\u0131 \u2014 ayn\u0131 \"P|\u2026\" sat\u0131r format\u0131n\u0131 \u00fcretir, b\u00f6ylece ayr\u0131\u015ft\u0131r\u0131c\u0131 ortakt\u0131r.\n   Not: uzak makine Windows ise POSIX beti\u011fi hi\u00e7 \u00e7al\u0131\u015fmaz (cmd.exe/PowerShell), bu y\u00fczden\n   kabuk t\u00fcr\u00fcne g\u00f6re ayr\u0131lmak zorunludur. */\nconst REMOTE_SCAN_WIN = `\n$ErrorActionPreference='SilentlyContinue'\n$roots = @(%ROOTS%)\n$epoch = Get-Date '1970-01-01Z'\nforeach ($root in $roots) {\n  if (-not (Test-Path $root)) { continue }\n  foreach ($d in Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue) {\n    $name = $d.Name\n    if ($name -match '^\\\\.' -or $name -in @('node_modules','venv','__pycache__','$RECYCLE.BIN','System Volume Information')) { continue }\n    $p = $d.FullName\n    $isGit = 0; $branch = ''; $cepoch = 0\n    if (Test-Path (Join-Path $p '.git')) {\n      $isGit = 1\n      $branch = (& git -C $p rev-parse --abbrev-ref HEAD 2>$null) | Select-Object -First 1\n      $cepoch = (& git -C $p log -1 --format=%ct 2>$null) | Select-Object -First 1\n    }\n    $mt = $d.LastWriteTimeUtc\n    $newest = Get-ChildItem -LiteralPath $p -File -Recurse -Depth 1 -ErrorAction SilentlyContinue |\n              Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1\n    if ($newest -and $newest.LastWriteTimeUtc -gt $mt) { $mt = $newest.LastWriteTimeUtc }\n    $mepoch = [int64](New-TimeSpan -Start $epoch -End $mt).TotalSeconds\n    $readme = ''\n    foreach ($f in @('README.md','readme.md','README.MD','README')) {\n      if (Test-Path (Join-Path $p $f)) { $readme = $f; break }\n    }\n    if (-not $cepoch) { $cepoch = 0 }\n    $act30 = 0\n    if ($isGit) { $act30 = (& git -C $p log --since='30 days ago' --oneline 2>$null | Measure-Object).Count }\n    Write-Output (\"P|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}\" -f $name,$p,$isGit,$branch,$cepoch,$mepoch,$readme,$act30)\n  }\n}\n`;\n\nasync function sshScanServer(id) {\n  const srv = getServer(id);\n  if (!srv) return { ok: false, error: 'Sunucu bulunamad\u0131' };\n  const roots = (srv.roots || []).map(r => r.path);\n  if (!roots.length) return { ok: false, error: 'Bu sunucu i\u00e7in taranacak klas\u00f6r tan\u0131ml\u0131 de\u011fil' };\n\n  let kind = srv.kind;\n  if (!kind) {                      // hen\u00fcz test edilmediyse kabuk t\u00fcr\u00fcn\u00fc \u015fimdi bul\n    const probe = await sshProbe(srv);\n    if (!probe.ok) return probe;\n    kind = probe.kind;\n    const data = loadData();\n    const s = (data.servers || []).find(x => x.id === srv.id);\n    if (s) { s.kind = kind; saveData(data); }\n  }\n\n  let r;\n  if (kind === 'windows') {\n    // PowerShell tek t\u0131rnakl\u0131 dizge: i\u00e7indeki ' karakteri '' olarak ka\u00e7\u0131r\u0131l\u0131r\n    const psList = roots.map(p => \"'\" + String(p).replace(/'/g, \"''\") + \"'\").join(',');\n    r = await sshExec(srv, psCommand(REMOTE_SCAN_WIN.replace('%ROOTS%', psList)), 90000);\n  } else {\n    // Yollar tek t\u0131rnakla ka\u00e7\u0131r\u0131l\u0131r; uzak kabukta geni\u015fletme olmaz\n    const quoted = roots.map(p => \"'\" + String(p).replace(/'/g, \"'\\\\''\") + \"'\").join(' ');\n    r = await sshExec(srv, REMOTE_SCAN.replace('%ROOTS%', quoted), 60000);\n  }\n  if (!r.ok) return r;\n  const projects = [];\n  for (const line of r.out.split('\\n')) {\n    if (!line.startsWith('P|')) continue;\n    const [, name, rpath, isGit, branch, cepoch, mepoch, readme, act30] = line.split('|');\n    if (!name || !rpath) continue;\n    const cts = +cepoch || 0, mts = +mepoch || 0;\n    const last = (cts || mts || 0) * 1000;\n    projects.push({\n      name, path: rpath, isGit: isGit === '1', branch: (branch || '').trim(),\n      lastTs: cts ? new Date(cts * 1000).toISOString() : null,\n      mtime: mts ? new Date(mts * 1000).toISOString() : null,\n      activity30: +act30 || 0,\n      lastActivity: last || null,\n      staleDays: last ? Math.floor((Date.now() - last) / 86400000) : null,\n      readme: (readme || '').trim(),\n      // hangi k\u00f6k\u00fcn alt\u0131ndan geldi\u011fi (evren e\u015flemesi i\u00e7in)\n      root: roots.find(rt => rpath === rt || rpath.startsWith(rt.replace(/\\/$/, '') + '/')) || roots[0]\n    });\n  }\n  return { ok: true, projects, count: projects.length, kind };\n}\n\n/* ---- Uzak evren \u00f6nbelle\u011fi ----\n   scanProjects() e\u015fzamanl\u0131d\u0131r ve s\u0131k \u00e7a\u011fr\u0131l\u0131r; SSH ise a\u011f gecikmesine tabidir.\n   Bu y\u00fczden uzak veri arka planda tazelenir, harita her zaman \u00f6nbellekten \u00e7izilir\n   (stale-while-revalidate). Ba\u011flant\u0131 koparsa son bilinen durum g\u00f6sterilir. */\nconst remoteCache = new Map();   // serverId \u2192 { ts, projects, error, kind }\nconst REMOTE_TTL = 60000;\nlet remoteRefreshing = new Set();\n\nfunction remoteRefresh(id, force) {\n  const c = remoteCache.get(id);\n  if (!force && c && Date.now() - c.ts < REMOTE_TTL) return Promise.resolve(c);\n  if (remoteRefreshing.has(id)) return Promise.resolve(c);\n  remoteRefreshing.add(id);\n  return sshScanServer(id)\n    .then(r => {\n      const entry = r.ok\n        ? { ts: Date.now(), projects: r.projects, error: null, kind: r.kind }\n        : { ts: Date.now(), projects: (c && c.projects) || [], error: r.error, kind: c && c.kind };\n      remoteCache.set(id, entry);\n      return entry;\n    })\n    .catch(err => {\n      const entry = { ts: Date.now(), projects: (c && c.projects) || [], error: String(err && err.message || err) };\n      remoteCache.set(id, entry);\n      return entry;\n    })\n    .finally(() => remoteRefreshing.delete(id));\n}\n\n// Uzak yol ad alan\u0131: ssh://<serverId>/mutlak/yol\nconst remotePath = (srvId, p) => 'ssh://' + srvId + p;\nconst isRemotePath = p => typeof p === 'string' && p.startsWith('ssh://');\nfunction parseRemote(p) {\n  if (!isRemotePath(p)) return null;\n  const rest = p.slice(6);\n  const i = rest.indexOf('/');\n  if (i < 0) return null;\n  return { serverId: rest.slice(0, i), path: rest.slice(i) };\n}\n\nipcMain.handle('galaxy:sshScan', async (e, id) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const r = await sshScanServer(id);\n  if (r.ok) remoteCache.set(id, { ts: Date.now(), projects: r.projects, error: null, kind: r.kind });\n  return r;\n});\n\n/* ---- Uzak okuma i\u015flemleri (faz 3, POSIX) ----\n   Yerel kar\u015f\u0131l\u0131klar\u0131yla AYNI \u015fekli d\u00f6nd\u00fcr\u00fcrler; b\u00f6ylece derlenmi\u015f aray\u00fcz\n   uzak gezegeni yerelden ay\u0131rt etmez. Yollar tek t\u0131rnakla ka\u00e7\u0131r\u0131l\u0131r. */\n\nconst shq = p => \"'\" + String(p).replace(/'/g, \"'\\\\''\") + \"'\";\n\n// rel yolu k\u00f6ke hapset ('..' ile d\u0131\u015far\u0131 \u00e7\u0131k\u0131lamaz)\nfunction safeRel(rel) {\n  const parts = String(rel || '').split('/').filter(Boolean);\n  const out = [];\n  for (const seg of parts) {\n    if (seg === '.') continue;\n    if (seg === '..') { if (!out.length) return null; out.pop(); continue; }\n    out.push(seg);\n  }\n  return out.join('/');\n}\n\nfunction remoteSrv(p) {\n  const r = parseRemote(p);\n  if (!r) return null;\n  const srv = getServer(r.serverId);\n  return srv ? { srv, path: r.path } : null;\n}\n\nasync function remoteReadme(p) {\n  const t = remoteSrv(p);\n  if (!t) return null;\n  const r = await sshExec(t.srv,\n    `cd ${shq(t.path)} 2>/dev/null || exit 0\n     F=$(ls -1 2>/dev/null | grep -i '^readme\\\\.md$' | head -1)\n     [ -z \"$F\" ] && F=$(ls -1 2>/dev/null | grep -i '\\\\.md$' | head -1)\n     [ -z \"$F\" ] && exit 0\n     echo \"GXNAME:$F\"\n     head -c 60000 -- \"$F\"`, 25000);\n  if (!r.ok) return null;\n  const i = r.out.indexOf('\\n');\n  if (i < 0 || !r.out.startsWith('GXNAME:')) return null;\n  return { name: r.out.slice(7, i).trim(), content: r.out.slice(i + 1) };\n}\n\nasync function remoteList(p, rel) {\n  const t = remoteSrv(p);\n  if (!t) return null;\n  const sub = safeRel(rel);\n  if (sub === null) return null;\n  const dir = sub ? t.path + '/' + sub : t.path;\n  // her sat\u0131r: D|ad  ya da  F|ad|boyut\n  const r = await sshExec(t.srv,\n    `cd ${shq(dir)} 2>/dev/null || exit 0\n     for E in * .[!.]*; do\n       [ -e \"$E\" ] || continue\n       case \"$E\" in .*|node_modules|__pycache__|*.app) continue;; esac\n       if [ -d \"$E\" ]; then echo \"D|$E\"; else echo \"F|$E|$(wc -c < \"$E\" 2>/dev/null | tr -d ' ')\"; fi\n     done`, 25000);\n  if (!r.ok) return null;\n  const out = [];\n  for (const line of r.out.split('\\n')) {\n    const parts = line.split('|');\n    if (parts[0] === 'D' && parts[1]) out.push({ name: parts[1], dir: true, size: 0 });\n    else if (parts[0] === 'F' && parts[1]) out.push({ name: parts[1], dir: false, size: +parts[2] || 0 });\n  }\n  out.sort((a, b) => (b.dir - a.dir) || a.name.localeCompare(b.name, 'tr'));\n  return out;\n}\n\nconst REMOTE_MAX_TEXT = 2 * 1024 * 1024;  // 2 MB \u00fcst\u00fc uzaktan \u00e7ekilmez\n\nasync function remoteFile(p, rel) {\n  const t = remoteSrv(p);\n  if (!t) return null;\n  const sub = safeRel(rel);\n  if (sub === null) return null;\n  const full = sub ? t.path + '/' + sub : t.path;\n  const meta = await sshExec(t.srv, `wc -c < ${shq(full)} 2>/dev/null | tr -d ' '`, 20000);\n  if (!meta.ok) return null;\n  const size = +meta.out.trim() || 0;\n  const name = full.split('/').pop();\n  const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase();\n  const base = { name, size, ext, path: p + (sub ? '/' + sub : '') };\n  // \u0130kili i\u00e7erik (g\u00f6rsel, pdf, video) uzaktan ak\u0131t\u0131lm\u0131yor \u2014 faz 3'\u00fcn s\u0131n\u0131r\u0131.\n  // UI 'binary' kind'\u0131n\u0131 tan\u0131r (\"app i\u00e7inde \u00f6nizlenemiyor\" + harici a\u00e7); mesaj\u0131 content'te ver.\n  if (IMAGE_EXT.has(ext) || ext === 'pdf' || MEDIA_EXT.has(ext)) {\n    return { ...base, kind: 'binary', remote: true,\n      content: `Bu dosya t\u00fcr\u00fc uzak sunucudan g\u00f6r\u00fcnt\u00fclenemiyor (${ext.toUpperCase()}).\\nUzak konum: ${full}` };\n  }\n  if (size > REMOTE_MAX_TEXT) {\n    return { ...base, kind: 'text', remote: true,\n      content: `Dosya \u00e7ok b\u00fcy\u00fck (${(size / 1048576).toFixed(1)} MB) \u2014 uzaktan yaln\u0131zca ${(REMOTE_MAX_TEXT / 1048576)} MB'a kadar okunuyor.` };\n  }\n  const r = await sshExec(t.srv, `head -c ${REMOTE_MAX_TEXT} -- ${shq(full)}`, 40000);\n  if (!r.ok) return null;\n  return { ...base, kind: 'text', content: r.out, remote: true };\n}\n\nasync function remoteTree(p, depth) {\n  const t = remoteSrv(p);\n  if (!t) return null;\n  const r = await sshExec(t.srv,\n    `cd ${shq(t.path)} 2>/dev/null || exit 0\n     find . -maxdepth ${Math.max(1, Math.min(+depth || 3, 5))} \\\n       -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' 2>/dev/null |\n     head -4000 | sed 's|^\\\\./||' | grep -v '^\\\\.$'`, 40000);\n  if (!r.ok) return null;\n  // d\u00fcz liste \u2192 a\u011fa\u00e7\n  const root = [];\n  const dirs = new Map();\n  const lines = r.out.split('\\n').map(l => l.trim()).filter(Boolean).sort();\n  // hangi yollar dizin: bir ba\u015fkas\u0131n\u0131n \u00f6neki olanlar\n  const isDir = new Set();\n  for (const l of lines) {\n    const i = l.lastIndexOf('/');\n    if (i > 0) isDir.add(l.slice(0, i));\n  }\n  for (const l of lines) {\n    const parts = l.split('/');\n    const name = parts[parts.length - 1];\n    const parentKey = parts.slice(0, -1).join('/');\n    const node = isDir.has(l) ? { name, dir: true, children: [] } : { name, dir: false };\n    if (node.dir) dirs.set(l, node);\n    const bucket = parentKey ? (dirs.get(parentKey) || {}).children : root;\n    if (bucket) bucket.push(node);\n  }\n  return root;\n}\n\nasync function remoteGitLog(p) {\n  const t = remoteSrv(p);\n  if (!t) return { ok: false, error: 'Sunucu bulunamad\u0131' };\n  const d = shq(t.path);\n  const r = await sshExec(t.srv,\n    `[ -d ${d}/.git ] || { echo \"GXNOGIT\"; exit 0; }\n     echo \"GX\u00a7LOG\"; git -C ${d} log --pretty=format:\"%h\u00a7%an\u00a7%ad\u00a7%s\" --date=format:\"%Y-%m-%d %H:%M\" -40 2>/dev/null\n     echo \"\"; echo \"GX\u00a7BRANCH\"; git -C ${d} branch --show-current 2>/dev/null\n     echo \"GX\u00a7STATUS\"; git -C ${d} status --porcelain 2>/dev/null\n     echo \"GX\u00a7BRANCHES\"; git -C ${d} branch --format=\"%(refname:short)\" 2>/dev/null`, 40000);\n  if (!r.ok) return { ok: false, error: r.error };\n  if (r.out.includes('GXNOGIT')) return { ok: false, error: 'Git deposu yok' };\n  const sec = name => {\n    const i = r.out.indexOf('GX\u00a7' + name);\n    if (i < 0) return '';\n    const start = r.out.indexOf('\\n', i) + 1;\n    const next = r.out.indexOf('\\nGX\u00a7', start);\n    return r.out.slice(start, next < 0 ? undefined : next).trim();\n  };\n  const commits = sec('LOG') ? sec('LOG').split('\\n').filter(Boolean).map(l => {\n    const [h, an, ad, ...s] = l.split('\u00a7');\n    return { h, an, ad, s: s.join('\u00a7') };\n  }) : [];\n  const dirtyFiles = sec('STATUS') ? sec('STATUS').split('\\n').filter(Boolean) : [];\n  return {\n    ok: true,\n    branch: sec('BRANCH') || '?',\n    branches: sec('BRANCHES') ? sec('BRANCHES').split('\\n').filter(Boolean) : [],\n    commits,\n    dirty: dirtyFiles.length,\n    dirtyFiles,\n    activity30: commits.filter(c => Date.now() - Date.parse(c.ad) < 30 * 86400000).length,\n    remote: true\n  };\n}\n\n/* ==================== DOCKER ====================\n * Docker Desktop'\u0131n yapt\u0131\u011f\u0131 i\u015flerin \u00e7ekirde\u011fi: imaj ve konteyner listesi,\n * ba\u015flat/durdur/yeniden ba\u015flat/sil, loglar ve alan temizli\u011fi.\n * T\u00fcm \u00e7a\u011fr\u0131lar `docker` CLI'\u0131na execFile ile (kabuk YOK) gider; eylemler\n * beyaz listeyle s\u0131n\u0131rl\u0131d\u0131r, kullan\u0131c\u0131 metni asla komut olarak \u00e7al\u0131\u015ft\u0131r\u0131lmaz.\n */\n\nconst DOCKER_TIMEOUT = 20000;\n\nfunction docker(args, timeout) {\n  return new Promise(resolve => {\n    execFile('docker', args, { env: ENV, timeout: timeout || DOCKER_TIMEOUT, maxBuffer: 8 * 1024 * 1024 },\n      (err, stdout, stderr) => {\n        if (err) {\n          const msg = String(stderr || err.message || '').trim();\n          resolve({ ok: false, error: msg || 'docker komutu ba\u015far\u0131s\u0131z', code: err.code });\n        } else resolve({ ok: true, out: String(stdout || '') });\n      });\n  });\n}\n\n// `--format '{{json .}}'` \u00e7\u0131kt\u0131s\u0131: her sat\u0131r bir JSON nesnesi\nfunction parseJsonLines(out) {\n  const rows = [];\n  for (const line of String(out || '').split('\\n')) {\n    const t = line.trim();\n    if (!t) continue;\n    try { rows.push(JSON.parse(t)); } catch (e) { /* bozuk sat\u0131r\u0131 atla */ }\n  }\n  return rows;\n}\n\n// Docker kurulu mu, daemon ayakta m\u0131?\nipcMain.handle('galaxy:dockerStatus', async () => {\n  if (IS_MAS) return { ok: false, mas: true, error: MAS_BLOCKED };\n  // D\u0130KKAT: `docker version` daemon'a da ba\u011flanmaya \u00e7al\u0131\u015f\u0131r ve motor kapal\u0131yken\n  // hata verir. Kurulu mu sorusunu yaln\u0131zca istemciye bakan `--version` yan\u0131tlar.\n  const v = await docker(['--version'], 8000);\n  if (!v.ok) {\n    return {\n      ok: false, installed: false, running: false,\n      error: 'Docker kurulu de\u011fil. docker.com/products/docker-desktop adresinden Docker Desktop kurabilirsin.'\n    };\n  }\n  const clientVer = (v.out.match(/version\\s+([\\d.]+)/i) || [, v.out.trim()])[1];\n  const info = await docker(['info', '--format', '{{.ServerVersion}}|{{.Containers}}|{{.ContainersRunning}}|{{.Images}}'], 8000);\n  if (!info.ok) {\n    return {\n      ok: false, installed: true, running: false,\n      client: clientVer,\n      error: 'Docker motoru \u00e7al\u0131\u015fm\u0131yor \u2014 Docker Desktop kapal\u0131 olabilir.'\n    };\n  }\n  const [server, containers, running, images] = info.out.trim().split('|');\n  return {\n    ok: true, installed: true, running: true,\n    client: clientVer, server,\n    containers: +containers || 0, containersRunning: +running || 0, images: +images || 0\n  };\n});\n\n// Docker Desktop'\u0131 ba\u015flat (yaln\u0131zca uygulamay\u0131 a\u00e7ar, komut \u00e7al\u0131\u015ft\u0131rmaz)\nipcMain.handle('galaxy:dockerStart', () => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  return new Promise(resolve => {\n    if (process.platform === 'win32') {\n      const { exec } = require('child_process');\n      exec('start \"\" \"%ProgramFiles%\\\\Docker\\\\Docker\\\\Docker Desktop.exe\"', { env: ENV, timeout: 10000 }, err => resolve(err ? { ok: false, error: 'Docker Desktop a\u00e7\u0131lamad\u0131 \u2014 kurulu olmayabilir.' } : { ok: true }));\n      return;\n    }\n    if (process.platform === 'linux') { const { exec } = require('child_process'); exec('systemctl --user start docker-desktop || true', { env: ENV }, () => resolve({ ok: true })); return; }\n    execFile('open', ['-a', 'Docker'], { env: ENV, timeout: 10000 }, err => {\n      resolve(err ? { ok: false, error: 'Docker Desktop a\u00e7\u0131lamad\u0131 \u2014 kurulu olmayabilir.' } : { ok: true });\n    });\n  });\n});\n\nipcMain.handle('galaxy:dockerPs', async (e, all) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const args = ['ps', '--format', '{{json .}}', '--no-trunc'];\n  if (all) args.splice(1, 0, '-a');\n  const r = await docker(args);\n  if (!r.ok) return r;\n  const containers = parseJsonLines(r.out).map(c => ({\n    id: c.ID, name: c.Names, image: c.Image, state: c.State, status: c.Status,\n    ports: c.Ports || '', created: c.CreatedAt || '', size: c.Size || '',\n    compose: (c.Labels || '').split(',').find(l => l.startsWith('com.docker.compose.project=')) ?\n      (c.Labels || '').split(',').find(l => l.startsWith('com.docker.compose.project=')).split('=')[1] : ''\n  }));\n  return { ok: true, containers };\n});\n\nipcMain.handle('galaxy:dockerImages', async () => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const r = await docker(['images', '--format', '{{json .}}']);\n  if (!r.ok) return r;\n  const images = parseJsonLines(r.out).map(i => ({\n    id: i.ID, repo: i.Repository, tag: i.Tag, size: i.Size,\n    created: i.CreatedSince || i.CreatedAt || '', dangling: i.Repository === '<none>'\n  }));\n  return { ok: true, images };\n});\n\n// Konteyner eylemleri \u2014 beyaz liste; ba\u015fka hi\u00e7bir docker alt komutu \u00e7al\u0131\u015ft\u0131r\u0131lamaz\nconst CONTAINER_ACTIONS = {\n  start: id => ['start', id],\n  stop: id => ['stop', id],\n  restart: id => ['restart', id],\n  pause: id => ['pause', id],\n  unpause: id => ['unpause', id],\n  kill: id => ['kill', id],\n  rm: id => ['rm', '-f', id]\n};\n\nipcMain.handle('galaxy:dockerAction', async (e, { action, id } = {}) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const build = CONTAINER_ACTIONS[action];\n  if (!build) return { ok: false, error: 'Bilinmeyen eylem' };\n  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\\-]*$/.test(id)) return { ok: false, error: 'Ge\u00e7ersiz konteyner kimli\u011fi' };\n  // stop/restart daemon'a ba\u011fl\u0131 olarak yava\u015f olabilir\n  const r = await docker(build(id), /^(stop|restart|kill)$/.test(action) ? 45000 : DOCKER_TIMEOUT);\n  return r.ok ? { ok: true } : r;\n});\n\nipcMain.handle('galaxy:dockerImageAction', async (e, { action, id } = {}) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  if (action !== 'rm') return { ok: false, error: 'Bilinmeyen eylem' };\n  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.:@\\/\\-]*$/.test(id)) return { ok: false, error: 'Ge\u00e7ersiz imaj kimli\u011fi' };\n  const r = await docker(['rmi', id], 45000);\n  return r.ok ? { ok: true } : r;\n});\n\nipcMain.handle('galaxy:dockerLogs', async (e, { id, tail } = {}) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\\-]*$/.test(id)) return { ok: false, error: 'Ge\u00e7ersiz konteyner kimli\u011fi' };\n  const n = Math.min(Math.max(parseInt(tail, 10) || 200, 1), 2000);\n  const r = await docker(['logs', '--tail', String(n), '--timestamps', id], 25000);\n  // docker logs stderr'i de kullan\u0131r; hata olsa bile eldeki \u00e7\u0131kt\u0131y\u0131 g\u00f6ster\n  if (!r.ok) return { ok: false, error: r.error };\n  return { ok: true, logs: r.out };\n});\n\n// Canl\u0131 log ak\u0131\u015f\u0131 (docker logs -f) + konteyner i\u00e7inde komut \u00e7al\u0131\u015ft\u0131r\nconst dockerStreams = new Map();\nipcMain.handle('galaxy:dockerLogStream', (e, { id } = {}) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\\-]*$/.test(id)) return { ok: false, error: 'Ge\u00e7ersiz konteyner kimli\u011fi' };\n  const prev = dockerStreams.get(id); if (prev) { try { prev.kill('SIGKILL'); } catch (er) {} }\n  let child;\n  try { child = spawn('docker', ['logs', '-f', '--tail', '200', id], { env: ENV }); }\n  catch (err) { return { ok: false, error: err.message }; }\n  dockerStreams.set(id, child);\n  const send = (kind, text) => { for (const w of BrowserWindow.getAllWindows()) { try { w.webContents.send('docker:log', { id, kind, text }); } catch (e2) {} } };\n  child.stdout.on('data', c => send('out', c.toString()));\n  child.stderr.on('data', c => send('out', c.toString()));   // docker logs stderr'e de yazar\n  child.on('close', () => { dockerStreams.delete(id); send('done', ''); });\n  child.on('error', err => send('err', err.message));\n  return { ok: true };\n});\nipcMain.handle('galaxy:dockerLogStop', (e, { id } = {}) => {\n  const c = dockerStreams.get(id); if (c) { try { c.kill('SIGKILL'); } catch (er) {} dockerStreams.delete(id); }\n  return { ok: true };\n});\nipcMain.handle('galaxy:dockerExec', async (e, { id, cmd } = {}) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\\-]*$/.test(id)) return { ok: false, error: 'Ge\u00e7ersiz konteyner kimli\u011fi' };\n  if (!cmd || !String(cmd).trim()) return { ok: false, error: 'Komut bo\u015f' };\n  const r = await docker(['exec', id, 'sh', '-c', String(cmd)], 30000);   // sh -c arg: kabuk yok, tek arg\u00fcman\n  return r.ok ? { ok: true, out: r.out } : { ok: false, error: r.error };\n});\n\n// Alan temizli\u011fi \u2014 yaln\u0131zca g\u00fcvenli prune bi\u00e7imleri\nconst PRUNE = {\n  containers: ['container', 'prune', '-f'],\n  images: ['image', 'prune', '-f'],\n  volumes: ['volume', 'prune', '-f'],\n  builder: ['builder', 'prune', '-f']\n};\nipcMain.handle('galaxy:dockerPrune', async (e, kind) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const args = PRUNE[kind];\n  if (!args) return { ok: false, error: 'Bilinmeyen temizlik t\u00fcr\u00fc' };\n  const r = await docker(args, 90000);\n  return r.ok ? { ok: true, out: r.out.trim() } : r;\n});\n\n// Terminal'de Claude a\u00e7 (alternatif)\nipcMain.handle('galaxy:openClaude', (e, p) => {\n  if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent g\u00f6nderilemez\n  if (!p || !knownPaths.has(p)) return false;\n  if (process.platform === 'win32') {\n    const dir = String(p); const { exec } = require('child_process');\n    exec(`start \"\" cmd /k \"cd /d \"${dir}\" && claude\"`, { env: ENV }, () => {});\n    return true;\n  }\n  const cmd = `cd '${String(p).replace(/'/g, \"'\\\\''\")}' && claude`;\n  const script = `tell application \"Terminal\"\n    activate\n    do script \"${cmd.replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"')}\"\n  end tell`;\n  execFile('osascript', ['-e', script]);\n  return true;\n});\n" + '\n' + "g.sshBaseArgs = sshBaseArgs;\ng.sshTarget = sshTarget;\ng.sshExec = sshExec;\ng.sshFriendly = sshFriendly;\ng.psCommand = psCommand;\ng.sshProbe = sshProbe;\ng.sshScanServer = sshScanServer;\ng.remoteRefresh = remoteRefresh;\ng.parseRemote = parseRemote;\ng.safeRel = safeRel;\ng.remoteSrv = remoteSrv;\ng.remoteReadme = remoteReadme;\ng.remoteList = remoteList;\ng.remoteFile = remoteFile;\ng.remoteTree = remoteTree;\ng.remoteGitLog = remoteGitLog;\ng.docker = docker;\ng.parseJsonLines = parseJsonLines;\ng.SSH_CTL_DIR = SSH_CTL_DIR;\ng.getServer = getServer;\ng.REMOTE_SCAN = REMOTE_SCAN;\ng.REMOTE_SCAN_WIN = REMOTE_SCAN_WIN;\ng.remoteCache = remoteCache;\ng.REMOTE_TTL = REMOTE_TTL;\ng.remoteRefreshing = remoteRefreshing;\ng.remotePath = remotePath;\ng.isRemotePath = isRemotePath;\ng.shq = shq;\ng.REMOTE_MAX_TEXT = REMOTE_MAX_TEXT;\ng.DOCKER_TIMEOUT = DOCKER_TIMEOUT;\ng.CONTAINER_ACTIONS = CONTAINER_ACTIONS;\ng.dockerStreams = dockerStreams;\ng.PRUNE = PRUNE;" + '\n}')(g);
+  with (g) {
+/* ==================== UZAK SUNUCU (SSH) ====================
+ * Uzak bir makineyi "evren" olarak eklemenin temeli. Kimlik doğrulama
+ * tamamen sistemin ssh'ına bırakılır: mevcut anahtarların ve ~/.ssh/config
+ * Host takma adların çalışır — uygulama HİÇBİR parola saklamaz.
+ * BatchMode=yes sayesinde parola sorulacak bir durumda komut asılı kalmaz,
+ * temiz bir hata döner. ControlMaster ile aynı bağlantı yeniden kullanılır,
+ * böylece art arda çağrılar (tarama, git, dosya) tek el sıkışmayla akar.
+ */
+
+// Kontrol soketi (ControlMaster multiplexing) için TABAN dizin. İki kısıt:
+//  1) BOŞLUKSUZ olmalı — DATA_DIR macOS'ta "Application Support" boşluğu içerir, ssh -o değerini bozar.
+//  2) KISA olmalı — unix soket yolu macOS'ta 104 bayt sınırlı; ssh %C'yi ~40 hex'e açar ve
+//     master soketi kurarken ~18 karakterlik geçici sonek ekler. os.tmpdir() (/var/folders/…) ~48
+//     karakter olduğundan sınırı aşar. /tmp kısa ve boşluksuz.
+const SSH_CTL_DIR = process.platform === 'win32' ? '' : '/tmp/.pgssh';
+
+function sshBaseArgs(srv) {
+  let to = 8; try { to = getSettings(loadData()).sshTimeout; } catch (e) {}
+  const args = [
+    '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=' + to,
+    '-o', 'StrictHostKeyChecking=accept-new'
+  ];
+  // Multiplexing'i yalnız yol boşluksuz VE yeterince kısaysa aç (yoksa bozuk/uzun soket üretme).
+  if (SSH_CTL_DIR) {
+    try { fs.mkdirSync(SSH_CTL_DIR, { recursive: true }); } catch (e) {}
+    const ctlPath = path.join(SSH_CTL_DIR, '%C');
+    // gerçek uzunluk ≈ taban + '/' + 40 (%C) + 18 (ssh geçici sonek); 100 baytın altında kalmalı
+    if (!/\s/.test(ctlPath) && (SSH_CTL_DIR.length + 1 + 40 + 18) < 100) {
+      args.push('-o', 'ControlMaster=auto', '-o', 'ControlPersist=90', '-o', 'ControlPath=' + ctlPath);
+    }
+  }
+  if (srv.port && +srv.port !== 22) args.push('-p', String(+srv.port));
+  // Anahtar dosyası verilmişse yalnız onu kullan. Yolu akıllıca çöz:
+  //  ~ genişlet · mutlak yolu olduğu gibi · ÇIPLAK dosya adını (ör. "id_ed25519") ~/.ssh altında ara.
+  // (ssh -i göreli yolu ÇALIŞMA DİZİNİNE göre çözer, ~/.ssh'a değil — çıplak ad bu yüzden bulunamıyordu.)
+  if (srv.key) {
+    let k = String(srv.key).trim().replace(/^~(?=\/|$)/, os.homedir());
+    if (!path.isAbsolute(k)) k = k.includes('/') ? path.resolve(os.homedir(), k) : path.join(os.homedir(), '.ssh', k);
+    // Anahtar dosyası GERÇEKTEN varsa yalnız onu kullan; yoksa -i EKLEME → agent/varsayılan anahtarlara düş
+    // (kullanıcı yanlış/olmayan bir ad yazmışsa ölü uca girmesin).
+    if (fs.existsSync(k)) args.push('-o', 'IdentitiesOnly=yes', '-i', k);
+  }
+  return args;
+}
+
+// Hedef: ya ~/.ssh/config'teki Host takma adı, ya user@host
+function sshTarget(srv) {
+  if (srv.alias) return srv.alias;
+  return (srv.user ? srv.user + '@' : '') + srv.host;
+}
+
+function sshExec(srv, remoteCmd, timeout) {
+  return new Promise(resolve => {
+    const args = [...sshBaseArgs(srv), sshTarget(srv), remoteCmd];
+    execFile('ssh', args, { env: ENV, timeout: timeout || 25000, maxBuffer: 16 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          const raw = String(stderr || err.message || '').trim();
+          resolve({ ok: false, error: sshFriendly(raw), raw });
+        } else resolve({ ok: true, out: String(stdout || ''), warn: String(stderr || '').trim() });
+      });
+  });
+}
+
+// ssh'ın ham hatalarını kullanıcının anlayacağı hâle çevir
+function sshFriendly(raw) {
+  const r = String(raw || '');
+  if (/Permission denied/i.test(r)) {
+    return 'Kimlik doğrulama başarısız — sunucu anahtarını kabul etmedi. Genel anahtarını sunucudaki ~/.ssh/authorized_keys dosyasına ekle (ssh-copy-id ile).';
+  }
+  if (/Could not resolve hostname|Name or service not known/i.test(r)) return 'Sunucu adı çözülemedi — adresi kontrol et.';
+  if (/Connection refused/i.test(r)) return 'Bağlantı reddedildi — sunucuda SSH kapalı ya da port yanlış olabilir.';
+  if (/Connection timed out|Operation timed out/i.test(r)) return 'Bağlantı zaman aşımına uğradı — sunucu erişilebilir değil ya da güvenlik duvarı engelliyor.';
+  if (/Host key verification failed/i.test(r)) return 'Sunucu anahtarı doğrulanamadı — known_hosts kaydı değişmiş olabilir.';
+  if (/no matching host key|no matching key exchange/i.test(r)) return 'SSH sürüm/algoritma uyuşmazlığı — sunucu çok eski olabilir.';
+  return r.split('\n').filter(Boolean).slice(-1)[0] || 'SSH bağlantısı kurulamadı';
+}
+
+// ~/.ssh/config içindeki Host takma adları (joker olanlar hariç) — seçici için
+// ~/.ssh altındaki özel anahtar dosyaları (.pub olmayanlar) — form seçici için
+ipcMain.handle('galaxy:sshKeys', () => {
+  try {
+    const dir = path.join(os.homedir(), '.ssh');
+    const names = fs.readdirSync(dir).filter(f => {
+      if (f.endsWith('.pub') || f === 'config' || f === 'known_hosts' || f.startsWith('known_hosts')
+        || f === 'authorized_keys' || f === 'agent') return false;
+      try { return fs.statSync(path.join(dir, f)).isFile(); } catch (e) { return false; }
+    });
+    return { ok: true, keys: names.map(n => ({ name: n, path: path.join(dir, n) })) };
+  } catch (e) { return { ok: true, keys: [] }; }
+});
+
+ipcMain.handle('galaxy:sshConfigHosts', () => {
+  try {
+    const cfg = fs.readFileSync(path.join(os.homedir(), '.ssh', 'config'), 'utf8');
+    const hosts = [];
+    let cur = null;
+    for (const line of cfg.split('\n')) {
+      const mh = line.match(/^\s*Host\s+(.+)$/i);
+      if (mh) {
+        for (const name of mh[1].trim().split(/\s+/)) {
+          if (name.includes('*') || name.includes('?')) continue;
+          cur = { alias: name, host: '', user: '', port: 0 };
+          hosts.push(cur);
+        }
+        continue;
+      }
+      if (!cur) continue;
+      const mk = line.match(/^\s*(HostName|User|Port)\s+(.+)$/i);
+      if (mk) {
+        const k = mk[1].toLowerCase(), v = mk[2].trim();
+        if (k === 'hostname') cur.host = v;
+        else if (k === 'user') cur.user = v;
+        else if (k === 'port') cur.port = +v || 0;
+      }
+    }
+    return { ok: true, hosts };
+  } catch (e) { return { ok: true, hosts: [] }; }
+});
+
+ipcMain.handle('galaxy:sshList', () => (loadData().servers || []));
+
+ipcMain.handle('galaxy:sshSave', (e, srv) => {
+  if (!srv || !srv.name) return { ok: false, error: 'Ad gerekli' };
+  if (!srv.alias && !srv.host) return { ok: false, error: 'Sunucu adresi ya da ~/.ssh/config takma adı gerekli' };
+  const data = loadData();
+  data.servers = data.servers || [];
+  if (!srv.id) srv.id = 'srv' + Date.now();
+  const clean = {
+    id: srv.id,
+    name: String(srv.name).slice(0, 60),
+    alias: String(srv.alias || '').slice(0, 120),
+    host: String(srv.host || '').slice(0, 200),
+    user: String(srv.user || '').slice(0, 60),
+    port: +srv.port || 0,
+    key: String(srv.key || '').slice(0, 400),
+    kind: (srv.kind === 'windows' || srv.kind === 'posix') ? srv.kind : '',
+    // uzak evrenin kökleri: hangi klasörlerin altındaki projeler taranacak
+    roots: (Array.isArray(srv.roots) ? srv.roots : []).slice(0, 12)
+      .map(r => ({ name: String(r.name || '').slice(0, 60), path: String(r.path || '').slice(0, 400) }))
+      .filter(r => r.path)
+  };
+  const idx = data.servers.findIndex(s => s.id === srv.id);
+  if (idx >= 0) data.servers[idx] = clean; else data.servers.push(clean);
+  saveData(data);
+  return { ok: true, id: srv.id };
+});
+
+ipcMain.handle('galaxy:sshDelete', (e, id) => {
+  const data = loadData();
+  data.servers = (data.servers || []).filter(s => s.id !== id);
+  saveData(data);
+  return { ok: true };
+});
+
+const getServer = id => (loadData().servers || []).find(s => s.id === id);
+
+/* PowerShell'e komut göndermenin dayanıklı yolu: ssh → cmd.exe → powershell
+   zincirinde tırnak kaçışı güvenilmezdir. -EncodedCommand (UTF-16LE base64)
+   bu sorunu tamamen ortadan kaldırır. */
+function psCommand(script) {
+  return 'powershell -NoProfile -EncodedCommand ' + Buffer.from(script, 'utf16le').toString('base64');
+}
+
+// Uzak makine POSIX mi Windows mu? Önce POSIX denenir, olmazsa PowerShell.
+async function sshProbe(srv) {
+  const p = await sshExec(srv,
+    'echo "GX|$(uname -s)|$(uname -m)|$(hostname)|$(whoami)|$(git --version 2>/dev/null | head -1)|$(docker --version 2>/dev/null | head -1)"',
+    20000);
+  if (p.ok) {
+    const l = (p.out.split('\n').find(x => x.startsWith('GX|')) || '').split('|');
+    // cmd.exe de bu komutu "çalıştırıp" saçma çıktı verebilir; uname sonucu boşsa POSIX değildir
+    if (l[1]) {
+      return { ok: true, kind: 'posix', os: l[1], arch: l[2] || '', hostname: l[3] || '', user: l[4] || '', git: l[5] || '', docker: l[6] || '' };
+    }
+  }
+  const w = await sshExec(srv, psCommand(`
+$ErrorActionPreference='SilentlyContinue'
+$g = (& git --version 2>$null) | Select-Object -First 1
+$d = (& docker --version 2>$null) | Select-Object -First 1
+Write-Output ("GX|Windows|{0}|{1}|{2}|{3}|{4}|{5}" -f $env:PROCESSOR_ARCHITECTURE, $env:COMPUTERNAME, $env:USERNAME, $g, $d, $PSVersionTable.PSVersion.ToString())
+`), 25000);
+  if (w.ok) {
+    const l = (w.out.split('\n').find(x => x.startsWith('GX|')) || '').split('|');
+    if (l[1]) {
+      return { ok: true, kind: 'windows', os: 'Windows', arch: l[2] || '', hostname: l[3] || '', user: l[4] || '', git: l[5] || '', docker: l[6] || '', powershell: l[7] || '' };
+    }
+  }
+  return { ok: false, error: (p.ok ? null : p.error) || (w.ok ? 'Uzak kabuk tanınamadı' : w.error) };
+}
+
+// Bağlantı testi: kimlik doğrulama + uzak ortam künyesi (POSIX ve Windows)
+ipcMain.handle('galaxy:sshTest', async (e, srvRaw) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const srv = (srvRaw && srvRaw.id && !srvRaw.host && !srvRaw.alias) ? getServer(srvRaw.id) : srvRaw;
+  if (!srv) return { ok: false, error: 'Sunucu bulunamadı' };
+  const r = await sshProbe(srv);
+  if (!r.ok) return r;
+  // algılanan kabuk türünü kaydet ki tarama doğru betiği kullansın
+  if (srv.id) {
+    const data = loadData();
+    const s = (data.servers || []).find(x => x.id === srv.id);
+    if (s && s.kind !== r.kind) { s.kind = r.kind; saveData(data); }
+  }
+  return r;
+});
+
+/* Uzak kökteki projeleri TEK ssh çağrısında tarar.
+   Her proje için: ad, yol, git mi, dal, son commit, son değişiklik, README, 30g aktivite.
+   Çıktı satır formatı:  P|ad|yol|isGit|dal|commitEpoch|mtimeEpoch|readmeAdı|act30 */
+const REMOTE_SCAN = `
+for ROOT in %ROOTS%; do
+  [ -d "$ROOT" ] || continue
+  for D in "$ROOT"/*/; do
+    [ -d "$D" ] || continue
+    D="\${D%/}"
+    NAME=$(basename "$D")
+    case "$NAME" in .*|node_modules|venv|__pycache__) continue;; esac
+    ISGIT=0; BRANCH=""; CEPOCH=0; ACT30=0
+    if [ -d "$D/.git" ]; then
+      ISGIT=1
+      BRANCH=$(git -C "$D" rev-parse --abbrev-ref HEAD 2>/dev/null)
+      CEPOCH=$(git -C "$D" log -1 --format=%ct 2>/dev/null)
+      ACT30=$(git -C "$D" log --since=30.days --oneline 2>/dev/null | wc -l | tr -d ' ')
+    fi
+    MEPOCH=$(find "$D" -maxdepth 2 -type f -not -path '*/.git/*' -newermt '1970-01-01' -printf '%T@\\n' 2>/dev/null | sort -rn | head -1 | cut -d. -f1)
+    [ -z "$MEPOCH" ] && MEPOCH=$(stat -c %Y "$D" 2>/dev/null || stat -f %m "$D" 2>/dev/null)
+    README=""
+    for F in README.md readme.md README.MD README; do
+      [ -f "$D/$F" ] && README="$F" && break
+    done
+    echo "P|$NAME|$D|$ISGIT|$BRANCH|\${CEPOCH:-0}|\${MEPOCH:-0}|$README|\${ACT30:-0}"
+  done
+done
+`;
+
+/* Windows karşılığı — aynı "P|…" satır formatını üretir, böylece ayrıştırıcı ortaktır.
+   Not: uzak makine Windows ise POSIX betiği hiç çalışmaz (cmd.exe/PowerShell), bu yüzden
+   kabuk türüne göre ayrılmak zorunludur. */
+const REMOTE_SCAN_WIN = `
+$ErrorActionPreference='SilentlyContinue'
+$roots = @(%ROOTS%)
+$epoch = Get-Date '1970-01-01Z'
+foreach ($root in $roots) {
+  if (-not (Test-Path $root)) { continue }
+  foreach ($d in Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue) {
+    $name = $d.Name
+    if ($name -match '^\\.' -or $name -in @('node_modules','venv','__pycache__','$RECYCLE.BIN','System Volume Information')) { continue }
+    $p = $d.FullName
+    $isGit = 0; $branch = ''; $cepoch = 0
+    if (Test-Path (Join-Path $p '.git')) {
+      $isGit = 1
+      $branch = (& git -C $p rev-parse --abbrev-ref HEAD 2>$null) | Select-Object -First 1
+      $cepoch = (& git -C $p log -1 --format=%ct 2>$null) | Select-Object -First 1
+    }
+    $mt = $d.LastWriteTimeUtc
+    $newest = Get-ChildItem -LiteralPath $p -File -Recurse -Depth 1 -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+    if ($newest -and $newest.LastWriteTimeUtc -gt $mt) { $mt = $newest.LastWriteTimeUtc }
+    $mepoch = [int64](New-TimeSpan -Start $epoch -End $mt).TotalSeconds
+    $readme = ''
+    foreach ($f in @('README.md','readme.md','README.MD','README')) {
+      if (Test-Path (Join-Path $p $f)) { $readme = $f; break }
+    }
+    if (-not $cepoch) { $cepoch = 0 }
+    $act30 = 0
+    if ($isGit) { $act30 = (& git -C $p log --since='30 days ago' --oneline 2>$null | Measure-Object).Count }
+    Write-Output ("P|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}" -f $name,$p,$isGit,$branch,$cepoch,$mepoch,$readme,$act30)
+  }
+}
+`;
+
+async function sshScanServer(id) {
+  const srv = getServer(id);
+  if (!srv) return { ok: false, error: 'Sunucu bulunamadı' };
+  const roots = (srv.roots || []).map(r => r.path);
+  if (!roots.length) return { ok: false, error: 'Bu sunucu için taranacak klasör tanımlı değil' };
+
+  let kind = srv.kind;
+  if (!kind) {                      // henüz test edilmediyse kabuk türünü şimdi bul
+    const probe = await sshProbe(srv);
+    if (!probe.ok) return probe;
+    kind = probe.kind;
+    const data = loadData();
+    const s = (data.servers || []).find(x => x.id === srv.id);
+    if (s) { s.kind = kind; saveData(data); }
+  }
+
+  let r;
+  if (kind === 'windows') {
+    // PowerShell tek tırnaklı dizge: içindeki ' karakteri '' olarak kaçırılır
+    const psList = roots.map(p => "'" + String(p).replace(/'/g, "''") + "'").join(',');
+    r = await sshExec(srv, psCommand(REMOTE_SCAN_WIN.replace('%ROOTS%', psList)), 90000);
+  } else {
+    // Yollar tek tırnakla kaçırılır; uzak kabukta genişletme olmaz
+    const quoted = roots.map(p => "'" + String(p).replace(/'/g, "'\\''") + "'").join(' ');
+    r = await sshExec(srv, REMOTE_SCAN.replace('%ROOTS%', quoted), 60000);
+  }
+  if (!r.ok) return r;
+  const projects = [];
+  for (const line of r.out.split('\n')) {
+    if (!line.startsWith('P|')) continue;
+    const [, name, rpath, isGit, branch, cepoch, mepoch, readme, act30] = line.split('|');
+    if (!name || !rpath) continue;
+    const cts = +cepoch || 0, mts = +mepoch || 0;
+    const last = (cts || mts || 0) * 1000;
+    projects.push({
+      name, path: rpath, isGit: isGit === '1', branch: (branch || '').trim(),
+      lastTs: cts ? new Date(cts * 1000).toISOString() : null,
+      mtime: mts ? new Date(mts * 1000).toISOString() : null,
+      activity30: +act30 || 0,
+      lastActivity: last || null,
+      staleDays: last ? Math.floor((Date.now() - last) / 86400000) : null,
+      readme: (readme || '').trim(),
+      // hangi kökün altından geldiği (evren eşlemesi için)
+      root: roots.find(rt => rpath === rt || rpath.startsWith(rt.replace(/\/$/, '') + '/')) || roots[0]
+    });
+  }
+  return { ok: true, projects, count: projects.length, kind };
+}
+
+/* ---- Uzak evren önbelleği ----
+   scanProjects() eşzamanlıdır ve sık çağrılır; SSH ise ağ gecikmesine tabidir.
+   Bu yüzden uzak veri arka planda tazelenir, harita her zaman önbellekten çizilir
+   (stale-while-revalidate). Bağlantı koparsa son bilinen durum gösterilir. */
+const remoteCache = new Map();   // serverId → { ts, projects, error, kind }
+const REMOTE_TTL = 60000;
+let remoteRefreshing = new Set();
+
+function remoteRefresh(id, force) {
+  const c = remoteCache.get(id);
+  if (!force && c && Date.now() - c.ts < REMOTE_TTL) return Promise.resolve(c);
+  if (remoteRefreshing.has(id)) return Promise.resolve(c);
+  remoteRefreshing.add(id);
+  return sshScanServer(id)
+    .then(r => {
+      const entry = r.ok
+        ? { ts: Date.now(), projects: r.projects, error: null, kind: r.kind }
+        : { ts: Date.now(), projects: (c && c.projects) || [], error: r.error, kind: c && c.kind };
+      remoteCache.set(id, entry);
+      return entry;
+    })
+    .catch(err => {
+      const entry = { ts: Date.now(), projects: (c && c.projects) || [], error: String(err && err.message || err) };
+      remoteCache.set(id, entry);
+      return entry;
+    })
+    .finally(() => remoteRefreshing.delete(id));
+}
+
+// Uzak yol ad alanı: ssh://<serverId>/mutlak/yol
+const remotePath = (srvId, p) => 'ssh://' + srvId + p;
+const isRemotePath = p => typeof p === 'string' && p.startsWith('ssh://');
+function parseRemote(p) {
+  if (!isRemotePath(p)) return null;
+  const rest = p.slice(6);
+  const i = rest.indexOf('/');
+  if (i < 0) return null;
+  return { serverId: rest.slice(0, i), path: rest.slice(i) };
+}
+
+ipcMain.handle('galaxy:sshScan', async (e, id) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const r = await sshScanServer(id);
+  if (r.ok) remoteCache.set(id, { ts: Date.now(), projects: r.projects, error: null, kind: r.kind });
+  return r;
+});
+
+/* ---- Uzak okuma işlemleri (faz 3, POSIX) ----
+   Yerel karşılıklarıyla AYNI şekli döndürürler; böylece derlenmiş arayüz
+   uzak gezegeni yerelden ayırt etmez. Yollar tek tırnakla kaçırılır. */
+
+const shq = p => "'" + String(p).replace(/'/g, "'\\''") + "'";
+
+// rel yolu köke hapset ('..' ile dışarı çıkılamaz)
+function safeRel(rel) {
+  const parts = String(rel || '').split('/').filter(Boolean);
+  const out = [];
+  for (const seg of parts) {
+    if (seg === '.') continue;
+    if (seg === '..') { if (!out.length) return null; out.pop(); continue; }
+    out.push(seg);
+  }
+  return out.join('/');
+}
+
+function remoteSrv(p) {
+  const r = parseRemote(p);
+  if (!r) return null;
+  const srv = getServer(r.serverId);
+  return srv ? { srv, path: r.path } : null;
+}
+
+async function remoteReadme(p) {
+  const t = remoteSrv(p);
+  if (!t) return null;
+  const r = await sshExec(t.srv,
+    `cd ${shq(t.path)} 2>/dev/null || exit 0
+     F=$(ls -1 2>/dev/null | grep -i '^readme\\.md$' | head -1)
+     [ -z "$F" ] && F=$(ls -1 2>/dev/null | grep -i '\\.md$' | head -1)
+     [ -z "$F" ] && exit 0
+     echo "GXNAME:$F"
+     head -c 60000 -- "$F"`, 25000);
+  if (!r.ok) return null;
+  const i = r.out.indexOf('\n');
+  if (i < 0 || !r.out.startsWith('GXNAME:')) return null;
+  return { name: r.out.slice(7, i).trim(), content: r.out.slice(i + 1) };
+}
+
+async function remoteList(p, rel) {
+  const t = remoteSrv(p);
+  if (!t) return null;
+  const sub = safeRel(rel);
+  if (sub === null) return null;
+  const dir = sub ? t.path + '/' + sub : t.path;
+  // her satır: D|ad  ya da  F|ad|boyut
+  const r = await sshExec(t.srv,
+    `cd ${shq(dir)} 2>/dev/null || exit 0
+     for E in * .[!.]*; do
+       [ -e "$E" ] || continue
+       case "$E" in .*|node_modules|__pycache__|*.app) continue;; esac
+       if [ -d "$E" ]; then echo "D|$E"; else echo "F|$E|$(wc -c < "$E" 2>/dev/null | tr -d ' ')"; fi
+     done`, 25000);
+  if (!r.ok) return null;
+  const out = [];
+  for (const line of r.out.split('\n')) {
+    const parts = line.split('|');
+    if (parts[0] === 'D' && parts[1]) out.push({ name: parts[1], dir: true, size: 0 });
+    else if (parts[0] === 'F' && parts[1]) out.push({ name: parts[1], dir: false, size: +parts[2] || 0 });
+  }
+  out.sort((a, b) => (b.dir - a.dir) || a.name.localeCompare(b.name, 'tr'));
+  return out;
+}
+
+const REMOTE_MAX_TEXT = 2 * 1024 * 1024;  // 2 MB üstü uzaktan çekilmez
+
+async function remoteFile(p, rel) {
+  const t = remoteSrv(p);
+  if (!t) return null;
+  const sub = safeRel(rel);
+  if (sub === null) return null;
+  const full = sub ? t.path + '/' + sub : t.path;
+  const meta = await sshExec(t.srv, `wc -c < ${shq(full)} 2>/dev/null | tr -d ' '`, 20000);
+  if (!meta.ok) return null;
+  const size = +meta.out.trim() || 0;
+  const name = full.split('/').pop();
+  const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase();
+  const base = { name, size, ext, path: p + (sub ? '/' + sub : '') };
+  // İkili içerik (görsel, pdf, video) uzaktan akıtılmıyor — faz 3'ün sınırı.
+  // UI 'binary' kind'ını tanır ("app içinde önizlenemiyor" + harici aç); mesajı content'te ver.
+  if (IMAGE_EXT.has(ext) || ext === 'pdf' || MEDIA_EXT.has(ext)) {
+    return { ...base, kind: 'binary', remote: true,
+      content: `Bu dosya türü uzak sunucudan görüntülenemiyor (${ext.toUpperCase()}).\nUzak konum: ${full}` };
+  }
+  if (size > REMOTE_MAX_TEXT) {
+    return { ...base, kind: 'text', remote: true,
+      content: `Dosya çok büyük (${(size / 1048576).toFixed(1)} MB) — uzaktan yalnızca ${(REMOTE_MAX_TEXT / 1048576)} MB'a kadar okunuyor.` };
+  }
+  const r = await sshExec(t.srv, `head -c ${REMOTE_MAX_TEXT} -- ${shq(full)}`, 40000);
+  if (!r.ok) return null;
+  return { ...base, kind: 'text', content: r.out, remote: true };
+}
+
+async function remoteTree(p, depth) {
+  const t = remoteSrv(p);
+  if (!t) return null;
+  const r = await sshExec(t.srv,
+    `cd ${shq(t.path)} 2>/dev/null || exit 0
+     find . -maxdepth ${Math.max(1, Math.min(+depth || 3, 5))} \
+       -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' 2>/dev/null |
+     head -4000 | sed 's|^\\./||' | grep -v '^\\.$'`, 40000);
+  if (!r.ok) return null;
+  // düz liste → ağaç
+  const root = [];
+  const dirs = new Map();
+  const lines = r.out.split('\n').map(l => l.trim()).filter(Boolean).sort();
+  // hangi yollar dizin: bir başkasının öneki olanlar
+  const isDir = new Set();
+  for (const l of lines) {
+    const i = l.lastIndexOf('/');
+    if (i > 0) isDir.add(l.slice(0, i));
+  }
+  for (const l of lines) {
+    const parts = l.split('/');
+    const name = parts[parts.length - 1];
+    const parentKey = parts.slice(0, -1).join('/');
+    const node = isDir.has(l) ? { name, dir: true, children: [] } : { name, dir: false };
+    if (node.dir) dirs.set(l, node);
+    const bucket = parentKey ? (dirs.get(parentKey) || {}).children : root;
+    if (bucket) bucket.push(node);
+  }
+  return root;
+}
+
+async function remoteGitLog(p) {
+  const t = remoteSrv(p);
+  if (!t) return { ok: false, error: 'Sunucu bulunamadı' };
+  const d = shq(t.path);
+  const r = await sshExec(t.srv,
+    `[ -d ${d}/.git ] || { echo "GXNOGIT"; exit 0; }
+     echo "GX§LOG"; git -C ${d} log --pretty=format:"%h§%an§%ad§%s" --date=format:"%Y-%m-%d %H:%M" -40 2>/dev/null
+     echo ""; echo "GX§BRANCH"; git -C ${d} branch --show-current 2>/dev/null
+     echo "GX§STATUS"; git -C ${d} status --porcelain 2>/dev/null
+     echo "GX§BRANCHES"; git -C ${d} branch --format="%(refname:short)" 2>/dev/null`, 40000);
+  if (!r.ok) return { ok: false, error: r.error };
+  if (r.out.includes('GXNOGIT')) return { ok: false, error: 'Git deposu yok' };
+  const sec = name => {
+    const i = r.out.indexOf('GX§' + name);
+    if (i < 0) return '';
+    const start = r.out.indexOf('\n', i) + 1;
+    const next = r.out.indexOf('\nGX§', start);
+    return r.out.slice(start, next < 0 ? undefined : next).trim();
+  };
+  const commits = sec('LOG') ? sec('LOG').split('\n').filter(Boolean).map(l => {
+    const [h, an, ad, ...s] = l.split('§');
+    return { h, an, ad, s: s.join('§') };
+  }) : [];
+  const dirtyFiles = sec('STATUS') ? sec('STATUS').split('\n').filter(Boolean) : [];
+  return {
+    ok: true,
+    branch: sec('BRANCH') || '?',
+    branches: sec('BRANCHES') ? sec('BRANCHES').split('\n').filter(Boolean) : [],
+    commits,
+    dirty: dirtyFiles.length,
+    dirtyFiles,
+    activity30: commits.filter(c => Date.now() - Date.parse(c.ad) < 30 * 86400000).length,
+    remote: true
+  };
+}
+
+/* ==================== DOCKER ====================
+ * Docker Desktop'ın yaptığı işlerin çekirdeği: imaj ve konteyner listesi,
+ * başlat/durdur/yeniden başlat/sil, loglar ve alan temizliği.
+ * Tüm çağrılar `docker` CLI'ına execFile ile (kabuk YOK) gider; eylemler
+ * beyaz listeyle sınırlıdır, kullanıcı metni asla komut olarak çalıştırılmaz.
+ */
+
+const DOCKER_TIMEOUT = 20000;
+
+function docker(args, timeout) {
+  return new Promise(resolve => {
+    execFile('docker', args, { env: ENV, timeout: timeout || DOCKER_TIMEOUT, maxBuffer: 8 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          const msg = String(stderr || err.message || '').trim();
+          resolve({ ok: false, error: msg || 'docker komutu başarısız', code: err.code });
+        } else resolve({ ok: true, out: String(stdout || '') });
+      });
+  });
+}
+
+// `--format '{{json .}}'` çıktısı: her satır bir JSON nesnesi
+function parseJsonLines(out) {
+  const rows = [];
+  for (const line of String(out || '').split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    try { rows.push(JSON.parse(t)); } catch (e) { /* bozuk satırı atla */ }
+  }
+  return rows;
+}
+
+// Docker kurulu mu, daemon ayakta mı?
+ipcMain.handle('galaxy:dockerStatus', async () => {
+  if (IS_MAS) return { ok: false, mas: true, error: MAS_BLOCKED };
+  // DİKKAT: `docker version` daemon'a da bağlanmaya çalışır ve motor kapalıyken
+  // hata verir. Kurulu mu sorusunu yalnızca istemciye bakan `--version` yanıtlar.
+  const v = await docker(['--version'], 8000);
+  if (!v.ok) {
+    return {
+      ok: false, installed: false, running: false,
+      error: 'Docker kurulu değil. docker.com/products/docker-desktop adresinden Docker Desktop kurabilirsin.'
+    };
+  }
+  const clientVer = (v.out.match(/version\s+([\d.]+)/i) || [, v.out.trim()])[1];
+  const info = await docker(['info', '--format', '{{.ServerVersion}}|{{.Containers}}|{{.ContainersRunning}}|{{.Images}}'], 8000);
+  if (!info.ok) {
+    return {
+      ok: false, installed: true, running: false,
+      client: clientVer,
+      error: 'Docker motoru çalışmıyor — Docker Desktop kapalı olabilir.'
+    };
+  }
+  const [server, containers, running, images] = info.out.trim().split('|');
+  return {
+    ok: true, installed: true, running: true,
+    client: clientVer, server,
+    containers: +containers || 0, containersRunning: +running || 0, images: +images || 0
+  };
+});
+
+// Docker Desktop'ı başlat (yalnızca uygulamayı açar, komut çalıştırmaz)
+ipcMain.handle('galaxy:dockerStart', () => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  return new Promise(resolve => {
+    if (process.platform === 'win32') {
+      const { exec } = require('child_process');
+      exec('start "" "%ProgramFiles%\\Docker\\Docker\\Docker Desktop.exe"', { env: ENV, timeout: 10000 }, err => resolve(err ? { ok: false, error: 'Docker Desktop açılamadı — kurulu olmayabilir.' } : { ok: true }));
+      return;
+    }
+    if (process.platform === 'linux') { const { exec } = require('child_process'); exec('systemctl --user start docker-desktop || true', { env: ENV }, () => resolve({ ok: true })); return; }
+    execFile('open', ['-a', 'Docker'], { env: ENV, timeout: 10000 }, err => {
+      resolve(err ? { ok: false, error: 'Docker Desktop açılamadı — kurulu olmayabilir.' } : { ok: true });
+    });
+  });
+});
+
+ipcMain.handle('galaxy:dockerPs', async (e, all) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const args = ['ps', '--format', '{{json .}}', '--no-trunc'];
+  if (all) args.splice(1, 0, '-a');
+  const r = await docker(args);
+  if (!r.ok) return r;
+  const containers = parseJsonLines(r.out).map(c => ({
+    id: c.ID, name: c.Names, image: c.Image, state: c.State, status: c.Status,
+    ports: c.Ports || '', created: c.CreatedAt || '', size: c.Size || '',
+    compose: (c.Labels || '').split(',').find(l => l.startsWith('com.docker.compose.project=')) ?
+      (c.Labels || '').split(',').find(l => l.startsWith('com.docker.compose.project=')).split('=')[1] : ''
+  }));
+  return { ok: true, containers };
+});
+
+ipcMain.handle('galaxy:dockerImages', async () => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const r = await docker(['images', '--format', '{{json .}}']);
+  if (!r.ok) return r;
+  const images = parseJsonLines(r.out).map(i => ({
+    id: i.ID, repo: i.Repository, tag: i.Tag, size: i.Size,
+    created: i.CreatedSince || i.CreatedAt || '', dangling: i.Repository === '<none>'
+  }));
+  return { ok: true, images };
+});
+
+// Konteyner eylemleri — beyaz liste; başka hiçbir docker alt komutu çalıştırılamaz
+const CONTAINER_ACTIONS = {
+  start: id => ['start', id],
+  stop: id => ['stop', id],
+  restart: id => ['restart', id],
+  pause: id => ['pause', id],
+  unpause: id => ['unpause', id],
+  kill: id => ['kill', id],
+  rm: id => ['rm', '-f', id]
+};
+
+ipcMain.handle('galaxy:dockerAction', async (e, { action, id } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const build = CONTAINER_ACTIONS[action];
+  if (!build) return { ok: false, error: 'Bilinmeyen eylem' };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(id)) return { ok: false, error: 'Geçersiz konteyner kimliği' };
+  // stop/restart daemon'a bağlı olarak yavaş olabilir
+  const r = await docker(build(id), /^(stop|restart|kill)$/.test(action) ? 45000 : DOCKER_TIMEOUT);
+  return r.ok ? { ok: true } : r;
+});
+
+ipcMain.handle('galaxy:dockerImageAction', async (e, { action, id } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  if (action !== 'rm') return { ok: false, error: 'Bilinmeyen eylem' };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.:@\/\-]*$/.test(id)) return { ok: false, error: 'Geçersiz imaj kimliği' };
+  const r = await docker(['rmi', id], 45000);
+  return r.ok ? { ok: true } : r;
+});
+
+ipcMain.handle('galaxy:dockerLogs', async (e, { id, tail } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(id)) return { ok: false, error: 'Geçersiz konteyner kimliği' };
+  const n = Math.min(Math.max(parseInt(tail, 10) || 200, 1), 2000);
+  const r = await docker(['logs', '--tail', String(n), '--timestamps', id], 25000);
+  // docker logs stderr'i de kullanır; hata olsa bile eldeki çıktıyı göster
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, logs: r.out };
+});
+
+ipcMain.handle('galaxy:dockerInspect', async (e, { id } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.:@\/\-]*$/.test(id)) return { ok: false, error: 'Geçersiz kimlik' };
+  const r = await docker(['inspect', id], 25000);
+  if (!r.ok) return r;
+  try {
+    const arr = JSON.parse(r.out);
+    const obj = Array.isArray(arr) ? arr[0] : arr;
+    return { ok: true, inspect: obj, json: JSON.stringify(obj, null, 2) };
+  } catch (err) {
+    return { ok: true, json: r.out };
+  }
+});
+
+// Canlı log akışı (docker logs -f) + konteyner içinde komut çalıştır
+const dockerStreams = new Map();
+ipcMain.handle('galaxy:dockerLogStream', (e, { id } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(id)) return { ok: false, error: 'Geçersiz konteyner kimliği' };
+  const prev = dockerStreams.get(id); if (prev) { try { prev.kill('SIGKILL'); } catch (er) {} }
+  let child;
+  try { child = spawn('docker', ['logs', '-f', '--tail', '200', id], { env: ENV }); }
+  catch (err) { return { ok: false, error: err.message }; }
+  dockerStreams.set(id, child);
+  const send = (kind, text) => { for (const w of BrowserWindow.getAllWindows()) { try { w.webContents.send('docker:log', { id, kind, text }); } catch (e2) {} } };
+  child.stdout.on('data', c => send('out', c.toString()));
+  child.stderr.on('data', c => send('out', c.toString()));   // docker logs stderr'e de yazar
+  child.on('close', () => { dockerStreams.delete(id); send('done', ''); });
+  child.on('error', err => send('err', err.message));
+  return { ok: true };
+});
+ipcMain.handle('galaxy:dockerLogStop', (e, { id } = {}) => {
+  const c = dockerStreams.get(id); if (c) { try { c.kill('SIGKILL'); } catch (er) {} dockerStreams.delete(id); }
+  return { ok: true };
+});
+ipcMain.handle('galaxy:dockerExec', async (e, { id, cmd } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  if (!id || !/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(id)) return { ok: false, error: 'Geçersiz konteyner kimliği' };
+  if (!cmd || !String(cmd).trim()) return { ok: false, error: 'Komut boş' };
+  const r = await docker(['exec', id, 'sh', '-c', String(cmd)], 30000);   // sh -c arg: kabuk yok, tek argüman
+  return r.ok ? { ok: true, out: r.out } : { ok: false, error: r.error };
+});
+
+// Alan temizliği — yalnızca güvenli prune biçimleri
+const PRUNE = {
+  containers: ['container', 'prune', '-f'],
+  images: ['image', 'prune', '-f'],
+  volumes: ['volume', 'prune', '-f'],
+  builder: ['builder', 'prune', '-f']
+};
+ipcMain.handle('galaxy:dockerPrune', async (e, kind) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const args = PRUNE[kind];
+  if (!args) return { ok: false, error: 'Bilinmeyen temizlik türü' };
+  const r = await docker(args, 90000);
+  return r.ok ? { ok: true, out: r.out.trim() } : r;
+});
+
+// Terminal'de Claude aç (alternatif)
+ipcMain.handle('galaxy:openClaude', (e, p) => {
+  if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
+  if (!p || !knownPaths.has(p)) return false;
+  if (process.platform === 'win32') {
+    const dir = String(p); const { exec } = require('child_process');
+    exec(`start "" cmd /k "cd /d "${dir}" && claude"`, { env: ENV }, () => {});
+    return true;
+  }
+  const cmd = `cd '${String(p).replace(/'/g, "'\\''")}' && claude`;
+  const script = `tell application "Terminal"
+    activate
+    do script "${cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
+  end tell`;
+  execFile('osascript', ['-e', script]);
+  return true;
+});
+
+g.sshBaseArgs = sshBaseArgs;
+g.sshTarget = sshTarget;
+g.sshExec = sshExec;
+g.sshFriendly = sshFriendly;
+g.psCommand = psCommand;
+g.sshProbe = sshProbe;
+g.sshScanServer = sshScanServer;
+g.remoteRefresh = remoteRefresh;
+g.parseRemote = parseRemote;
+g.safeRel = safeRel;
+g.remoteSrv = remoteSrv;
+g.remoteReadme = remoteReadme;
+g.remoteList = remoteList;
+g.remoteFile = remoteFile;
+g.remoteTree = remoteTree;
+g.remoteGitLog = remoteGitLog;
+g.docker = docker;
+g.parseJsonLines = parseJsonLines;
+g.SSH_CTL_DIR = SSH_CTL_DIR;
+g.getServer = getServer;
+g.REMOTE_SCAN = REMOTE_SCAN;
+g.REMOTE_SCAN_WIN = REMOTE_SCAN_WIN;
+g.remoteCache = remoteCache;
+g.REMOTE_TTL = REMOTE_TTL;
+g.remoteRefreshing = remoteRefreshing;
+g.remotePath = remotePath;
+g.isRemotePath = isRemotePath;
+g.shq = shq;
+g.REMOTE_MAX_TEXT = REMOTE_MAX_TEXT;
+g.DOCKER_TIMEOUT = DOCKER_TIMEOUT;
+g.CONTAINER_ACTIONS = CONTAINER_ACTIONS;
+g.dockerStreams = dockerStreams;
+g.PRUNE = PRUNE;
+  }
 };

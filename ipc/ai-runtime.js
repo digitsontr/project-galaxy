@@ -1,5 +1,790 @@
-'use strict';
 // Sprint J — davranış taşındı; kopyalanmadı.
+// Faz 5: eval-blob açıldı — gövde birebir aynı kod; artık satır satır okunur, diff'lenir,
+// hata izinde gerçek satır numarası verir. with(g) bilinçli: çıplak isimler paylaşılan g'ye
+// çözülür, g.X = ... atamaları bu modülün çıktısıdır. (Bu yüzden dosya başında 'use strict' yok.)
 module.exports = function register(g) {
-  Function('g', 'with (g) {\n' + "// ---------- README ----------\nipcMain.handle('galaxy:readme', async (e, p) => {\n  if (!p || !knownPaths.has(p)) return null;\n  if (isRemotePath(p)) return remoteReadme(p);\n  try {\n    const files = fs.readdirSync(p).map(f => f.normalize('NFC'));\n    let md = files.find(f => f.toLowerCase() === 'readme.md')\n          || files.find(f => f.toLowerCase().endsWith('.md'));\n    if (!md) return null;\n    const content = fs.readFileSync(path.join(p, md), 'utf8').slice(0, 60000);\n    return { name: md, content };\n  } catch (err) { return null; }\n});\n\n// ---------- Claude konsolu ----------\nconst runs = new Map(); // runId -> child\n\nfunction streamClaude({ win, channel, runId, cwd, args }) {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const send = (kind, text) => { if (!win.isDestroyed()) win.webContents.send(channel, { runId, kind, text }); };\n  let child;\n  try {\n    child = spawn(claudeBin(), args, { cwd, env: ENV, shell: process.platform === \"win32\" });\n  } catch (err) {\n    return { ok: false, error: err.message };\n  }\n  // Prompt -p ile arg olarak geçiyor; stdin'i kapat ki \"no stdin data received\" uyarısı çıkmasın.\n  try { child.stdin && child.stdin.end(); } catch (e) {}\n  runs.set(runId, child);\n\n  let buf = '';\n  child.stdout.on('data', chunk => {\n    buf += chunk.toString();\n    let i;\n    while ((i = buf.indexOf('\\n')) >= 0) {\n      const line = buf.slice(0, i).trim();\n      buf = buf.slice(i + 1);\n      if (!line) continue;\n      try {\n        const msg = JSON.parse(line);\n        if (msg.type === 'system' && msg.subtype === 'init') {\n          send('info', `oturum başladı · model: ${msg.model || '?'}`);\n        } else if (msg.type === 'stream_event' && msg.event) {\n          // Token token akış (--include-partial-messages): metin delta'larını canlı gönder.\n          const ev = msg.event;\n          if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta' && ev.delta.text) {\n            child._sawDelta = true; send('text', ev.delta.text);\n          }\n        } else if (msg.type === 'assistant' && msg.message && msg.message.content) {\n          for (const c of msg.message.content) {\n            // Delta olarak akıttıysak tam metni TEKRAR gönderme (çift olmasın).\n            if (c.type === 'text' && c.text) { if (!child._sawDelta) send('text', c.text); }\n            else if (c.type === 'tool_use') send('tool', `${c.name}${c.input && c.input.file_path ? ' → ' + c.input.file_path : c.input && c.input.command ? ' → ' + String(c.input.command).slice(0, 120) : ''}`);\n          }\n        } else if (msg.type === 'result') {\n          send('result', msg.result || (msg.subtype === 'success' ? 'tamamlandı' : msg.subtype));\n        }\n      } catch (err) {\n        send('raw', line);\n      }\n    }\n  });\n  child.stderr.on('data', chunk => {\n    // Zararsız uyarıları (trust/stdin/permission) hata olarak gösterme — yalnız gerçek hatalar.\n    for (const line of String(chunk).split('\\n')) {\n      const l = line.trim(); if (!l) continue;\n      if (/not been trusted|Ignoring \\d+ permission|permissions\\.allow|no stdin data received|proceeding without it|redirect stdin/i.test(l)) continue;\n      send('err', l);\n    }\n  });\n  child.on('error', err => {\n    send('err', err.code === 'ENOENT'\n      ? 'claude komutu bulunamadı. Kurulum: npm install -g @anthropic-ai/claude-code'\n      : err.message);\n    send('done', '');\n    runs.delete(runId);\n  });\n  child.on('close', code => {\n    send('done', String(code ?? ''));\n    runs.delete(runId);\n  });\n  return { ok: true };\n}\n\n// Ek dosyaları prompt'a ve erişim izinlerine bağlar\nfunction applyAttachments(prompt, args, attachments) {\n  if (!attachments || !attachments.length) return prompt;\n  const list = attachments.slice(0, 10);\n  prompt += `\\n\\n=== EKLENEN DOSYALAR ===\\nKullanıcı şu dosyaları ekledi. Read aracıyla incele — görselleri ve PDF'leri doğrudan görebilirsin. .docx/.pptx/.xlsx gibi Office dosyaları için önce şu komutla metne çevir: textutil -convert txt -stdout \"<dosya>\" (veya gerekiyorsa unzip ile içeriğine bak):\\n` +\n    list.map(f => `- ${f}`).join('\\n');\n  const dirs = new Set(list.map(f => path.dirname(f)));\n  for (const d of dirs) args.push('--add-dir', d);\n  return prompt;\n}\n\n// Pano görüntüsünü (ekran görüntüsü) dosyaya kaydet\nconst { clipboard } = require('electron');\nfunction attachmentsDir() {\n  const d = path.join(DATA_DIR, 'attachments');\n  fs.mkdirSync(d, { recursive: true });\n  return d;\n}\nipcMain.handle('galaxy:pasteImage', () => {\n  const img = clipboard.readImage();\n  if (!img || img.isEmpty()) return null;\n  const file = path.join(attachmentsDir(), `pano-${Date.now()}.png`);\n  fs.writeFileSync(file, img.toPNG());\n  return file;\n});\n\n// Yolu olmayan (ör. tarayıcıdan sürüklenen) dosyayı kaydet\nipcMain.handle('galaxy:saveAttachment', (e, { name, dataBase64 }) => {\n  if (!name || !dataBase64) return null;\n  const safe = String(name).replace(/[^\\w. çğıöşüÇĞİÖŞÜ-]/g, '_').slice(0, 80) || 'ek';\n  const file = path.join(attachmentsDir(), `${Date.now()}-${safe}`);\n  fs.writeFileSync(file, Buffer.from(dataBase64, 'base64'));\n  return file;\n});\n\nipcMain.handle('galaxy:pickFiles', async (e) => {\n  const win = BrowserWindow.fromWebContents(e.sender);\n  const { canceled, filePaths } = await dialog.showOpenDialog(win, {\n    title: 'Dosya ekle',\n    properties: ['openFile', 'multiSelections'],\n    filters: [\n      { name: 'Desteklenenler', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'docx', 'doc', 'pptx', 'xlsx', 'csv', 'txt', 'md', 'json'] },\n      { name: 'Tümü', extensions: ['*'] }\n    ]\n  });\n  return canceled ? [] : filePaths;\n});\n\nipcMain.handle('galaxy:claudeRun', (e, { runId, cwd, prompt, continueSession, attachments }) => {\n  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };\n  const args = ['--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'];\n  prompt = applyAttachments(prompt, args, attachments);\n  args.unshift('-p', prompt);\n  if (continueSession) args.push('--continue');\n  return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'claude:out', runId, cwd, args });\n});\n\n// ---------- Galaxy Asistanı (dijital ikiz — sohbet + proje yardımı) ----------\n// claudeRun'dan farkı: KİŞİLİK sistem promptu ekler, projede olmak ŞART DEĞİL (genel sohbet de yapar),\n// ve nötr bir dizinde çalışabilir. Böylece \"bu kodlama sorusu değil\" gibi robotik cevaplar vermez.\nfunction assistantPersona(ctx) {\n  let name = '', bio = '';\n  try { const d = loadData(); name = (d.profile && d.profile.name) || ''; bio = getSettings(d).assistantBio || ''; } catch (e) {}\n  const who = name ? `${name}'in` : 'kullanıcının';\n  ctx = ctx || {};\n  const unis = (ctx.unis || []).slice(0, 30).join(', ');\n  const projs = (ctx.projects || []).slice(0, 60).join(', ');\n  const lines = [\n    `Sen ${who} kişisel DİJİTAL İKİZİ ve asistanısın. \"Project Galaxy\" adlı masaüstü uygulamasının içinde yaşıyorsun. Konumu: ${ctx.location || 'uzay'}.`,\n    `Konuşma tarzın: gerçek bir insan gibi — sıcak, samimi, doğal, kısa. Robotik olma, madde madde liste dökme; sohbet eder gibi konuş. Cevapların SESLE okunuyor: EMOJİ KULLANMA, kısa akıcı cümleler kur.`,\n    `Sadece bir kodlama aracı DEĞİLSİN. Hava, genel kültür, sohbet, tavsiye — HER konuda insan gibi cevap ver. Asla \"bu bir kodlama sorusu değil, yardımcı olamam\" deme.`,\n    `Web arama ve web getirme araçların AÇIK ve tam yetkili. Hava, haber, güncel bilgi sorulduğunda DOĞRUDAN web'den ara ve gerçek veriyi ver — asla \"iznim yok / erişemiyorum / konumunu bilmiyorum\" deme. Şehir belliyse (ör. Ankara) direkt o şehrin güncel havasını ara.`,\n    `Türkçe konuş (kullanıcı başka dilde yazarsa o dilde).`,\n    ``,\n    `UYGULAMAYI KONTROL EDEBİLİRSİN — tam yetkin var. Bir işlem yapmak gerektiğinde cevabının İÇİNE şu formatta gizli bir komut yaz (kullanıcı bunu görmez, uygulama çalıştırır): [[ACT ad|argüman]]. Ayrıca kullanıcıya doğal bir cümleyle ne yaptığını söyle.`,\n    `Kullanılabilir komutlar:`,\n    `[[ACT open_universe|<evren adı>]] · [[ACT open_project|<proje adı>]] · [[ACT open_tab|genel|evren|pano|db|docker|zaman|servers]] · [[ACT open_git]] (git merkezi) · [[ACT back]] (uzaya dön) · [[ACT git_push]] · [[ACT git_pull]] · [[ACT git_commit|<mesaj>]] · [[ACT run|<bash komutu>]] (aktif projede) · [[ACT open_folder]] · [[ACT open_terminal]] · [[ACT open_settings]] · [[ACT hud]]`,\n    `Örnek: kullanıcı \"papilon evrenini aç\" derse cevabın: \"[[ACT open_universe|Papilon]] Papilon evrenini açıyorum.\" Kullanıcı \"testleri çalıştır\" derse: \"[[ACT run|npm test]] Testleri başlatıyorum.\"`,\n    `Bir işlemi yapabiliyorsan MUTLAKA komutu yaz — \"yapamam / senin tıklaman gerekiyor\" DEME, çünkü bu komutlarla sen yapabilirsin.`,\n    unis ? `Mevcut evrenler: ${unis}.` : '',\n    projs ? `Mevcut projeler (gezegenler): ${projs}.` : '',\n    bio ? `\\nKULLANICI HAKKINDA (senin bildiklerin — onun gibi düşün, tarzını benimse): ${bio}` : ''\n  ];\n  return lines.filter(Boolean).join('\\n');\n}\n// ---------- Asistan sohbet geçmişi (kalıcı, diske) ----------\nfunction asstChatFile() { return path.join(DATA_DIR, 'assistant-chat.json'); }\nfunction asstChatLoad() { try { return JSON.parse(fs.readFileSync(asstChatFile(), 'utf8')) || []; } catch (e) { return []; } }\nfunction asstChatSave(arr) { try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(asstChatFile(), JSON.stringify(arr.slice(-400)), 'utf8'); } catch (e) {} }\nipcMain.handle('galaxy:asstHistoryGet', () => ({ ok: true, messages: asstChatLoad() }));\nipcMain.handle('galaxy:asstHistoryAppend', (e, msg) => { const a = asstChatLoad(); a.push({ role: (msg && msg.role) || 'assistant', text: String((msg && msg.text) || '').slice(0, 8000), ts: (msg && msg.ts) || Date.now() }); asstChatSave(a); return { ok: true }; });\nipcMain.handle('galaxy:asstHistoryClear', () => { asstChatSave([]); return { ok: true }; });\nipcMain.handle('galaxy:assistantRun', (e, { runId, prompt, cwd, continueSession, ctx }) => {\n  // cwd: proje verildiyse (bilinen yol) orada çalış (dosya işi yapabilsin); yoksa nötr veri dizini (sadece sohbet).\n  const workCwd = (cwd && knownPaths.has(cwd)) ? cwd : DATA_DIR;\n  // Asistan TAM YETKİLİ: tüm araçlar (web arama/getirme, dosya, bash) izin sormadan çalışsın.\n  const args = ['-p', String(prompt || ''),\n    '--output-format', 'stream-json', '--verbose', '--include-partial-messages',\n    '--dangerously-skip-permissions',\n    '--append-system-prompt', assistantPersona(ctx)];\n  if (continueSession) args.push('--continue');\n  return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'claude:out', runId, cwd: workCwd, args });\n});\n\n// ---------- Native ses tanıma (macOS Speech) — asistanın sesli komutu + \"Hey Galaxy\" uyandırma ----------\nlet sttChild = null;\nfunction sttBin() {\n  try { const packaged = path.join(process.resourcesPath || '', 'galaxy-stt'); if (fs.existsSync(packaged)) return packaged; } catch (e) {}\n  const out = path.join(DATA_DIR, 'galaxy-stt');\n  const src = path.join(APP_DIR, 'native', 'galaxy-stt.swift');\n  try {\n    if (!fs.existsSync(src)) return fs.existsSync(out) ? out : null;\n    if (fs.existsSync(out) && fs.statSync(out).mtimeMs >= fs.statSync(src).mtimeMs) return out;\n    const { execFileSync } = require('child_process');\n    const swiftc = ['/usr/bin/swiftc', 'swiftc'].find(p => { try { return p === 'swiftc' || fs.existsSync(p); } catch (e) { return false; } }) || 'swiftc';\n    execFileSync(swiftc, [src, '-O', '-o', out], { stdio: 'ignore', timeout: 90000, env: ENV });\n    return fs.existsSync(out) ? out : null;\n  } catch (e) { return fs.existsSync(out) ? out : null; }\n}\nipcMain.handle('galaxy:sttAvailable', () => ({ ok: process.platform === 'darwin' && !!sttBin() }));\nipcMain.handle('galaxy:sttStart', (e) => {\n  if (process.platform !== 'darwin') return { ok: false, error: 'yalnız macOS' };\n  if (sttChild) return { ok: true };\n  const bin = sttBin();\n  if (!bin) return { ok: false, error: 'stt-derlenemedi (Xcode Command Line Tools gerekli)' };\n  const win = BrowserWindow.fromWebContents(e.sender);\n  const send = (msg) => { try { if (win && !win.isDestroyed()) win.webContents.send('stt:out', msg); } catch (e) {} };\n  try { sttChild = spawn(bin, [], { env: ENV }); }\n  catch (err) { sttChild = null; return { ok: false, error: err.message }; }\n  let buf = '';\n  sttChild.stdout.on('data', d => { buf += d.toString(); let i; while ((i = buf.indexOf('\\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue; try { send(JSON.parse(line)); } catch (e) {} } });\n  sttChild.stderr.on('data', () => {});\n  sttChild.on('close', () => { send({ type: 'status', text: 'closed' }); sttChild = null; });\n  sttChild.on('error', (err) => { send({ type: 'error', text: err.message }); sttChild = null; });\n  return { ok: true };\n});\nipcMain.handle('galaxy:sttStop', () => {\n  if (sttChild) { try { sttChild.stdin.write('quit\\n'); } catch (e) {} const c = sttChild; sttChild = null; setTimeout(() => { try { c.kill(); } catch (e) {} }, 500); }\n  return { ok: true };\n});\napp.on('will-quit', () => { if (sttChild) { try { sttChild.kill(); } catch (e) {} sttChild = null; } });\n\n// ---------- ajan (CTO vb.) çalıştırma ----------\nipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attachments, continueSession }) => {\n  const data = loadData();\n  const agent = (data.agents || []).find(a => a.id === agentId);\n  if (!agent) return { ok: false, error: 'Ajan bulunamadı' };\n\n  let full, cwd;\n  const scan = scanProjects();\n  const proj = projectId ? scan.projects.find(p => p.id === projectId) : null;\n\n  if (proj && proj.path) {\n    // PROJE BAĞLAMI: ajan bu projenin içinde çalışır\n    const done = proj.plan.filter(i => i.done).length;\n    const files = listDirs(proj.path).slice(0, 30).join(', ');\n    const pdigest = [\n      `Proje: ${proj.name} (klasör: ${proj.path})`,\n      `Durum: ${proj.status} · İlerleme: %${proj.progress} · Aşama: ${proj.stage || '-'}`,\n      `Git: ${proj.git ? `${proj.git.branch} · son: ${(proj.git.lastTs || '').slice(0, 10)} · 30g aktivite: ${proj.git.activity30}` : 'depo yok'}`,\n      `Plan (${done}/${proj.plan.length}):`,\n      ...proj.plan.map(i => `  [${i.done ? 'x' : ' '}] ${i.text}`),\n      proj.notes ? `Notlar: ${proj.notes}` : '',\n      `Kök klasörler: ${files}`\n    ].filter(Boolean).join('\\n');\n    full = `${agent.prompt}\\n\\n=== ODAK: TEK PROJE ===\\n${pdigest}\\n=== SON ===\\n\\nŞu an bu projenin klasöründesin, dosyalarını okuyabilirsin. Yanıtını SADECE bu proje özelinde ver.\\n\\nKullanıcının isteği: ${prompt || 'Bu proje için durum değerlendirmesi yap.'}\\n${profileContext(data)}`;\n    cwd = proj.path;\n  } else {\n    const digest = buildDigest();\n    full = `${agent.prompt}\\n\\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\\n${digest}\\n=== SON ===\\n\\nKullanıcının isteği: ${prompt || 'Genel durum raporu ver.'}\\n${profileContext(data)} Dosyaları incelemen gerekirse bulunduğun klasördeki proje klasörlerini okuyabilirsin.`;\n    cwd = universeCwd(data);\n  }\n  const args = ['--output-format', 'stream-json', '--verbose'];\n  full = applyAttachments(full, args, attachments);\n  args.unshift('-p', full);\n  if (continueSession) args.push('--continue'); // oturum sürekliliği — ajan geçmişi korunur\n  // Diğer evren kökleri (ör. FY) mutlak yol olarak erişime açılır\n  for (const u of data.universes || []) {\n    if (path.isAbsolute(u.root)) args.push('--add-dir', u.root);\n  }\n  if (agent.write) args.push('--permission-mode', 'acceptEdits');\n  return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'agent:out', runId, cwd, args });\n});\n\n// ---------- günlük (captain's log) ----------\nfunction runClaudeJson(prompt, cwd) {\n  return new Promise(resolve => {\n    if (IS_MAS) return resolve({ error: MAS_BLOCKED });\n    let child;\n    try {\n      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });\n    } catch (err) { return resolve({ error: err.message }); }\n    let out = '';\n    const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 90000);\n    child.stdout.on('data', c => { out += c.toString(); });\n    child.on('error', err => { clearTimeout(timer); resolve({ error: err.code === 'ENOENT' ? 'claude komutu bulunamadı' : err.message }); });\n    child.on('close', () => {\n      clearTimeout(timer);\n      try {\n        const wrapper = JSON.parse(out);\n        let result = (wrapper.result || '').trim();\n        const m = result.match(/\\{[\\s\\S]*\\}/);\n        if (m) result = m[0];\n        resolve({ data: JSON.parse(result) });\n      } catch (err) { resolve({ error: 'yanıt çözümlenemedi' }); }\n    });\n  });\n}\n\nipcMain.handle('galaxy:logDetect', async (e, text) => {\n  const scan = scanProjects();\n  const list = scan.projects.map(p => `${p.id} | ${p.name} | ${(p.desc || '').slice(0, 90)}`).join('\\n');\n  const prompt = `Aşağıda proje listesi var (id | ad | açıklama):\\n${list}\\n\\nKullanıcının günlük notu: \"${text}\"\\n\\nBu not en çok hangi projeyle ilgili ve tipi ne? \"done\" = yapılmış bir işin kaydı, \"todo\" = yapılacak iş/plan. SADECE şu JSON'u döndür, başka hiçbir şey yazma:\\n{\"projectId\": \"<listeden bir id veya none>\", \"confidence\": <0-1 arası sayı>, \"type\": \"<done veya todo>\", \"reason\": \"<tek cümle Türkçe gerekçe>\", \"entry\": \"<notu kısa ve düzgün tek cümleye çevir>\"}`;\n  const res = await runClaudeJson(prompt, universeCwd(loadData()));\n  if (res.error) return { ok: false, error: res.error };\n  const d = res.data || {};\n  const proj = scan.projects.find(p => p.id === d.projectId);\n  return {\n    ok: true,\n    projectId: proj ? proj.id : null,\n    projectName: proj ? proj.name : null,\n    folder: proj ? proj.path : null,\n    confidence: d.confidence ?? 0,\n    type: d.type === 'todo' ? 'todo' : 'done',\n    reason: d.reason || '',\n    entry: d.entry || text\n  };\n});\n\nipcMain.handle('galaxy:logApply', (e, { projectId, text, entry, writeReadme = true, addPlan = false }) => {\n  const scan = scanProjects();\n  const proj = scan.projects.find(p => p.id === projectId);\n  const data = loadData();\n  data.log = data.log || [];\n  const record = { ts: new Date().toISOString(), text, projectId: proj ? proj.id : null, applied: false };\n\n  // Plan listesine madde ekle\n  if (proj && addPlan) {\n    if (!data.projects[proj.id]) {\n      data.projects[proj.id] = { name: proj.name, group: proj.group, status: proj.status, stage: proj.stage, progress: proj.progress, plan: [], notes: proj.notes, desc: proj.desc };\n    }\n    data.projects[proj.id].plan = data.projects[proj.id].plan || [];\n    data.projects[proj.id].plan.push({ text: entry || text, done: false });\n    record.applied = true;\n  }\n\n  if (proj && proj.path && writeReadme) {\n    try {\n      const readmePath = path.join(proj.path, 'README.md');\n      const date = new Date().toISOString().slice(0, 10);\n      // yapılacak iş → \"## Yapılacaklar\" bölümüne checkbox; yapılan iş → \"## Günlük\" bölümüne tarihli satır\n      const isTodo = addPlan;\n      const header = isTodo ? '## Yapılacaklar' : '## Günlük';\n      const line = isTodo ? `- [ ] ${entry || text}` : `- **${date}:** ${entry || text}`;\n      let content = '';\n      try { content = fs.readFileSync(readmePath, 'utf8'); } catch (err) {}\n      if (content.includes(header)) {\n        content = content.replace(header, `${header}\\n\\n${line}`).replace(new RegExp(header + '\\\\n\\\\n\\\\n'), header + '\\n\\n');\n      } else {\n        content = (content ? content.trimEnd() + '\\n\\n' : `# ${proj.name}\\n\\n`) + `${header}\\n\\n${line}\\n`;\n      }\n      fs.writeFileSync(readmePath, content, 'utf8');\n      record.applied = true;\n    } catch (err) {\n      return { ok: false, error: err.message };\n    }\n  }\n  data.log.unshift(record);\n  data.log = data.log.slice(0, 200);\n  saveData(data);\n  return { ok: true, applied: record.applied };\n});\n\nipcMain.handle('galaxy:logSave', (e, text) => {\n  const data = loadData();\n  data.log = data.log || [];\n  data.log.unshift({ ts: new Date().toISOString(), text, projectId: null, applied: false });\n  data.log = data.log.slice(0, 200);\n  saveData(data);\n  return true;\n});\n\nipcMain.handle('galaxy:logList', () => {\n  const data = loadData();\n  return (data.log || []).slice(0, 50);\n});\n\n// ---------- kayıtlı sabah raporları ----------\nipcMain.handle('galaxy:reports', () => {\n  const dir = path.join(DATA_DIR, 'reports');\n  try {\n    return fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().reverse().slice(0, 30);\n  } catch (err) { return []; }\n});\n\nipcMain.handle('galaxy:report', (e, name) => {\n  if (typeof name !== 'string' || !/^[\\w çğıöşüÇĞİÖŞÜ.-]+\\.md$/.test(name)) return null;\n  try { return fs.readFileSync(path.join(DATA_DIR, 'reports', name), 'utf8'); } catch (err) { return null; }\n});\n\n// Raporu harici uygulamada (Finder/editör) aç\nipcMain.handle('galaxy:openReportFile', (e, name) => {\n  if (typeof name !== 'string' || !/^[\\w çğıöşüÇĞİÖŞÜ.-]+\\.md$/.test(name)) return false;\n  try { shell.openPath(path.join(DATA_DIR, 'reports', name)); return true; } catch (err) { return false; }\n});\n\nipcMain.handle('galaxy:claudeStop', (e, runId) => {\n  const child = runs.get(runId);\n  if (child) { child.kill('SIGTERM'); runs.delete(runId); }\n  return true;\n});\n\n// ---------- gömülü bash terminali ----------\n// Proje başına kalıcı bash süreci: cd/env durumu korunur, çıktı canlı akar.\nconst shells = new Map(); // shellId -> { child, cwd }\nconst SHELL_SENTINEL = '\\x03GALAXY_DONE ';\n\nfunction broadcastShell(msg) {\n  for (const w of BrowserWindow.getAllWindows()) {\n    try { w.webContents.send('shell:out', msg); } catch (e) {}\n  }\n}\n\n// Yerel kabuk dosyası — Windows'ta Git for Windows'ın bash'i (aynı SHELL_SENTINEL protokolü çalışır).\nfunction localShellFile() {\n  if (process.platform !== 'win32') return '/bin/bash';\n  const cands = [\n    'C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe',\n    'C:\\\\Program Files\\\\Git\\\\usr\\\\bin\\\\bash.exe',\n    'C:\\\\Program Files (x86)\\\\Git\\\\bin\\\\bash.exe',\n    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe')\n  ];\n  for (const c of cands) { try { if (c && fs.existsSync(c)) return c; } catch (e) {} }\n  return null;\n}\nfunction ensureShell(shellId, cwd) {\n  const existing = shells.get(shellId);\n  if (existing && existing.child && !existing.child.killed && existing.child.exitCode === null) return existing;\n  const shFile = localShellFile();\n  if (!shFile) {  // Windows'ta git-bash yok\n    broadcastShell({ id: shellId, kind: 'err', text: 'Gömülü terminal için Git for Windows (bash) gerekli. gitforwindows.org üzerinden kur ve uygulamayı yeniden aç.' });\n    broadcastShell({ id: shellId, kind: 'done', code: 1, cwd });\n    const stub = { child: null, cwd, noShell: true }; shells.set(shellId, stub); return stub;\n  }\n  const child = spawn(shFile, ['--noprofile', '--norc'], { cwd, env: { ...ENV, PS1: '', TERM: 'dumb' } });\n  let buf = '';\n  child.stdout.on('data', chunk => {\n    buf += chunk.toString();\n    let i;\n    while ((i = buf.indexOf('\\n')) >= 0) {\n      const line = buf.slice(0, i);\n      buf = buf.slice(i + 1);\n      if (line.startsWith(SHELL_SENTINEL)) {\n        const rest = line.slice(SHELL_SENTINEL.length);\n        const sp = rest.indexOf(' ');\n        const code = +(sp >= 0 ? rest.slice(0, sp) : rest) || 0;\n        const cwd = sp >= 0 ? rest.slice(sp + 1) : '';\n        if (cwd) { const rec2 = shells.get(shellId); if (rec2) rec2.cwd = cwd; }\n        broadcastShell({ id: shellId, kind: 'done', code, cwd });\n      } else {\n        broadcastShell({ id: shellId, kind: 'out', text: line });\n      }\n    }\n  });\n  child.stderr.on('data', chunk => {\n    for (const line of chunk.toString().split('\\n')) {\n      if (line) broadcastShell({ id: shellId, kind: 'err', text: line });\n    }\n  });\n  child.on('close', () => {\n    broadcastShell({ id: shellId, kind: 'exit' });\n    shells.delete(shellId);\n  });\n  const rec = { child, cwd };\n  shells.set(shellId, rec);\n  return rec;\n}\n\n// Uzak sunucuda kabuk: ssh üzerinden bash (PTY yok → temiz satır çıktısı, echo/prompt yok).\n// Yerel ensureShell ile aynı SHELL_SENTINEL mantığı ve aynı shell:out kanalı.\nfunction ensureSshShell(shellId, serverId) {\n  const existing = shells.get(shellId);\n  if (existing && !existing.child.killed && existing.child.exitCode === null) return existing;\n  const srv = getServer(serverId);\n  if (!srv) throw new Error('Sunucu bulunamadı');\n  // 'bash -l' = LOGIN kabuk: /etc/profile + ~/.bash_profile/.profile yüklenir, böylece\n  // uzak PATH kullanıcının kendi terminalindekiyle aynı olur (docker/node/nvm/brew komutları bulunur).\n  const child = spawn('ssh', [...sshBaseArgs(srv), sshTarget(srv), 'bash -l'], { env: ENV });\n  let buf = '';\n  child.stdout.on('data', chunk => {\n    buf += chunk.toString();\n    let i;\n    while ((i = buf.indexOf('\\n')) >= 0) {\n      const line = buf.slice(0, i);\n      buf = buf.slice(i + 1);\n      if (line.startsWith(SHELL_SENTINEL)) {\n        const rest = line.slice(SHELL_SENTINEL.length);\n        const sp = rest.indexOf(' ');\n        const code = +(sp >= 0 ? rest.slice(0, sp) : rest) || 0;\n        const cwd = sp >= 0 ? rest.slice(sp + 1) : '';\n        if (cwd) { const rec2 = shells.get(shellId); if (rec2) rec2.cwd = cwd; }\n        broadcastShell({ id: shellId, kind: 'done', code, cwd });\n      } else {\n        broadcastShell({ id: shellId, kind: 'out', text: line });\n      }\n    }\n  });\n  child.stderr.on('data', chunk => { for (const line of chunk.toString().split('\\n')) if (line) broadcastShell({ id: shellId, kind: 'err', text: line }); });\n  child.on('error', err => broadcastShell({ id: shellId, kind: 'err', text: 'ssh başlatılamadı: ' + (err && err.message || err) }));\n  child.on('close', (code) => { broadcastShell({ id: shellId, kind: 'exit', code }); shells.delete(shellId); });\n  const rec = { child, remote: true, serverId };\n  shells.set(shellId, rec);\n  return rec;\n}\n\nipcMain.handle('galaxy:sshShellStart', (e, { shellId, serverId } = {}) => {\n  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };\n  try { ensureSshShell(shellId, serverId); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; }\n});\nipcMain.handle('galaxy:sshShellInput', (e, { shellId, serverId, cmd } = {}) => {\n  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };\n  if (!cmd || !cmd.trim()) return { ok: false };\n  try {\n    const rec = ensureSshShell(shellId, serverId);\n    rec.child.stdin.write(cmd + '\\n' + `printf '\\\\003GALAXY_DONE %s %s\\\\n' \"$?\" \"$PWD\"` + '\\n');\n    return { ok: true };\n  } catch (err) { return { ok: false, error: err.message }; }\n});\n\nipcMain.handle('galaxy:shellStart', (e, { shellId, cwd }) => {\n  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };\n  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };\n  try {\n    ensureShell(shellId, cwd);\n    return { ok: true };\n  } catch (err) { return { ok: false, error: err.message }; }\n});\n\nipcMain.handle('galaxy:shellInput', (e, { shellId, cwd, cmd }) => {\n  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };\n  if (!cmd || !cmd.trim()) return { ok: false };\n  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };\n  const rec = ensureShell(shellId, cwd);\n  if (!rec || !rec.child) return { ok: false, error: 'kabuk yok' };\n  try {\n    rec.child.stdin.write(cmd + '\\n' + `printf '\\\\003GALAXY_DONE %s %s\\\\n' \"$?\" \"$PWD\"` + '\\n');\n    return { ok: true };\n  } catch (err) { return { ok: false, error: err.message }; }\n});\n\n// Tab tamamlama: bulunduğu klasöre göre dosya/klasör adı önerileri\nipcMain.handle('galaxy:shellComplete', (e, { shellId, cwd, token }) => {\n  try {\n    const rec = shells.get(shellId);\n    let base = (rec && rec.cwd) || cwd || os.homedir();\n    let dirPart = '', namePart = token || '';\n    const slash = (token || '').lastIndexOf('/');\n    if (slash >= 0) { dirPart = token.slice(0, slash + 1); namePart = token.slice(slash + 1); }\n    let dir = dirPart\n      ? (dirPart.startsWith('/') ? dirPart : path.resolve(base, dirPart.replace(/^~/, os.homedir())))\n      : base;\n    const entries = fs.readdirSync(dir, { withFileTypes: true })\n      .filter(d => d.name.startsWith(namePart) && (namePart.startsWith('.') || !d.name.startsWith('.')))\n      .slice(0, 60)\n      .map(d => ({ name: d.name + (d.isDirectory() ? '/' : ''), dir: d.isDirectory() }));\n    return { ok: true, dirPart, matches: entries.map(x => x.name) };\n  } catch (err) { return { ok: false, matches: [] }; }\n});\n\nipcMain.handle('galaxy:shellStop', (e, shellId) => {\n  const rec = shells.get(shellId);\n  if (rec) { try { rec.child.kill('SIGKILL'); } catch (err) {} shells.delete(shellId); }\n  return true;\n});\n\napp.on('before-quit', () => {\n  for (const rec of shells.values()) { try { rec.child.kill('SIGKILL'); } catch (e) {} }\n});\n\n// Proje konumunda düz bash terminali aç\nipcMain.handle('galaxy:openTerminal', (e, p) => {\n  if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez\n  if (!p || !knownPaths.has(p)) return false;\n  if (process.platform === 'win32') {\n    const dir = String(p); const { exec } = require('child_process');\n    // Windows Terminal (wt) → yoksa cmd\n    exec(`start \"\" wt -d \"${dir}\"`, { env: ENV }, err => { if (err) exec(`start \"\" cmd /k cd /d \"${dir}\"`, { env: ENV }, () => {}); });\n    return true;\n  }\n  if (process.platform === 'linux') {\n    const { exec } = require('child_process'); const dir = String(p).replace(/\"/g, '\\\\\"');\n    exec(`x-terminal-emulator --working-directory=\"${dir}\" || gnome-terminal --working-directory=\"${dir}\" || xterm`, { env: ENV }, () => {});\n    return true;\n  }\n  const cmd = `cd '${String(p).replace(/'/g, \"'\\\\''\")}'`;\n  const esc = s => s.replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"');\n  const app = getSettings(loadData()).terminalApp;   // 'Terminal' | 'iTerm' (ayarlardan)\n  // iTerm ve Terminal.app farklı AppleScript API'leri kullanır\n  const script = app === 'iTerm'\n    ? `tell application \"iTerm\"\n    activate\n    try\n      tell current window to create tab with default profile\n    on error\n      create window with default profile\n    end try\n    tell current session of current window to write text \"${esc(cmd)}\"\n  end tell`\n    : `tell application \"Terminal\"\n    activate\n    do script \"${esc(cmd)}\"\n  end tell`;\n  execFile('osascript', ['-e', script]);\n  return true;\n});\n\n// ---------- uygulama içi zamanlayıcı ----------\nfunction runClaudeText(prompt, cwd) {\n  return new Promise(resolve => {\n    if (IS_MAS) return resolve({ error: MAS_BLOCKED });\n    let child;\n    try {\n      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });\n    } catch (err) { return resolve({ error: err.message }); }\n    let out = '';\n    const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 240000);\n    child.stdout.on('data', c => { out += c.toString(); });\n    child.on('error', err => { clearTimeout(timer); resolve({ error: err.code === 'ENOENT' ? 'claude bulunamadı' : err.message }); });\n    child.on('close', () => {\n      clearTimeout(timer);\n      try {\n        const j = JSON.parse(out);\n        const text = String((j && (j.result || j.error || j.message)) || '').trim();\n        if (j && (j.is_error || j.subtype === 'error' || j.type === 'error')) return resolve({ error: text || 'ajan hatası', text });\n        resolve({ text });\n      } catch (err) { resolve({ error: 'yanıt çözümlenemedi' }); }\n    });\n  });\n}\n\nconst scheduleRunning = new Set();\n\nasync function runSchedule(s, notifyWin) {\n  if (scheduleRunning.has(s.id)) return { ok: false, error: 'zaten çalışıyor' };\n  scheduleRunning.add(s.id);\n  try {\n    const data = loadData();\n    const agent = (data.agents || []).find(a => a.id === s.agentId) || (data.agents || [])[0];\n    if (!agent) return { ok: false, error: 'ajan yok' };\n    const digest = buildDigest();\n    const full = `${agent.prompt}\\n\\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\\n${digest}\\n=== SON ===\\n\\nZamanlanmış görev: ${s.prompt}\\n${profileContext(data)} Yanıtını markdown formatında ver.`;\n    const res = await runClaudeText(full, universeCwd(data));\n    const date = new Date().toISOString().slice(0, 10);\n    const rdir = path.join(DATA_DIR, 'reports');\n    fs.mkdirSync(rdir, { recursive: true });\n    const fname = `${date}-${s.id}.md`;\n    const content = res.error\n      ? `# ${s.name} — HATA\\n\\n${res.error}\\n`\n      : `# ${s.name} · ${date}\\n\\n_${agent.name} (${agent.role}) tarafından üretildi._\\n\\n${res.text}\\n`;\n    fs.writeFileSync(path.join(rdir, fname), content, 'utf8');\n    // lastRun güncelle\n    const d2 = loadData();\n    const s2 = (d2.schedules || []).find(x => x.id === s.id);\n    if (s2) { s2.lastRun = new Date().toISOString(); saveData(d2); }\n    for (const w of BrowserWindow.getAllWindows()) {\n      try { w.webContents.send('schedule:done', { name: s.name, file: fname, error: res.error || null }); } catch (e) {}\n    }\n    return { ok: !res.error, error: res.error, file: fname, out: res.error ? '' : (res.text || '') };\n  } finally {\n    scheduleRunning.delete(s.id);\n  }\n}\n\nfunction checkSchedules() {\n  const data = loadData();\n  const now = new Date();\n  // Yerel tarih (toISOString UTC verir; yerel saatle karşılaştırmak için yerel gün)\n  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;\n  for (const s of data.schedules || []) {\n    if (!s.enabled) continue;\n    // bugün zaten çalıştıysa geç\n    if (s.lastRun && s.lastRun.slice(0, 10) === today) continue;\n    // haftalık: form Pzt=1..Paz=7, getDay() Paz=0 → 7'yi 0'a çevir\n    if (s.type === 'weekly') {\n      const wantDay = (+s.weekday === 7) ? 0 : +s.weekday;\n      if (now.getDay() !== wantDay) continue;\n    }\n    // Planlanan saat geldiyse VEYA geçtiyse çalıştır — uygulama o dakikada kapalıysa\n    // açıldığında (o gün, saatten sonra) telafi eder.\n    const mins = now.getHours() * 60 + now.getMinutes();\n    const want = (Math.min(23, +s.hour || 0)) * 60 + (Math.min(59, +s.minute || 0));\n    if (mins < want) continue;\n    runSchedule(s);\n  }\n}\nsetInterval(checkSchedules, 60000);\n// Açılıştan ~8sn sonra bir kez de kontrol et (gün içinde kaçmış görevleri telafi et)\nsetTimeout(() => { try { checkSchedules(); } catch (e) {} }, 8000);\n\nipcMain.handle('galaxy:scheduleList', () => loadData().schedules || []);\n\nipcMain.handle('galaxy:scheduleSave', (e, s) => {\n  if (!s.name || !s.prompt) return { ok: false, error: 'Ad ve görev metni gerekli' };\n  const data = loadData();\n  data.schedules = data.schedules || [];\n  if (!s.id) s.id = slugify(s.name) + '-' + String(Date.now()).slice(-4);\n  const clean = {\n    id: s.id, name: s.name, agentId: s.agentId || 'cto', prompt: s.prompt,\n    type: s.type === 'weekly' ? 'weekly' : 'daily',\n    hour: Math.min(23, Math.max(0, +s.hour || 9)),\n    minute: Math.min(59, Math.max(0, +s.minute || 0)),\n    weekday: +s.weekday || 1,\n    enabled: s.enabled !== false,\n    lastRun: (data.schedules.find(x => x.id === s.id) || {}).lastRun || null\n  };\n  const idx = data.schedules.findIndex(x => x.id === s.id);\n  if (idx >= 0) data.schedules[idx] = clean; else data.schedules.push(clean);\n  saveData(data);\n  return { ok: true, id: s.id };\n});\n\nipcMain.handle('galaxy:scheduleDelete', (e, id) => {\n  const data = loadData();\n  data.schedules = (data.schedules || []).filter(x => x.id !== id);\n  saveData(data);\n  return { ok: true };\n});\n\nipcMain.handle('galaxy:scheduleRun', async (e, id) => {\n  const s = (loadData().schedules || []).find(x => x.id === id);\n  if (!s) return { ok: false, error: 'görev bulunamadı' };\n  return runSchedule(s);\n});\n" + '\n' + "g.streamClaude = streamClaude;\ng.applyAttachments = applyAttachments;\ng.attachmentsDir = attachmentsDir;\ng.assistantPersona = assistantPersona;\ng.asstChatFile = asstChatFile;\ng.asstChatLoad = asstChatLoad;\ng.asstChatSave = asstChatSave;\ng.sttBin = sttBin;\ng.runClaudeJson = runClaudeJson;\ng.broadcastShell = broadcastShell;\ng.localShellFile = localShellFile;\ng.ensureShell = ensureShell;\ng.ensureSshShell = ensureSshShell;\ng.runClaudeText = runClaudeText;\ng.runSchedule = runSchedule;\ng.checkSchedules = checkSchedules;\ng.runs = runs;\ng.sttChild = sttChild;\ng.shells = shells;\ng.SHELL_SENTINEL = SHELL_SENTINEL;\ng.scheduleRunning = scheduleRunning;" + '\n}')(g);
+  with (g) {
+// ---------- README ----------
+ipcMain.handle('galaxy:readme', async (e, p) => {
+  if (!p || !knownPaths.has(p)) return null;
+  if (isRemotePath(p)) return remoteReadme(p);
+  try {
+    const files = fs.readdirSync(p).map(f => f.normalize('NFC'));
+    let md = files.find(f => f.toLowerCase() === 'readme.md')
+          || files.find(f => f.toLowerCase().endsWith('.md'));
+    if (!md) return null;
+    const content = fs.readFileSync(path.join(p, md), 'utf8').slice(0, 60000);
+    return { name: md, content };
+  } catch (err) { return null; }
+});
+
+// ---------- Claude konsolu ----------
+const runs = new Map(); // runId -> child
+const claudeSessions = new Map(); // sessionKey -> claude session_id
+
+function streamClaude({ win, channel, runId, cwd, args, sessionKey, continued }) {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const send = (kind, text) => { if (!win.isDestroyed()) win.webContents.send(channel, { runId, kind, text }); };
+  let child;
+  try {
+    child = spawn(claudeBin(), args, { cwd, env: ENV, shell: process.platform === "win32" });
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  // Prompt -p ile arg olarak geçiyor; stdin'i kapat ki "no stdin data received" uyarısı çıkmasın.
+  try { child.stdin && child.stdin.end(); } catch (e) {}
+  runs.set(runId, child);
+
+  let buf = '';
+  child.stdout.on('data', chunk => {
+    buf += chunk.toString();
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i).trim();
+      buf = buf.slice(i + 1);
+      if (!line) continue;
+      try {
+        const msg = JSON.parse(line);
+        if (msg.type === 'system' && msg.subtype === 'init') {
+          if (msg.session_id && sessionKey) claudeSessions.set(sessionKey, String(msg.session_id));
+          send('info', (continued ? 'oturum devam' : 'oturum başladı') + ` · model: ${msg.model || '?'}`);
+        } else if (msg.type === 'stream_event' && msg.event) {
+          // Token token akış (--include-partial-messages): metin delta'larını canlı gönder.
+          const ev = msg.event;
+          if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta' && ev.delta.text) {
+            child._sawDelta = true; send('text', ev.delta.text);
+          }
+        } else if (msg.type === 'assistant' && msg.message && msg.message.content) {
+          for (const c of msg.message.content) {
+            // Delta olarak akıttıysak tam metni TEKRAR gönderme (çift olmasın).
+            if (c.type === 'text' && c.text) { if (!child._sawDelta) send('text', c.text); }
+            else if (c.type === 'tool_use') send('tool', `${c.name}${c.input && c.input.file_path ? ' → ' + c.input.file_path : c.input && c.input.command ? ' → ' + String(c.input.command).slice(0, 120) : ''}`);
+          }
+        } else if (msg.type === 'result') {
+          send('result', msg.result || (msg.subtype === 'success' ? 'tamamlandı' : msg.subtype));
+        }
+      } catch (err) {
+        send('raw', line);
+      }
+    }
+  });
+  child.stderr.on('data', chunk => {
+    // Zararsız uyarıları (trust/stdin/permission) hata olarak gösterme — yalnız gerçek hatalar.
+    for (const line of String(chunk).split('\n')) {
+      const l = line.trim(); if (!l) continue;
+      if (/not been trusted|Ignoring \d+ permission|permissions\.allow|no stdin data received|proceeding without it|redirect stdin/i.test(l)) continue;
+      send('err', l);
+    }
+  });
+  child.on('error', err => {
+    send('err', err.code === 'ENOENT'
+      ? 'claude komutu bulunamadı. Kurulum: npm install -g @anthropic-ai/claude-code'
+      : err.message);
+    send('done', '');
+    runs.delete(runId);
+  });
+  child.on('close', code => {
+    send('done', String(code ?? ''));
+    runs.delete(runId);
+  });
+  return { ok: true };
+}
+
+// Ek dosyaları prompt'a ve erişim izinlerine bağlar
+function applyAttachments(prompt, args, attachments) {
+  if (!attachments || !attachments.length) return prompt;
+  const list = attachments.slice(0, 10);
+  prompt += `\n\n=== EKLENEN DOSYALAR ===\nKullanıcı şu dosyaları ekledi. Read aracıyla incele — görselleri ve PDF'leri doğrudan görebilirsin. .docx/.pptx/.xlsx gibi Office dosyaları için önce şu komutla metne çevir: textutil -convert txt -stdout "<dosya>" (veya gerekiyorsa unzip ile içeriğine bak):\n` +
+    list.map(f => `- ${f}`).join('\n');
+  const dirs = new Set(list.map(f => path.dirname(f)));
+  for (const d of dirs) args.push('--add-dir', d);
+  return prompt;
+}
+
+// Pano görüntüsünü (ekran görüntüsü) dosyaya kaydet
+const { clipboard } = require('electron');
+function attachmentsDir() {
+  const d = path.join(DATA_DIR, 'attachments');
+  fs.mkdirSync(d, { recursive: true });
+  return d;
+}
+ipcMain.handle('galaxy:pasteImage', () => {
+  const img = clipboard.readImage();
+  if (!img || img.isEmpty()) return null;
+  const file = path.join(attachmentsDir(), `pano-${Date.now()}.png`);
+  fs.writeFileSync(file, img.toPNG());
+  return file;
+});
+
+// Yolu olmayan (ör. tarayıcıdan sürüklenen) dosyayı kaydet
+ipcMain.handle('galaxy:saveAttachment', (e, { name, dataBase64 }) => {
+  if (!name || !dataBase64) return null;
+  const safe = String(name).replace(/[^\w. çğıöşüÇĞİÖŞÜ-]/g, '_').slice(0, 80) || 'ek';
+  const file = path.join(attachmentsDir(), `${Date.now()}-${safe}`);
+  fs.writeFileSync(file, Buffer.from(dataBase64, 'base64'));
+  return file;
+});
+
+ipcMain.handle('galaxy:pickFiles', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: 'Dosya ekle',
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'Desteklenenler', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'docx', 'doc', 'pptx', 'xlsx', 'csv', 'txt', 'md', 'json'] },
+      { name: 'Tümü', extensions: ['*'] }
+    ]
+  });
+  return canceled ? [] : filePaths;
+});
+
+ipcMain.handle('galaxy:claudeRun', (e, { runId, cwd, prompt, continueSession, attachments, sessionKey }) => {
+  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
+  const key = String(sessionKey || cwd || '');
+  const head = [];
+  if (continueSession) {
+    const sid = key && claudeSessions.get(key);
+    if (sid) head.push('--resume', sid);
+    else head.push('--continue');
+  }
+  const args = ['--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'];
+  prompt = applyAttachments(prompt, args, attachments);
+  return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'claude:out', runId, cwd, args: head.concat(['-p', prompt], args), sessionKey: key, continued: !!continueSession });
+});
+
+// ---------- Galaxy Asistanı (dijital ikiz — sohbet + proje yardımı) ----------
+// claudeRun'dan farkı: KİŞİLİK sistem promptu ekler, projede olmak ŞART DEĞİL (genel sohbet de yapar),
+// ve nötr bir dizinde çalışabilir. Böylece "bu kodlama sorusu değil" gibi robotik cevaplar vermez.
+function assistantPersona(ctx) {
+  let name = '', bio = '';
+  try { const d = loadData(); name = (d.profile && d.profile.name) || ''; bio = getSettings(d).assistantBio || ''; } catch (e) {}
+  ctx = ctx || {};
+  if (ctx.captainName) name = String(ctx.captainName);
+  if (ctx.captainAbout) bio = (bio ? bio + ' · ' : '') + String(ctx.captainAbout);
+  const who = name ? `${name}'in` : 'kullanıcının';
+  const lang = (ctx.lang === 'en') ? 'en' : 'tr';
+  const speakRule = lang === 'en' ? 'Speak English. Do not switch to Turkish unless the user writes Turkish.' : 'DAIMA Türkçe konuş. Kullanıcı veya ses tanıma İngilizce yazsa bile CEVABI Türkçe ver. İngilizceye çevirme, İngilizce yanıt yazma.';
+  const unis = (ctx.unis || []).slice(0, 30).join(', ');
+  const projs = (ctx.projects || []).slice(0, 60).join(', ');
+  const lines = [
+    `Sen ${who} dijital ikizisin. Project Galaxy masaüstü uygulamasının içindesin. Konum: ${ctx.location || 'uzay'}. ${speakRule} Emoji yok. En fazla 2 kısa cümle.`,
+    `Kullanıcı SESLE konuşuyor; yazı bozuk veya yanlış duyulmuş olabilir. Aşağıdaki evren/proje/sekme listesinden EN YAKIN adı seç ve HEMEN [[ACT ad|arg]] bas. "Hangisini kastediyorsun?" SORMA. Eşleşme yoksa tek kısa cümleyle söyle.`,
+    `"X tarafına/gezegenine/evrenine gir/aç/git" = evren ise [[ACT open_universe|ad]], proje ise [[ACT open_project|ad]]. Sekme isteği = [[ACT open_tab|id]].`,
+    `Uygulama işi varsa cevabında MUTLAKA [[ACT ad|arg]] olmalı. Tarif etme. "yapamam / sen tıkla" deme. Komut görünmez; yanında doğal bir cümle yaz.`,
+    `Komutlar: [[ACT open_universe|ad]] · [[ACT open_project|ad]] · [[ACT open_tab|id]] (genel, evren, pano, db, docker, zaman, dongu, servers) · [[ACT open_git]] · [[ACT back]] · [[ACT git_push]] · [[ACT git_pull]] · [[ACT git_commit|mesaj]] · [[ACT git_pr]] · [[ACT run|komut]] · [[ACT open_folder]] · [[ACT open_terminal]] · [[ACT open_settings]] · [[ACT hud]] · [[ACT mail_brief]] · [[ACT tools]] · [[ACT open_db]] · [[ACT compose_up]] · [[ACT compose_down]] · [[ACT open_port|port]] · [[ACT run_script|ad]] · [[ACT bind_db]]`,
+    `Örnek: "papilon tarafına gir" → "[[ACT open_universe|Papilon]] Papilon'a geçiyorum."  "docker aç" → "[[ACT open_tab|docker]] Docker'ı açıyorum."`,
+    `Kodlama aracı değilsin: hava, sohbet, tavsiye — her konuda cevap ver. Web arama ve getirme açık; güncel bilgiyi ara. "iznim yok / erişemiyorum" deme.`,
+    unis ? `Evrenler: ${unis}.` : '',
+    projs ? `Projeler: ${projs}.` : '',
+    ctx.agentName ? `Şu an ${ctx.agentName} kişiliğiyle konuşuyorsun (${ctx.agentRole || 'ajan'}). ${ctx.agentSys || ''}` : '',
+    ctx.planetWork ? `Bu gezegen işi: ${ctx.planetWork}.` : '',
+    name ? `Kullanıcı adı ${name}. İsmiyle hitap et. Her gün kim olduğunu hatırla; katı kural koyma.` : 'Kullanıcıyı her gün tanı; katı kural koyma.',
+    bio ? `\nKULLANICI: ${bio}` : ''
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+// ---------- Asistan sohbet geçmişi (kalıcı, diske) ----------
+function asstChatFile() { return path.join(DATA_DIR, 'assistant-chat.json'); }
+function asstChatLoad() { try { return JSON.parse(fs.readFileSync(asstChatFile(), 'utf8')) || []; } catch (e) { return []; } }
+function asstChatSave(arr) { try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(asstChatFile(), JSON.stringify(arr.slice(-400)), 'utf8'); } catch (e) {} }
+ipcMain.handle('galaxy:asstHistoryGet', () => ({ ok: true, messages: asstChatLoad() }));
+ipcMain.handle('galaxy:asstHistoryAppend', (e, msg) => { const a = asstChatLoad(); a.push({ role: (msg && msg.role) || 'assistant', text: String((msg && msg.text) || '').slice(0, 8000), ts: (msg && msg.ts) || Date.now() }); asstChatSave(a); return { ok: true }; });
+ipcMain.handle('galaxy:asstHistoryClear', () => { asstChatSave([]); return { ok: true }; });
+ipcMain.handle('galaxy:assistantRun', (e, { runId, prompt, cwd, continueSession, ctx }) => {
+  // cwd: proje verildiyse (bilinen yol) orada çalış (dosya işi yapabilsin); yoksa nötr veri dizini (sadece sohbet).
+  const workCwd = (cwd && knownPaths.has(cwd)) ? cwd : DATA_DIR;
+  // Asistan TAM YETKİLİ: tüm araçlar (web arama/getirme, dosya, bash) izin sormadan çalışsın.
+  const key = 'assistant:' + workCwd;
+  const head = [];
+  if (continueSession) {
+    const sid = claudeSessions.get(key);
+    if (sid) head.push('--resume', sid);
+    else head.push('--continue');
+  }
+  const args = ['--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+    '--dangerously-skip-permissions',
+    '--append-system-prompt', assistantPersona(ctx)];
+  return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'claude:out', runId, cwd: workCwd, args: head.concat(['-p', String(prompt || '')], args), sessionKey: key, continued: !!continueSession });
+});
+
+// ---------- Native ses tanıma (macOS Speech) — asistanın sesli komutu + "Hey Galaxy" uyandırma ----------
+let sttChild = null; let sttLocale = 'tr-TR';
+function sttBin() {
+  const src = path.join(APP_DIR, 'native', 'galaxy-stt.swift');
+  const out = path.join(DATA_DIR, 'galaxy-stt');
+  let packaged = '';
+  try { packaged = path.join(process.resourcesPath || '', 'galaxy-stt'); } catch (e) {}
+  try {
+    const srcOk = fs.existsSync(src);
+    const pkgOk = !!(packaged && fs.existsSync(packaged));
+    const outOk = fs.existsSync(out);
+    const srcM = srcOk ? fs.statSync(src).mtimeMs : 0;
+    if (pkgOk && (!srcOk || fs.statSync(packaged).mtimeMs >= srcM)) return packaged;
+    if (outOk && (!srcOk || fs.statSync(out).mtimeMs >= srcM)) return out;
+    if (!srcOk) return pkgOk ? packaged : (outOk ? out : null);
+    const { execFileSync } = require('child_process');
+    const swiftc = ['/usr/bin/swiftc', 'swiftc'].find(p => { try { return p === 'swiftc' || fs.existsSync(p); } catch (e) { return false; } }) || 'swiftc';
+    execFileSync(swiftc, [src, '-O', '-o', out], { stdio: 'ignore', timeout: 90000, env: ENV });
+    return fs.existsSync(out) ? out : (pkgOk ? packaged : null);
+  } catch (e) { try { if (packaged && fs.existsSync(packaged)) return packaged; } catch (x) {} return fs.existsSync(out) ? out : null; }
+}
+ipcMain.handle('galaxy:sttAvailable', () => ({ ok: process.platform === 'darwin' && !!sttBin() }));
+ipcMain.handle('galaxy:sttStart', (e, hints) => {
+  if (process.platform !== 'darwin') return { ok: false, error: 'yalnız macOS' };
+  let hintList = hints, locale = 'tr-TR';
+  if (hints && !Array.isArray(hints) && typeof hints === 'object') { hintList = hints.hints; locale = hints.lang === 'en' ? 'en-US' : 'tr-TR'; }
+  const hintJson = JSON.stringify((Array.isArray(hintList) ? hintList : []).slice(0, 90));
+  if (sttChild) {
+    if (sttLocale && sttLocale !== locale) { const old = sttChild; sttChild = null; try { old.stdin.write('quit\n'); } catch (e) {} try { old.kill(); } catch (e) {} }
+    else { try { sttChild.stdin.write('resume\n'); } catch (e) {} try { sttChild.stdin.write('hints ' + hintJson + '\n'); } catch (e) {} return { ok: true }; }
+  }
+  const bin = sttBin();
+  if (!bin) return { ok: false, error: 'stt-derlenemedi (Xcode Command Line Tools gerekli)' };
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const send = (msg) => { try { if (win && !win.isDestroyed()) win.webContents.send('stt:out', msg); } catch (e) {} };
+  let child;
+  try { child = spawn(bin, [], { env: Object.assign({}, ENV, { GALAXY_STT_HINTS: hintJson, GALAXY_STT_LOCALE: locale }) }); sttChild = child; sttLocale = locale; }
+  catch (err) { sttChild = null; return { ok: false, error: err.message }; }
+  let buf = '';
+  child.stdout.on('data', d => { buf += d.toString(); let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue; try { send(JSON.parse(line)); } catch (e) {} } });
+  child.stderr.on('data', () => {});
+  child.on('close', () => { send({ type: 'status', text: 'closed' }); if (sttChild === child) sttChild = null; });
+  child.on('error', (err) => { send({ type: 'error', text: err.message }); if (sttChild === child) sttChild = null; });
+  return { ok: true };
+});
+ipcMain.handle('galaxy:sttStop', () => {
+  if (sttChild) { try { sttChild.stdin.write('quit\n'); } catch (e) {} const c = sttChild; sttChild = null; setTimeout(() => { try { c.kill(); } catch (e) {} }, 500); }
+  return { ok: true };
+});
+ipcMain.handle('galaxy:sttPause', () => {
+  if (sttChild) { try { sttChild.stdin.write('pause\n'); } catch (e) {} }
+  return { ok: true };
+});
+ipcMain.handle('galaxy:sttResume', () => {
+  if (sttChild) { try { sttChild.stdin.write('resume\n'); } catch (e) {} }
+  return { ok: true };
+});
+app.on('will-quit', () => { if (sttChild) { try { sttChild.kill(); } catch (e) {} sttChild = null; } });
+
+// ---------- ajan (CTO vb.) çalıştırma ----------
+ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attachments, continueSession }) => {
+  const data = loadData();
+  const agent = (data.agents || []).find(a => a.id === agentId);
+  if (!agent) return { ok: false, error: 'Ajan bulunamadı' };
+
+  let full, cwd;
+  const scan = scanProjects();
+  const proj = projectId ? scan.projects.find(p => p.id === projectId) : null;
+
+  if (proj && proj.path) {
+    // PROJE BAĞLAMI: ajan bu projenin içinde çalışır
+    const done = proj.plan.filter(i => i.done).length;
+    const files = listDirs(proj.path).slice(0, 30).join(', ');
+    const pdigest = [
+      `Proje: ${proj.name} (klasör: ${proj.path})`,
+      `Durum: ${proj.status} · İlerleme: %${proj.progress} · Aşama: ${proj.stage || '-'}`,
+      `Git: ${proj.git ? `${proj.git.branch} · son: ${(proj.git.lastTs || '').slice(0, 10)} · 30g aktivite: ${proj.git.activity30}` : 'depo yok'}`,
+      `Plan (${done}/${proj.plan.length}):`,
+      ...proj.plan.map(i => `  [${i.done ? 'x' : ' '}] ${i.text}`),
+      proj.notes ? `Notlar: ${proj.notes}` : '',
+      `Kök klasörler: ${files}`
+    ].filter(Boolean).join('\n');
+    full = `${agent.prompt}\n\n=== ODAK: TEK PROJE ===\n${pdigest}\n=== SON ===\n\nŞu an bu projenin klasöründesin, dosyalarını okuyabilirsin. Yanıtını SADECE bu proje özelinde ver.\n\nKullanıcının isteği: ${prompt || 'Bu proje için durum değerlendirmesi yap.'}\n${profileContext(data)}`;
+    cwd = proj.path;
+  } else {
+    const digest = buildDigest();
+    full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nKullanıcının isteği: ${prompt || 'Genel durum raporu ver.'}\n${profileContext(data)} Dosyaları incelemen gerekirse bulunduğun klasördeki proje klasörlerini okuyabilirsin.`;
+    cwd = universeCwd(data);
+  }
+  const args = ['--output-format', 'stream-json', '--verbose'];
+  full = applyAttachments(full, args, attachments);
+  const key = String(agentId || '') + ':' + String(projectId || cwd || '');
+  const head = [];
+  if (continueSession) {
+    const sid = claudeSessions.get(key);
+    if (sid) head.push('--resume', sid);
+    else head.push('--continue');
+  }
+  // Diğer evren kökleri (ör. FY) mutlak yol olarak erişime açılır
+  for (const u of data.universes || []) {
+    if (path.isAbsolute(u.root)) args.push('--add-dir', u.root);
+  }
+  if (agent.write) args.push('--permission-mode', 'acceptEdits');
+  return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'agent:out', runId, cwd, args: head.concat(['-p', full], args), sessionKey: key, continued: !!continueSession });
+});
+
+// ---------- günlük (captain's log) ----------
+function runClaudeJson(prompt, cwd) {
+  return new Promise(resolve => {
+    if (IS_MAS) return resolve({ error: MAS_BLOCKED });
+    let child;
+    try {
+      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });
+    } catch (err) { return resolve({ error: err.message }); }
+    let out = '';
+    const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 90000);
+    child.stdout.on('data', c => { out += c.toString(); });
+    child.on('error', err => { clearTimeout(timer); resolve({ error: err.code === 'ENOENT' ? 'claude komutu bulunamadı' : err.message }); });
+    child.on('close', () => {
+      clearTimeout(timer);
+      try {
+        const wrapper = JSON.parse(out);
+        let result = (wrapper.result || '').trim();
+        const m = result.match(/\{[\s\S]*\}/);
+        if (m) result = m[0];
+        resolve({ data: JSON.parse(result) });
+      } catch (err) { resolve({ error: 'yanıt çözümlenemedi' }); }
+    });
+  });
+}
+
+ipcMain.handle('galaxy:logDetect', async (e, text) => {
+  const scan = scanProjects();
+  const list = scan.projects.map(p => `${p.id} | ${p.name} | ${(p.desc || '').slice(0, 90)}`).join('\n');
+  const prompt = `Aşağıda proje listesi var (id | ad | açıklama):\n${list}\n\nKullanıcının günlük notu: "${text}"\n\nBu not en çok hangi projeyle ilgili ve tipi ne? "done" = yapılmış bir işin kaydı, "todo" = yapılacak iş/plan. SADECE şu JSON'u döndür, başka hiçbir şey yazma:\n{"projectId": "<listeden bir id veya none>", "confidence": <0-1 arası sayı>, "type": "<done veya todo>", "reason": "<tek cümle Türkçe gerekçe>", "entry": "<notu kısa ve düzgün tek cümleye çevir>"}`;
+  const res = await runClaudeJson(prompt, universeCwd(loadData()));
+  if (res.error) return { ok: false, error: res.error };
+  const d = res.data || {};
+  const proj = scan.projects.find(p => p.id === d.projectId);
+  return {
+    ok: true,
+    projectId: proj ? proj.id : null,
+    projectName: proj ? proj.name : null,
+    folder: proj ? proj.path : null,
+    confidence: d.confidence ?? 0,
+    type: d.type === 'todo' ? 'todo' : 'done',
+    reason: d.reason || '',
+    entry: d.entry || text
+  };
+});
+
+ipcMain.handle('galaxy:logApply', (e, { projectId, text, entry, writeReadme = true, addPlan = false }) => {
+  const scan = scanProjects();
+  const proj = scan.projects.find(p => p.id === projectId);
+  const data = loadData();
+  data.log = data.log || [];
+  const record = { ts: new Date().toISOString(), text, projectId: proj ? proj.id : null, applied: false };
+
+  // Plan listesine madde ekle
+  if (proj && addPlan) {
+    if (!data.projects[proj.id]) {
+      data.projects[proj.id] = { name: proj.name, group: proj.group, status: proj.status, stage: proj.stage, progress: proj.progress, plan: [], notes: proj.notes, desc: proj.desc };
+    }
+    data.projects[proj.id].plan = data.projects[proj.id].plan || [];
+    data.projects[proj.id].plan.push({ text: entry || text, done: false });
+    record.applied = true;
+  }
+
+  if (proj && proj.path && writeReadme) {
+    try {
+      const readmePath = path.join(proj.path, 'README.md');
+      const date = new Date().toISOString().slice(0, 10);
+      // yapılacak iş → "## Yapılacaklar" bölümüne checkbox; yapılan iş → "## Günlük" bölümüne tarihli satır
+      const isTodo = addPlan;
+      const header = isTodo ? '## Yapılacaklar' : '## Günlük';
+      const line = isTodo ? `- [ ] ${entry || text}` : `- **${date}:** ${entry || text}`;
+      let content = '';
+      try { content = fs.readFileSync(readmePath, 'utf8'); } catch (err) {}
+      if (content.includes(header)) {
+        content = content.replace(header, `${header}\n\n${line}`).replace(new RegExp(header + '\\n\\n\\n'), header + '\n\n');
+      } else {
+        content = (content ? content.trimEnd() + '\n\n' : `# ${proj.name}\n\n`) + `${header}\n\n${line}\n`;
+      }
+      fs.writeFileSync(readmePath, content, 'utf8');
+      record.applied = true;
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+  data.log.unshift(record);
+  data.log = data.log.slice(0, 200);
+  saveData(data);
+  return { ok: true, applied: record.applied };
+});
+
+ipcMain.handle('galaxy:logSave', (e, text) => {
+  const data = loadData();
+  data.log = data.log || [];
+  data.log.unshift({ ts: new Date().toISOString(), text, projectId: null, applied: false });
+  data.log = data.log.slice(0, 200);
+  saveData(data);
+  return true;
+});
+
+ipcMain.handle('galaxy:logList', () => {
+  const data = loadData();
+  return (data.log || []).slice(0, 50);
+});
+
+// ---------- kayıtlı sabah raporları ----------
+ipcMain.handle('galaxy:reports', () => {
+  const dir = path.join(DATA_DIR, 'reports');
+  try {
+    return fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().reverse().slice(0, 30);
+  } catch (err) { return []; }
+});
+
+ipcMain.handle('galaxy:report', (e, name) => {
+  if (typeof name !== 'string' || !/^[\w çğıöşüÇĞİÖŞÜ.-]+\.md$/.test(name)) return null;
+  try { return fs.readFileSync(path.join(DATA_DIR, 'reports', name), 'utf8'); } catch (err) { return null; }
+});
+
+// Raporu harici uygulamada (Finder/editör) aç
+ipcMain.handle('galaxy:openReportFile', (e, name) => {
+  if (typeof name !== 'string' || !/^[\w çğıöşüÇĞİÖŞÜ.-]+\.md$/.test(name)) return false;
+  try { shell.openPath(path.join(DATA_DIR, 'reports', name)); return true; } catch (err) { return false; }
+});
+
+ipcMain.handle('galaxy:claudeStop', (e, runId) => {
+  const child = runs.get(runId);
+  if (child) { child.kill('SIGTERM'); runs.delete(runId); }
+  return true;
+});
+
+// ---------- gömülü bash terminali ----------
+// Proje başına kalıcı bash süreci: cd/env durumu korunur, çıktı canlı akar.
+const shells = new Map(); // shellId -> { child, cwd }
+const SHELL_SENTINEL = '\x03GALAXY_DONE ';
+
+function broadcastShell(msg) {
+  for (const w of BrowserWindow.getAllWindows()) {
+    try { w.webContents.send('shell:out', msg); } catch (e) {}
+  }
+}
+
+// Yerel kabuk dosyası — Windows'ta Git for Windows'ın bash'i (aynı SHELL_SENTINEL protokolü çalışır).
+function localShellFile() {
+  if (process.platform !== 'win32') return '/bin/bash';
+  const cands = [
+    'C:\\Program Files\\Git\\bin\\bash.exe',
+    'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
+    'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe')
+  ];
+  for (const c of cands) { try { if (c && fs.existsSync(c)) return c; } catch (e) {} }
+  return null;
+}
+function ensureShell(shellId, cwd) {
+  const existing = shells.get(shellId);
+  if (existing && existing.child && !existing.child.killed && existing.child.exitCode === null) return existing;
+  const shFile = localShellFile();
+  if (!shFile) {  // Windows'ta git-bash yok
+    broadcastShell({ id: shellId, kind: 'err', text: 'Gömülü terminal için Git for Windows (bash) gerekli. gitforwindows.org üzerinden kur ve uygulamayı yeniden aç.' });
+    broadcastShell({ id: shellId, kind: 'done', code: 1, cwd });
+    const stub = { child: null, cwd, noShell: true }; shells.set(shellId, stub); return stub;
+  }
+  const child = spawn(shFile, ['--noprofile', '--norc'], { cwd, env: { ...ENV, PS1: '', TERM: 'dumb' } });
+  let buf = '';
+  child.stdout.on('data', chunk => {
+    buf += chunk.toString();
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i);
+      buf = buf.slice(i + 1);
+      if (line.startsWith(SHELL_SENTINEL)) {
+        const rest = line.slice(SHELL_SENTINEL.length);
+        const sp = rest.indexOf(' ');
+        const code = +(sp >= 0 ? rest.slice(0, sp) : rest) || 0;
+        const cwd = sp >= 0 ? rest.slice(sp + 1) : '';
+        if (cwd) { const rec2 = shells.get(shellId); if (rec2) rec2.cwd = cwd; }
+        broadcastShell({ id: shellId, kind: 'done', code, cwd });
+      } else {
+        broadcastShell({ id: shellId, kind: 'out', text: line });
+      }
+    }
+  });
+  child.stderr.on('data', chunk => {
+    for (const line of chunk.toString().split('\n')) {
+      if (line) broadcastShell({ id: shellId, kind: 'err', text: line });
+    }
+  });
+  child.on('close', () => {
+    broadcastShell({ id: shellId, kind: 'exit' });
+    shells.delete(shellId);
+  });
+  const rec = { child, cwd };
+  shells.set(shellId, rec);
+  return rec;
+}
+
+// Uzak sunucuda kabuk: ssh üzerinden bash (PTY yok → temiz satır çıktısı, echo/prompt yok).
+// Yerel ensureShell ile aynı SHELL_SENTINEL mantığı ve aynı shell:out kanalı.
+function ensureSshShell(shellId, serverId) {
+  const existing = shells.get(shellId);
+  if (existing && !existing.child.killed && existing.child.exitCode === null) return existing;
+  const srv = getServer(serverId);
+  if (!srv) throw new Error('Sunucu bulunamadı');
+  // 'bash -l' = LOGIN kabuk: /etc/profile + ~/.bash_profile/.profile yüklenir, böylece
+  // uzak PATH kullanıcının kendi terminalindekiyle aynı olur (docker/node/nvm/brew komutları bulunur).
+  const child = spawn('ssh', [...sshBaseArgs(srv), sshTarget(srv), 'bash -l'], { env: ENV });
+  let buf = '';
+  child.stdout.on('data', chunk => {
+    buf += chunk.toString();
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i);
+      buf = buf.slice(i + 1);
+      if (line.startsWith(SHELL_SENTINEL)) {
+        const rest = line.slice(SHELL_SENTINEL.length);
+        const sp = rest.indexOf(' ');
+        const code = +(sp >= 0 ? rest.slice(0, sp) : rest) || 0;
+        const cwd = sp >= 0 ? rest.slice(sp + 1) : '';
+        if (cwd) { const rec2 = shells.get(shellId); if (rec2) rec2.cwd = cwd; }
+        broadcastShell({ id: shellId, kind: 'done', code, cwd });
+      } else {
+        broadcastShell({ id: shellId, kind: 'out', text: line });
+      }
+    }
+  });
+  child.stderr.on('data', chunk => { for (const line of chunk.toString().split('\n')) if (line) broadcastShell({ id: shellId, kind: 'err', text: line }); });
+  child.on('error', err => broadcastShell({ id: shellId, kind: 'err', text: 'ssh başlatılamadı: ' + (err && err.message || err) }));
+  child.on('close', (code) => { broadcastShell({ id: shellId, kind: 'exit', code }); shells.delete(shellId); });
+  const rec = { child, remote: true, serverId };
+  shells.set(shellId, rec);
+  return rec;
+}
+
+ipcMain.handle('galaxy:sshShellStart', (e, { shellId, serverId } = {}) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
+  try { ensureSshShell(shellId, serverId); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:sshShellInput', (e, { shellId, serverId, cmd } = {}) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
+  if (!cmd || !cmd.trim()) return { ok: false };
+  try {
+    const rec = ensureSshShell(shellId, serverId);
+    rec.child.stdin.write(cmd + '\n' + `printf '\\003GALAXY_DONE %s %s\\n' "$?" "$PWD"` + '\n');
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+ipcMain.handle('galaxy:shellStart', (e, { shellId, cwd }) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
+  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
+  try {
+    ensureShell(shellId, cwd);
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+ipcMain.handle('galaxy:shellInput', (e, { shellId, cwd, cmd }) => {
+  if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
+  if (!cmd || !cmd.trim()) return { ok: false };
+  if (!cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
+  const rec = ensureShell(shellId, cwd);
+  if (!rec || !rec.child) return { ok: false, error: 'kabuk yok' };
+  try {
+    rec.child.stdin.write(cmd + '\n' + `printf '\\003GALAXY_DONE %s %s\\n' "$?" "$PWD"` + '\n');
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+// Tab tamamlama: bulunduğu klasöre göre dosya/klasör adı önerileri
+ipcMain.handle('galaxy:shellComplete', (e, { shellId, cwd, token }) => {
+  try {
+    const rec = shells.get(shellId);
+    let base = (rec && rec.cwd) || cwd || os.homedir();
+    let dirPart = '', namePart = token || '';
+    const slash = (token || '').lastIndexOf('/');
+    if (slash >= 0) { dirPart = token.slice(0, slash + 1); namePart = token.slice(slash + 1); }
+    let dir = dirPart
+      ? (dirPart.startsWith('/') ? dirPart : path.resolve(base, dirPart.replace(/^~/, os.homedir())))
+      : base;
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+      .filter(d => d.name.startsWith(namePart) && (namePart.startsWith('.') || !d.name.startsWith('.')))
+      .slice(0, 60)
+      .map(d => ({ name: d.name + (d.isDirectory() ? '/' : ''), dir: d.isDirectory() }));
+    return { ok: true, dirPart, matches: entries.map(x => x.name) };
+  } catch (err) { return { ok: false, matches: [] }; }
+});
+
+ipcMain.handle('galaxy:shellStop', (e, shellId) => {
+  const rec = shells.get(shellId);
+  if (rec) { try { rec.child.kill('SIGKILL'); } catch (err) {} shells.delete(shellId); }
+  return true;
+});
+
+app.on('before-quit', () => {
+  for (const rec of shells.values()) { try { rec.child.kill('SIGKILL'); } catch (e) {} }
+});
+
+// Proje konumunda düz bash terminali aç. gh auth için ev dizini de kabul.
+ipcMain.handle('galaxy:openTerminal', (e, p) => {
+  if (IS_MAS) return false; // sandbox: Terminal'e AppleEvent gönderilemez
+  const _termHome = os.homedir();
+  if (!p || !(knownPaths.has(p) || p === _termHome)) return false;
+  if (process.platform === 'win32') {
+    const dir = String(p); const { exec } = require('child_process');
+    // Windows Terminal (wt) → yoksa cmd
+    exec(`start "" wt -d "${dir}"`, { env: ENV }, err => { if (err) exec(`start "" cmd /k cd /d "${dir}"`, { env: ENV }, () => {}); });
+    return true;
+  }
+  if (process.platform === 'linux') {
+    const { exec } = require('child_process'); const dir = String(p).replace(/"/g, '\\"');
+    exec(`x-terminal-emulator --working-directory="${dir}" || gnome-terminal --working-directory="${dir}" || xterm`, { env: ENV }, () => {});
+    return true;
+  }
+  const cmd = `cd '${String(p).replace(/'/g, "'\\''")}'`;
+  const esc = s => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const app = getSettings(loadData()).terminalApp;   // 'Terminal' | 'iTerm' (ayarlardan)
+  // iTerm ve Terminal.app farklı AppleScript API'leri kullanır
+  const script = app === 'iTerm'
+    ? `tell application "iTerm"
+    activate
+    try
+      tell current window to create tab with default profile
+    on error
+      create window with default profile
+    end try
+    tell current session of current window to write text "${esc(cmd)}"
+  end tell`
+    : `tell application "Terminal"
+    activate
+    do script "${esc(cmd)}"
+  end tell`;
+  execFile('osascript', ['-e', script]);
+  return true;
+});
+
+// ---------- uygulama içi zamanlayıcı ----------
+function runClaudeText(prompt, cwd) {
+  return new Promise(resolve => {
+    if (IS_MAS) return resolve({ error: MAS_BLOCKED });
+    let child;
+    try {
+      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });
+    } catch (err) { return resolve({ error: err.message }); }
+    let out = '';
+    const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 240000);
+    child.stdout.on('data', c => { out += c.toString(); });
+    child.on('error', err => { clearTimeout(timer); resolve({ error: err.code === 'ENOENT' ? 'claude bulunamadı' : err.message }); });
+    child.on('close', () => {
+      clearTimeout(timer);
+      try {
+        const j = JSON.parse(out);
+        const text = String((j && (j.result || j.error || j.message)) || '').trim();
+        if (j && (j.is_error || j.subtype === 'error' || j.type === 'error')) return resolve({ error: text || 'ajan hatası', text });
+        resolve({ text });
+      } catch (err) { resolve({ error: 'yanıt çözümlenemedi' }); }
+    });
+  });
+}
+
+const scheduleRunning = new Set();
+
+async function runSchedule(s, notifyWin) {
+  if (scheduleRunning.has(s.id)) return { ok: false, error: 'zaten çalışıyor' };
+  scheduleRunning.add(s.id);
+  try {
+    const data = loadData();
+    const agent = (data.agents || []).find(a => a.id === s.agentId) || (data.agents || [])[0];
+    if (!agent) return { ok: false, error: 'ajan yok' };
+    const digest = buildDigest();
+    const full = `${agent.prompt}\n\n=== TÜM PROJELERİN GÜNCEL DURUMU ===\n${digest}\n=== SON ===\n\nZamanlanmış görev: ${s.prompt}\n${profileContext(data)} Yanıtını markdown formatında ver.`;
+    const res = await runClaudeText(full, universeCwd(data));
+    const date = new Date().toISOString().slice(0, 10);
+    const rdir = path.join(DATA_DIR, 'reports');
+    fs.mkdirSync(rdir, { recursive: true });
+    const fname = `${date}-${s.id}.md`;
+    const content = res.error
+      ? `# ${s.name} — HATA\n\n${res.error}\n`
+      : `# ${s.name} · ${date}\n\n_${agent.name} (${agent.role}) tarafından üretildi._\n\n${res.text}\n`;
+    fs.writeFileSync(path.join(rdir, fname), content, 'utf8');
+    // lastRun güncelle
+    const d2 = loadData();
+    const s2 = (d2.schedules || []).find(x => x.id === s.id);
+    if (s2) { s2.lastRun = new Date().toISOString(); saveData(d2); }
+    for (const w of BrowserWindow.getAllWindows()) {
+      try { w.webContents.send('schedule:done', { name: s.name, file: fname, error: res.error || null }); } catch (e) {}
+    }
+    return { ok: !res.error, error: res.error, file: fname, out: res.error ? '' : (res.text || '') };
+  } finally {
+    scheduleRunning.delete(s.id);
+  }
+}
+
+function checkSchedules() {
+  const data = loadData();
+  const now = new Date();
+  // Yerel tarih (toISOString UTC verir; yerel saatle karşılaştırmak için yerel gün)
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  for (const s of data.schedules || []) {
+    if (!s.enabled) continue;
+    // bugün zaten çalıştıysa geç
+    if (s.lastRun && s.lastRun.slice(0, 10) === today) continue;
+    // haftalık: form Pzt=1..Paz=7, getDay() Paz=0 → 7'yi 0'a çevir
+    if (s.type === 'weekly') {
+      const wantDay = (+s.weekday === 7) ? 0 : +s.weekday;
+      if (now.getDay() !== wantDay) continue;
+    }
+    // Planlanan saat geldiyse VEYA geçtiyse çalıştır — uygulama o dakikada kapalıysa
+    // açıldığında (o gün, saatten sonra) telafi eder.
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const want = (Math.min(23, +s.hour || 0)) * 60 + (Math.min(59, +s.minute || 0));
+    if (mins < want) continue;
+    runSchedule(s);
+  }
+}
+setInterval(checkSchedules, 60000);
+// Açılıştan ~8sn sonra bir kez de kontrol et (gün içinde kaçmış görevleri telafi et)
+setTimeout(() => { try { checkSchedules(); } catch (e) {} }, 8000);
+
+ipcMain.handle('galaxy:scheduleList', () => loadData().schedules || []);
+
+ipcMain.handle('galaxy:scheduleSave', (e, s) => {
+  if (!s.name || !s.prompt) return { ok: false, error: 'Ad ve görev metni gerekli' };
+  const data = loadData();
+  data.schedules = data.schedules || [];
+  if (!s.id) s.id = slugify(s.name) + '-' + String(Date.now()).slice(-4);
+  const clean = {
+    id: s.id, name: s.name, agentId: s.agentId || 'cto', prompt: s.prompt,
+    type: s.type === 'weekly' ? 'weekly' : 'daily',
+    hour: Math.min(23, Math.max(0, +s.hour || 9)),
+    minute: Math.min(59, Math.max(0, +s.minute || 0)),
+    weekday: +s.weekday || 1,
+    enabled: s.enabled !== false,
+    lastRun: (data.schedules.find(x => x.id === s.id) || {}).lastRun || null
+  };
+  const idx = data.schedules.findIndex(x => x.id === s.id);
+  if (idx >= 0) data.schedules[idx] = clean; else data.schedules.push(clean);
+  saveData(data);
+  return { ok: true, id: s.id };
+});
+
+ipcMain.handle('galaxy:scheduleDelete', (e, id) => {
+  const data = loadData();
+  data.schedules = (data.schedules || []).filter(x => x.id !== id);
+  saveData(data);
+  return { ok: true };
+});
+
+ipcMain.handle('galaxy:scheduleRun', async (e, id) => {
+  const s = (loadData().schedules || []).find(x => x.id === id);
+  if (!s) return { ok: false, error: 'görev bulunamadı' };
+  return runSchedule(s);
+});
+
+g.streamClaude = streamClaude;
+g.applyAttachments = applyAttachments;
+g.attachmentsDir = attachmentsDir;
+g.assistantPersona = assistantPersona;
+g.asstChatFile = asstChatFile;
+g.asstChatLoad = asstChatLoad;
+g.asstChatSave = asstChatSave;
+g.sttBin = sttBin;
+g.runClaudeJson = runClaudeJson;
+g.broadcastShell = broadcastShell;
+g.localShellFile = localShellFile;
+g.ensureShell = ensureShell;
+g.ensureSshShell = ensureSshShell;
+g.runClaudeText = runClaudeText;
+g.runSchedule = runSchedule;
+g.checkSchedules = checkSchedules;
+g.runs = runs;
+g.claudeSessions = claudeSessions;
+g.sttChild = sttChild;
+g.shells = shells;
+g.SHELL_SENTINEL = SHELL_SENTINEL;
+g.scheduleRunning = scheduleRunning;
+  }
 };

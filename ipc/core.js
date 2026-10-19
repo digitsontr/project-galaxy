@@ -1,5 +1,750 @@
-'use strict';
 // Sprint J — davranış taşındı; kopyalanmadı.
+// Faz 5: eval-blob açıldı — gövde birebir aynı kod; artık satır satır okunur, diff'lenir,
+// hata izinde gerçek satır numarası verir. with(g) bilinçli: çıplak isimler paylaşılan g'ye
+// çözülür, g.X = ... atamaları bu modülün çıktısıdır. (Bu yüzden dosya başında 'use strict' yok.)
 module.exports = function register(g) {
-  Function('g', 'with (g) {\n' + "// ---------- proje silme / gizleme (onayl\u0131) ----------\nipcMain.handle('galaxy:projectDelete', async (e, projectId) => {\n  const scan = scanProjects();\n  const proj = scan.projects.find(p => p.id === projectId);\n  if (!proj || !proj.path) return { ok: false, error: 'Proje bulunamad\u0131' };\n  const win = BrowserWindow.fromWebContents(e.sender);\n\n  const { response } = await dialog.showMessageBox(win, {\n    type: 'warning',\n    title: 'Projeyi Kald\u0131r',\n    message: `\"${proj.name}\" ne yap\u0131ls\u0131n?`,\n    detail: `Klas\u00f6r: ${proj.path}\\n\\n\u2022 Evrenden Gizle: klas\u00f6re dokunulmaz, sadece galakside g\u00f6r\u00fcnmez olur (geri al\u0131nabilir).\\n\u2022 \u00c7\u00f6p Kutusuna Ta\u015f\u0131: klas\u00f6r macOS \u00c7\u00f6p Kutusu'na ta\u015f\u0131n\u0131r (Finder'dan geri al\u0131nabilir).`,\n    buttons: ['Vazge\u00e7', 'Evrenden Gizle', '\u00c7\u00f6p Kutusuna Ta\u015f\u0131'],\n    defaultId: 0,\n    cancelId: 0\n  });\n\n  if (response === 0) return { ok: true, action: 'cancel' };\n\n  const data = loadData();\n  if (response === 1) {\n    data.ignored = data.ignored || [];\n    if (!data.ignored.includes(projectId)) data.ignored.push(projectId);\n    saveData(data);\n    return { ok: true, action: 'hidden' };\n  }\n\n  // \u00c7\u00f6p kutusuna ta\u015f\u0131 \u2014 ikinci onay\n  const second = await dialog.showMessageBox(win, {\n    type: 'warning',\n    title: 'Son Onay',\n    message: `\"${proj.name}\" klas\u00f6r\u00fc \u00c7\u00f6p Kutusu'na ta\u015f\u0131nacak. Emin misin?`,\n    detail: proj.path,\n    buttons: ['Vazge\u00e7', 'Evet, \u00c7\u00f6p Kutusuna Ta\u015f\u0131'],\n    defaultId: 0,\n    cancelId: 0\n  });\n  if (second.response !== 1) return { ok: true, action: 'cancel' };\n\n  try {\n    await shell.trashItem(proj.path);\n    delete data.projects[projectId];\n    data.ignored = (data.ignored || []).filter(x => x !== projectId);\n    saveData(data);\n    return { ok: true, action: 'trashed' };\n  } catch (err) {\n    return { ok: false, error: 'Ta\u015f\u0131namad\u0131: ' + err.message };\n  }\n});\n\nipcMain.handle('galaxy:projectUnhide', (e, projectId) => {\n  const data = loadData();\n  data.ignored = (data.ignored || []).filter(x => x !== projectId);\n  saveData(data);\n  return { ok: true };\n});\n\n// Galaksiden gizle (klas\u00f6re dokunulmaz) \u2014 onay kart\u0131 renderer\u2019da\nipcMain.handle('galaxy:projectHide', (e, projectId) => {\n  if (!projectId) return { ok: false, error: 'Proje yok' };\n  const data = loadData();\n  data.ignored = data.ignored || [];\n  if (!data.ignored.includes(projectId)) data.ignored.push(projectId);\n  saveData(data);\n  return { ok: true, action: 'hidden' };\n});\n\nipcMain.handle('galaxy:load', async () => {\n  // Uzak sunucular varsa: \u00f6nbellek bo\u015fsa ilk taramay\u0131 bekle, doluysa\n  // arka planda tazele ve eldeki veriyle hemen d\u00f6n (stale-while-revalidate).\n  const servers = (loadData().servers || []);\n  if (servers.length && !IS_MAS) {\n    const cold = servers.filter(s => !remoteCache.has(s.id));\n    if (cold.length) await Promise.all(cold.map(s => remoteRefresh(s.id, true)));\n    for (const s of servers) if (!cold.includes(s)) remoteRefresh(s.id);\n  }\n  return scanProjects();\n});\n\n// ---------- evren CRUD ----------\nfunction slugify(s) {\n  return s.toLowerCase().replace(/[\u00e7\u011f\u0131\u00f6\u015f\u00fc]/g, c => ({ '\u00e7': 'c', '\u011f': 'g', '\u0131': 'i', '\u00f6': 'o', '\u015f': 's', '\u00fc': 'u' }[c]))\n    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'evren';\n}\n\nipcMain.handle('galaxy:universeAdd', (e, { name, root, bookmark }) => {\n  if (!name || !root) return { ok: false, error: 'Ad ve klas\u00f6r yolu gerekli' };\n  root = root.replace(/^~/, os.homedir()).trim();\n  try {\n    if (!fs.statSync(root).isDirectory()) return { ok: false, error: 'Bu yol bir klas\u00f6r de\u011fil' };\n  } catch (err) { return { ok: false, error: 'Klas\u00f6r bulunamad\u0131: ' + root }; }\n  const data = loadData();\n  let id = slugify(name);\n  while (data.universes.find(u => u.id === id)) id += '2';\n  const prefix = path.basename(root).normalize('NFC');\n  if (data.universes.find(u => u.prefix === prefix)) return { ok: false, error: 'Ayn\u0131 klas\u00f6r ad\u0131na sahip bir evren zaten var' };\n  data.universes.push({ id, name, subtitle: prefix, root, prefix, bookmark: bookmark || undefined, expandDirs: [] });\n  saveData(data);\n  startBookmarkAccess(bookmark);\n  return { ok: true, id };\n});\n\n// Klas\u00f6r se\u00e7ici \u2014 MAS s\u00fcr\u00fcm\u00fcnde kal\u0131c\u0131 eri\u015fim i\u00e7in security-scoped bookmark \u00fcretir\nipcMain.handle('galaxy:pickFolder', async (e) => {\n  const win = BrowserWindow.fromWebContents(e.sender);\n  const r = await dialog.showOpenDialog(win, {\n    title: 'Klas\u00f6r se\u00e7',\n    properties: ['openDirectory', 'createDirectory'],\n    securityScopedBookmarks: true\n  });\n  if (r.canceled || !r.filePaths.length) return null;\n  return { path: r.filePaths[0], bookmark: (r.bookmarks && r.bookmarks[0]) || null };\n});\n\nipcMain.handle('galaxy:universeUpdate', (e, { id, name, root }) => {\n  const data = loadData();\n  const u = data.universes.find(x => x.id === id);\n  if (!u) return { ok: false, error: 'Evren bulunamad\u0131' };\n  if (name) u.name = name;\n  if (root) {\n    root = root.replace(/^~/, os.homedir()).trim();\n    try {\n      if (!fs.statSync(root).isDirectory()) return { ok: false, error: 'Bu yol bir klas\u00f6r de\u011fil' };\n    } catch (err) { return { ok: false, error: 'Klas\u00f6r bulunamad\u0131: ' + root }; }\n    u.root = root;\n    if (u.prefix) { // \"..\" k\u00f6k\u00fc (ana PAPILON) prefixsizdir, ona dokunma\n      u.prefix = path.basename(root).normalize('NFC');\n      u.subtitle = u.prefix;\n    }\n  }\n  saveData(data);\n  return { ok: true };\n});\n\nipcMain.handle('galaxy:universeDelete', (e, id) => {\n  const data = loadData();\n  if (data.universes.length <= 1) return { ok: false, error: 'Son evren silinemez' };\n  const idx = data.universes.findIndex(x => x.id === id);\n  if (idx < 0) return { ok: false, error: 'Evren bulunamad\u0131' };\n  data.universes.splice(idx, 1);\n  saveData(data);\n  return { ok: true }; // proje metadatalar\u0131 korunur; evren geri eklenirse geri gelir\n});\n\n// ---------- evren geneli TODO ----------\nipcMain.handle('galaxy:todoList', (e, universe) => {\n  const data = loadData();\n  return (data.todos || []).filter(td => !universe || td.universe === universe).slice(0, 100);\n});\nipcMain.handle('galaxy:todoAdd', (e, { universe, text, status }) => {\n  if (!text || !text.trim()) return false;\n  const data = loadData();\n  data.todos = data.todos || [];\n  data.todos.unshift({ id: String(Date.now()), universe, text: text.trim(), done: status === 'done', status: status || 'todo', ts: new Date().toISOString() });\n  data.todos = data.todos.slice(0, 300);\n  saveData(data);\n  return true;\n});\nipcMain.handle('galaxy:todoSetStatus', (e, { id, status }) => {\n  const data = loadData();\n  const td = (data.todos || []).find(x => x.id === id);\n  if (td) { td.status = status; td.done = status === 'done'; saveData(data); }\n  return true;\n});\nipcMain.handle('galaxy:todoToggle', (e, id) => {\n  const data = loadData();\n  const td = (data.todos || []).find(x => x.id === id);\n  if (td) { td.done = !td.done; saveData(data); }\n  return true;\n});\nipcMain.handle('galaxy:todoDelete', (e, id) => {\n  const data = loadData();\n  data.todos = (data.todos || []).filter(x => x.id !== id);\n  saveData(data);\n  return true;\n});\n\nipcMain.handle('galaxy:save', (e, project) => {\n  const data = loadData();\n  const { id, name, group, status, stage, progress, plan, notes, desc, links } = project;\n  data.projects[id] = { name, group, status, stage, progress, plan, notes, desc, links: links || [] };\n  saveData(data);\n  // README'deki e\u015fle\u015fen todo sat\u0131rlar\u0131n\u0131n i\u015faretini plan durumuna g\u00f6re g\u00fcncelle (\u00e7ift y\u00f6nl\u00fc senkronun yazma y\u00f6n\u00fc)\n  try {\n    if (project.path) {\n      const readmePath = path.join(project.path, 'README.md');\n      if (fs.existsSync(readmePath)) {\n        let content = fs.readFileSync(readmePath, 'utf8');\n        let changed = false;\n        for (const item of plan || []) {\n          const escaped = item.text.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n          const re = new RegExp(`^(\\\\s*)- \\\\[( |x|X)\\\\] ${escaped}\\\\s*$`, 'm');\n          const want = item.done ? 'x' : ' ';\n          content = content.replace(re, (m0, sp, cur) => {\n            if (cur.toLowerCase() !== want.trim() && !(cur === ' ' && want === ' ')) changed = true;\n            return `${sp}- [${want}] ${item.text}`;\n          });\n        }\n        if (changed) fs.writeFileSync(readmePath, content, 'utf8');\n      }\n    }\n  } catch (err) {}\n  return true;\n});\n\n// README'si olmayan projeye ba\u015flang\u0131\u00e7 README.md yaz (ad + a\u00e7\u0131klama + plan + not)\nipcMain.handle('galaxy:createReadme', (e, projectId) => {\n  const scan = scanProjects();\n  const proj = scan.projects.find(p => p.id === projectId);\n  if (!proj || !proj.path) return { ok: false, error: 'Proje yolu yok' };\n  if (isRemotePath(proj.path)) return { ok: false, error: 'Uzak projede README olu\u015fturulam\u0131yor' };\n  const readmePath = path.join(proj.path, 'README.md');\n  if (fs.existsSync(readmePath)) return { ok: false, error: 'README zaten var' };\n  const saved = (loadData().projects || {})[projectId] || {};\n  const desc = (saved.desc || proj.desc || '').trim();\n  const plan = saved.plan || proj.plan || [];\n  const notes = (saved.notes || proj.notes || '').trim();\n  const lines = [`# ${proj.name}`, ''];\n  if (desc) lines.push(desc, '');\n  lines.push('## Kurulum', '', '```bash', '# kurulum ad\u0131mlar\u0131n\u0131 buraya yaz', '```', '');\n  if (plan.length) { lines.push('## Yap\u0131lacaklar', ''); for (const it of plan) lines.push(`- [${it.done ? 'x' : ' '}] ${it.text}`); lines.push(''); }\n  if (notes) lines.push('## Notlar', '', notes, '');\n  try { fs.writeFileSync(readmePath, lines.join('\\n'), 'utf8'); return { ok: true, path: readmePath }; }\n  catch (err) { return { ok: false, error: err.message }; }\n});\n\n// README'deki \"- [ ]\" maddelerini plana aktar (okuma y\u00f6n\u00fc)\nipcMain.handle('galaxy:syncReadme', (e, projectId) => {\n  const scan = scanProjects();\n  const proj = scan.projects.find(p => p.id === projectId);\n  if (!proj || !proj.path) return { ok: false, added: 0 };\n  try {\n    const readmePath = path.join(proj.path, 'README.md');\n    if (!fs.existsSync(readmePath)) return { ok: true, added: 0 };\n    const content = fs.readFileSync(readmePath, 'utf8');\n    const data = loadData();\n    if (!data.projects[projectId]) {\n      data.projects[projectId] = { name: proj.name, group: proj.group, status: proj.status, stage: proj.stage, progress: proj.progress, plan: [], notes: proj.notes, desc: proj.desc, links: proj.links };\n    }\n    const plan = data.projects[projectId].plan = data.projects[projectId].plan || [];\n    let added = 0;\n    const re = /^\\s*- \\[( |x|X)\\] (.+?)\\s*$/gm;\n    let m;\n    while ((m = re.exec(content)) !== null) {\n      const text = m[2].trim();\n      const done = m[1].toLowerCase() === 'x';\n      const existing = plan.find(i => i.text === text);\n      if (!existing) { plan.push({ text, done }); added++; }\n      else if (existing.done !== done && done) { existing.done = true; } // README'de kapanm\u0131\u015fsa planda da kapat\n    }\n    if (added > 0 || true) saveData(data);\n    return { ok: true, added, plan };\n  } catch (err) { return { ok: false, added: 0 }; }\n});\n\nipcMain.handle('galaxy:openFolder', (e, p) => {\n  if (isRemotePath(p)) return { ok: false, error: 'Uzak klas\u00f6r Finder\\'da a\u00e7\u0131lamaz' };\n  if (p && knownPaths.has(p)) shell.openPath(p);\n});\n\n// Yaln\u0131zca yerel makinedeki bir portu taray\u0131c\u0131da a\u00e7ar (Docker konteyner portlar\u0131).\n// Keyfi URL a\u00e7\u0131lmas\u0131n diye kal\u0131p kat\u0131: http://localhost:<port>\nipcMain.handle('galaxy:openLocalPort', (e, port) => {\n  const n = parseInt(port, 10);\n  if (!(n >= 1 && n <= 65535)) return { ok: false };\n  shell.openExternal('http://localhost:' + n);\n  return { ok: true };\n});\n\n// ---------- dosya a\u011fac\u0131 ----------\nfunction buildTree(dir, depth) {\n  if (depth <= 0) return [];\n  let entries = [];\n  try {\n    entries = fs.readdirSync(dir, { withFileTypes: true })\n      .filter(d => !d.name.startsWith('.') && !IGNORE.has(d.name))\n      .slice(0, 60);\n  } catch (e) { return []; }\n  entries.sort((a, b) => (b.isDirectory() - a.isDirectory()) || a.name.localeCompare(b.name, 'tr'));\n  return entries.map(d => ({\n    name: d.name.normalize('NFC'),\n    dir: d.isDirectory(),\n    children: d.isDirectory() ? buildTree(path.join(dir, d.name), depth - 1) : undefined\n  }));\n}\n\nipcMain.handle('galaxy:tree', async (e, p) => {\n  if (!p || !knownPaths.has(p)) return null;\n  if (isRemotePath(p)) return remoteTree(p, 3);\n  return buildTree(p, 3);\n});\n\n// ---------- tek seviye dizin listesi (gezegen y\u00f6r\u00fcngesi) ----------\nfunction safeJoin(root, rel) {\n  const full = path.resolve(root, rel || '');\n  if (!(full === root || full.startsWith(root + path.sep))) return null;\n  // symlink'le k\u00f6k d\u0131\u015f\u0131na \u00e7\u0131k\u0131\u015f\u0131 engelle: ger\u00e7ek yolu \u00e7\u00f6z ve tekrar do\u011frula\n  try {\n    const real = fs.realpathSync(full);\n    const realRoot = fs.realpathSync(root);\n    if (!(real === realRoot || real.startsWith(realRoot + path.sep))) return null;\n  } catch (e) { /* dosya hen\u00fcz yoksa realpath atar \u2014 mant\u0131ksal kontrol yeterli */ }\n  return full;\n}\n\nipcMain.handle('galaxy:list', async (e, { root, rel }) => {\n  if (!root || !knownPaths.has(root)) return null;\n  if (isRemotePath(root)) return remoteList(root, rel);\n  const dir = safeJoin(root, rel);\n  if (!dir) return null;\n  let entries = [];\n  try {\n    entries = fs.readdirSync(dir, { withFileTypes: true })\n      .filter(d => !d.name.startsWith('.') && !IGNORE.has(d.name) && !d.name.endsWith('.app'));\n  } catch (err) { return null; }\n  const out = entries.map(d => {\n    let size = 0;\n    try { if (!d.isDirectory()) size = fs.statSync(path.join(dir, d.name)).size; } catch (e2) {}\n    return { name: d.name.normalize('NFC'), dir: d.isDirectory(), size };\n  });\n  out.sort((a, b) => (b.dir - a.dir) || a.name.localeCompare(b.name, 'tr'));\n  return out;\n});\n\n// ---------- dosya i\u00e7eri\u011fi (uygulama i\u00e7i g\u00f6r\u00fcnt\u00fcleyici) ----------\nconst TEXT_EXT = new Set(['md','txt','js','jsx','ts','tsx','py','swift','kt','kts','java','c','cpp','h','m','mm','cs','go','rs','rb','php','sh','bash','zsh','yml','yaml','json','xml','html','htm','css','scss','sql','gradle','properties','toml','ini','cfg','conf','env','csv','tsv','log','dio','plist','entitlements','pbxproj','storyboard','xib','dart','vue','svelte','r','lua','pl','tex']);\nconst IMAGE_EXT = new Set(['png','jpg','jpeg','gif','webp','svg','bmp','ico','heic','avif']);\nconst MEDIA_EXT = new Set(['mp4','mov','webm','m4v','mp3','wav','m4a','aac','ogg']);\n\nipcMain.handle('galaxy:file', async (e, { root, rel }) => {\n  if (!root || !knownPaths.has(root)) return null;\n  if (isRemotePath(root)) return remoteFile(root, rel);\n  const full = safeJoin(root, rel);\n  if (!full) return null;\n  let st;\n  try { st = fs.statSync(full); } catch (err) { return null; }\n  const ext = path.extname(full).slice(1).toLowerCase();\n  const url = 'file://' + full.split('/').map(encodeURIComponent).join('/');\n  const base = { name: path.basename(full), size: st.size, ext, path: full };\n\n  if (IMAGE_EXT.has(ext)) return { ...base, kind: 'image', url };\n  if (ext === 'pdf') return { ...base, kind: 'pdf', url };\n  if (MEDIA_EXT.has(ext)) return { ...base, kind: ['mp3','wav','m4a','aac','ogg'].includes(ext) ? 'audio' : 'video', url };\n  if (TEXT_EXT.has(ext) || st.size < 200 * 1024) {\n    try {\n      const content = fs.readFileSync(full, 'utf8').slice(0, 300 * 1024);\n      // ikili dosya sezgisi\n      if (/[\\x00]/.test(content.slice(0, 1000))) return { ...base, kind: 'binary' };\n      return { ...base, kind: ext === 'md' ? 'markdown' : ((ext === 'html' || ext === 'htm') ? 'html' : 'text'), content, url };\n    } catch (err) { return { ...base, kind: 'binary' }; }\n  }\n  return { ...base, kind: 'binary' };\n});\n\nipcMain.handle('galaxy:openFile', (e, p) => {\n  if (!p || typeof p !== 'string') return false;\n  // yaln\u0131zca bilinen proje k\u00f6klerinin alt\u0131ndaki dosyalar\n  for (const root of knownPaths) {\n    if (p === root || p.startsWith(root + path.sep)) { shell.openPath(p); return true; }\n  }\n  return false;\n});\n\n// ---------- Dosya yaz/olu\u015ftur/sil/yeniden adland\u0131r + projede ara ----------\nipcMain.handle('galaxy:fileWrite', (e, { root, rel, content } = {}) => {\n  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Ge\u00e7ersiz k\u00f6k' };\n  if (isRemotePath(root)) return { ok: false, error: 'Uzak dosya yazma desteklenmiyor' };\n  const full = safeJoin(root, rel);\n  if (!full) return { ok: false, error: 'Ge\u00e7ersiz yol' };\n  try { fs.writeFileSync(full, String(content == null ? '' : content), 'utf8'); return { ok: true }; }\n  catch (err) { return { ok: false, error: err.message }; }\n});\nipcMain.handle('galaxy:fileCreate', (e, { root, rel } = {}) => {\n  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Ge\u00e7ersiz k\u00f6k' };\n  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };\n  const full = safeJoin(root, rel);\n  if (!full) return { ok: false, error: 'Ge\u00e7ersiz yol' };\n  if (fs.existsSync(full)) return { ok: false, error: 'Zaten var' };\n  try {\n    fs.mkdirSync(path.dirname(full), { recursive: true });\n    if (/\\/$/.test(rel)) fs.mkdirSync(full, { recursive: true });   // klas\u00f6r\n    else fs.writeFileSync(full, '', 'utf8');\n    return { ok: true };\n  } catch (err) { return { ok: false, error: err.message }; }\n});\nipcMain.handle('galaxy:fileDelete', (e, { root, rel } = {}) => {\n  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Ge\u00e7ersiz k\u00f6k' };\n  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };\n  const full = safeJoin(root, rel);\n  if (!full || full === root) return { ok: false, error: 'Ge\u00e7ersiz yol' };\n  try { fs.rmSync(full, { recursive: true, force: true }); return { ok: true }; }\n  catch (err) { return { ok: false, error: err.message }; }\n});\nipcMain.handle('galaxy:fileRename', (e, { root, rel, newRel } = {}) => {\n  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Ge\u00e7ersiz k\u00f6k' };\n  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };\n  const a = safeJoin(root, rel), b = safeJoin(root, newRel);\n  if (!a || !b || a === root) return { ok: false, error: 'Ge\u00e7ersiz yol' };\n  try { fs.mkdirSync(path.dirname(b), { recursive: true }); fs.renameSync(a, b); return { ok: true }; }\n  catch (err) { return { ok: false, error: err.message }; }\n});\n// Projede metin ara (git grep varsa onu, yoksa basit tarama)\nipcMain.handle('galaxy:projectGrep', async (e, { root, query } = {}) => {\n  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Ge\u00e7ersiz k\u00f6k' };\n  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };\n  const q = String(query || '').trim();\n  if (q.length < 2) return { ok: false, error: 'En az 2 karakter' };\n  const useGit = fs.existsSync(path.join(root, '.git'));\n  const args = useGit\n    ? ['grep', '-n', '-I', '--no-color', '--fixed-strings', '--ignore-case', '-e', q]\n    : ['-rniI', '--exclude-dir=.git', '--exclude-dir=node_modules', '--fixed-strings', q, '.'];\n  const bin = useGit ? 'git' : 'grep';\n  return new Promise(res => {\n    execFile(bin, args, { cwd: root, env: ENV, timeout: 20000, maxBuffer: 8 * 1024 * 1024 }, (err, out) => {\n      const lines = String(out || '').split('\\n').filter(Boolean).slice(0, 200).map(l => {\n        const m = l.match(/^(?:\\.\\/)?(.+?):(\\d+):(.*)$/);\n        return m ? { file: m[1], line: +m[2], text: m[3].slice(0, 200) } : null;\n      }).filter(Boolean);\n      res({ ok: true, matches: lines, truncated: lines.length >= 200 });\n    });\n  });\n});\n\n// ---------- ajan y\u00f6netimi ----------\nipcMain.handle('galaxy:agentsFull', () => loadData().agents || []);\n\nipcMain.handle('galaxy:agentSave', (e, agent) => {\n  if (!agent || !agent.name) return { ok: false, error: 'Ad gerekli' };\n  const data = loadData();\n  data.agents = data.agents || [];\n  if (!agent.id) {\n    agent.id = slugify(agent.name);\n    while (data.agents.find(a => a.id === agent.id)) agent.id += '2';\n  }\n  const idx = data.agents.findIndex(a => a.id === agent.id);\n  const clean = {\n    id: agent.id, name: agent.name, role: agent.role || 'AJAN', color: agent.color || '#61dcff',\n    prompt: agent.prompt || '', write: !!agent.write,\n    presets: Array.isArray(agent.presets) ? agent.presets.filter(p => p && p.label && p.ask).slice(0, 8) : []\n  };\n  if (idx >= 0) data.agents[idx] = clean; else data.agents.push(clean);\n  saveData(data);\n  return { ok: true, id: agent.id };\n});\n\nipcMain.handle('galaxy:agentDelete', (e, id) => {\n  const data = loadData();\n  if ((data.agents || []).length <= 1) return { ok: false, error: 'Son ajan silinemez' };\n  data.agents = (data.agents || []).filter(a => a.id !== id);\n  saveData(data);\n  return { ok: true };\n});\n\n// ---------- ilk a\u00e7\u0131l\u0131\u015f: uygulama kullan\u0131c\u0131s\u0131n\u0131 bir defal\u0131\u011f\u0131na tan\u0131r ----------\nlet onboardWin = null;\n\nfunction needsOnboarding() {\n  const d = loadData();\n  return !(d.profile && d.profile.onboarded);\n}\n\nfunction createOnboardingWindow() {\n  if (onboardWin && !onboardWin.isDestroyed()) { onboardWin.focus(); return; }\n  onboardWin = new BrowserWindow({\n    width: 860, height: 800, resizable: false, fullscreenable: false,\n    backgroundColor: '#04060c',\n    titleBarStyle: 'hiddenInset',\n    webPreferences: { preload: path.join(APP_DIR, 'preload.js'), contextIsolation: true }\n  });\n  onboardWin.loadFile(path.join(APP_DIR, 'onboarding.html'));\n  onboardWin.on('closed', () => { onboardWin = null; });\n}\n\nipcMain.handle('galaxy:onboardStatus', () => {\n  const d = loadData();\n  const lang = (d.profile && d.profile.lang) || 'tr';\n  return {\n    needed: !(d.profile && d.profile.onboarded),\n    profile: { name: (d.profile && d.profile.name) || '', lang },\n    universes: (d.universes || []).map(u => ({ id: u.id, name: u.name, root: resolveRoot(u.root) })),\n    agents: (d.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff' })),\n    isMas: IS_MAS\n  };\n});\n\nipcMain.handle('galaxy:onboardComplete', (e, payload) => {\n  const p = payload || {};\n  const data = loadData();\n  data.profile = {\n    name: String(p.name || '').trim().slice(0, 60),\n    lang: p.lang === 'en' ? 'en' : 'tr',\n    onboarded: true,\n    ts: new Date().toISOString()\n  };\n  // Ajanlar dil se\u00e7imine g\u00f6re (hen\u00fcz \u00f6zelle\u015ftirilmemi\u015fse) yeniden \u00fcretilir\n  if (!fs.existsSync(DATA_FILE)) data.agents = defaultAgents(data.profile.lang);\n  // Evrenler: onboarding'de se\u00e7ilen klas\u00f6rler eklenir/g\u00fcncellenir\n  if (Array.isArray(p.universes)) {\n    for (const u of p.universes) {\n      if (!u || !u.root) continue;\n      const root = String(u.root);\n      const prefix = path.basename(root).normalize('NFC');\n      const existing = data.universes.find(x => resolveRoot(x.root) === root);\n      if (existing) {\n        if (u.name) existing.name = String(u.name).slice(0, 60);\n        if (u.bookmark) existing.bookmark = u.bookmark;\n        continue;\n      }\n      let id = slugify(u.name || prefix);\n      while (data.universes.find(x => x.id === id)) id += '2';\n      data.universes.push({ id, name: (u.name || prefix).slice(0, 60), subtitle: prefix, root, prefix, bookmark: u.bookmark || undefined, expandDirs: [] });\n    }\n  }\n  // Ajan adlar\u0131/rolleri ki\u015fiselle\u015ftirmesi\n  if (Array.isArray(p.agents)) {\n    for (const a of p.agents) {\n      const ex = (data.agents || []).find(x => x.id === a.id);\n      if (ex) {\n        if (a.name) ex.name = String(a.name).slice(0, 30);\n        if (a.role) ex.role = String(a.role).slice(0, 40);\n      }\n    }\n  }\n  if (!data.universes.length) return { ok: false, error: data.profile.lang === 'en' ? 'Pick at least one folder' : 'En az bir klas\u00f6r se\u00e7' };\n  saveData(data);\n  restoreBookmarks();\n  createWindow();\n  if (onboardWin && !onboardWin.isDestroyed()) onboardWin.close();\n  onboardWin = null;\n  return { ok: true };\n});\n\nipcMain.handle('galaxy:profileGet', () => {\n  const d = loadData();\n  return d.profile || { name: '', lang: 'tr', onboarded: false };\n});\n\n// ---------- ayarlar penceresi ----------\nlet settingsWin = null;\n\nfunction openSettingsWindow() {\n  if (settingsWin && !settingsWin.isDestroyed()) { settingsWin.focus(); return; }\n  settingsWin = new BrowserWindow({\n    width: 960, height: 680, resizable: true, minWidth: 800, minHeight: 560, fullscreenable: false,\n    backgroundColor: '#04060c',\n    titleBarStyle: 'hiddenInset',\n    webPreferences: { preload: path.join(APP_DIR, 'preload.js'), contextIsolation: true }\n  });\n  settingsWin.loadFile(path.join(APP_DIR, 'onboarding.html'), { query: { mode: 'settings' } });\n  settingsWin.on('closed', () => { settingsWin = null; });\n}\n\nipcMain.handle('galaxy:openSettings', () => { openSettingsWindow(); return true; });\n\nipcMain.handle('galaxy:settingsGet', () => {\n  const d = loadData();\n  return {\n    profile: d.profile || { name: '', lang: 'tr', onboarded: false },\n    settings: getSettings(d),\n    dataDir: DATA_DIR,\n    version: app.getVersion(),\n    isMas: IS_MAS\n  };\n});\n\nipcMain.handle('galaxy:settingsSave', (e, p) => {\n  p = p || {};\n  const d = loadData();\n  d.profile = d.profile || { onboarded: true };\n  if (p.name !== undefined) d.profile.name = String(p.name).trim().slice(0, 60);\n  if (p.lang !== undefined) d.profile.lang = p.lang === 'en' ? 'en' : 'tr';\n  const cur = getSettings(d);\n  d.settings = {\n    staleDays: Math.min(365, Math.max(1, +p.staleDays || cur.staleDays)),\n    planPending: Math.min(50, Math.max(1, +p.planPending || cur.planPending)),\n    claudePath: (p.claudePath !== undefined) ? String(p.claudePath).trim() : cur.claudePath,\n    terminalApp: (p.terminalApp !== undefined) ? (p.terminalApp === 'iTerm' ? 'iTerm' : 'Terminal') : cur.terminalApp,\n    sshTimeout: Math.min(60, Math.max(3, +p.sshTimeout || cur.sshTimeout)),\n    focusMin: Math.min(180, Math.max(1, +p.focusMin || cur.focusMin)),\n    assistantBio: (p.assistantBio !== undefined) ? String(p.assistantBio).slice(0, 2000) : cur.assistantBio,\n    mcpServers: (p.mcpServers !== undefined) ? normalizeMcpServers(p.mcpServers) : cur.mcpServers,\n    mailBriefTool: (p.mailBriefTool !== undefined) ? String(p.mailBriefTool).trim().slice(0, 80) : cur.mailBriefTool,\n    mailSendTool: (p.mailSendTool !== undefined) ? String(p.mailSendTool).trim().slice(0, 80) : cur.mailSendTool,\n    mailTo: (p.mailTo !== undefined) ? String(p.mailTo).trim().slice(0, 200) : cur.mailTo,\n    mailListTool: (p.mailListTool !== undefined) ? String(p.mailListTool).trim().slice(0, 80) : cur.mailListTool,\n    mailReadTool: (p.mailReadTool !== undefined) ? String(p.mailReadTool).trim().slice(0, 80) : cur.mailReadTool,\n    uiTheme: (p.uiTheme !== undefined) ? ((p.uiTheme === 'ev' || p.uiTheme === 'apex') ? p.uiTheme : 'galaxy') : (cur.uiTheme || 'galaxy')\n  };\n  saveData(d);\n  return { ok: true, settings: getSettings(d) };\n});\n\n// ---------- takvim odak bloklar\u0131 (Galaxy i\u00e7i; EventKit yok) ----------\nipcMain.handle('galaxy:calList', () => loadData().calEvents || []);\nipcMain.handle('galaxy:calSave', (e, ev) => {\n  ev = ev || {};\n  const d = loadData();\n  d.calEvents = d.calEvents || [];\n  const id = String(ev.id || ('cal-' + Date.now().toString(36)));\n  const rec = {\n    id,\n    start: String(ev.start || ''),\n    end: String(ev.end || ''),\n    planetId: String(ev.planetId || ''),\n    title: String(ev.title || 'Odak').slice(0, 120)\n  };\n  if (!rec.start) return { ok: false, error: 'saat aral\u0131\u011f\u0131 yok' };\n  const i = d.calEvents.findIndex(x => x.id === id);\n  if (i >= 0) d.calEvents[i] = rec; else d.calEvents.push(rec);\n  saveData(d);\n  return { ok: true, event: rec };\n});\nipcMain.handle('galaxy:calDelete', (e, id) => {\n  const d = loadData();\n  d.calEvents = (d.calEvents || []).filter(x => x.id !== id);\n  saveData(d);\n  return { ok: true };\n});\n\n// ---------- d\u00f6ng\u00fc tuvali uzun bellek ----------\nipcMain.handle('galaxy:loopGet', () => {\n  const d = loadData();\n  return { ok: true, remarks: d.loopRemarks || '', lastRun: d.loopLastRun || null };\n});\nipcMain.handle('galaxy:loopSave', (e, p) => {\n  p = p || {};\n  const d = loadData();\n  if (p.remarks !== undefined) d.loopRemarks = String(p.remarks).slice(0, 8000);\n  if (p.lastRun) d.loopLastRun = p.lastRun;\n  saveData(d);\n  return { ok: true };\n});\n\n// ---------- MCP stdio (posta brifing; gelen kutusu yok) ----------\nipcMain.handle('galaxy:mcpList', async () => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED, tools: [] };\n  const st = getSettings(loadData());\n  const spec = (st.mcpServers || [])[0];\n  if (!spec || !spec.command) return { ok: false, error: 'Ayarlar\u2019da MCP komutu yok', tools: [] };\n  try {\n    const { withClient } = require('./lib/mcp-client');\n    const tools = await withClient(spec, c => c.listTools(), ENV);\n    return { ok: true, tools: (tools || []).map(t => ({ name: t.name, description: t.description || '' })), aliases: { brief: st.mailBriefTool, send: st.mailSendTool, list: st.mailListTool, read: st.mailReadTool } };\n  } catch (err) {\n    return { ok: false, error: err.message || String(err), tools: [] };\n  }\n});\nipcMain.handle('galaxy:mcpCall', async (e, { name, args, alias } = {}) => {\n  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };\n  const st = getSettings(loadData());\n  const spec = (st.mcpServers || [])[0];\n  if (!spec || !spec.command) return { ok: false, error: 'Ayarlar\u2019da MCP komutu yok' };\n  let tool = String(name || '').trim();\n  if (!tool && alias === 'brief') tool = st.mailBriefTool;\n  if (!tool && alias === 'send') tool = st.mailSendTool;\n  if (!tool && alias === 'list') tool = st.mailListTool;\n  if (!tool && alias === 'read') tool = st.mailReadTool;\n  if (!tool) return { ok: false, error: 'ara\u00e7 ad\u0131 yok (Ayarlar\u2019da alias yaz)' };\n  try {\n    const { withClient } = require('./lib/mcp-client');\n    const result = await withClient(spec, c => c.callTool(tool, args || {}), ENV);\n    return { ok: true, result };\n  } catch (err) {\n    return { ok: false, error: err.message || String(err) };\n  }\n});\n\n// ---------- yedekten geri y\u00fckleme ----------\nipcMain.handle('galaxy:backupList', () => {\n  try {\n    const bdir = path.join(DATA_DIR, 'backups');\n    return fs.readdirSync(bdir)\n      .filter(f => /^galaxy-data-\\d{4}-\\d{2}-\\d{2}\\.json$/.test(f))\n      .sort().reverse()\n      .map(f => {\n        let size = 0;\n        try { size = fs.statSync(path.join(bdir, f)).size; } catch (err) {}\n        return { name: f, date: f.slice(12, 22), size };\n      });\n  } catch (e) { return []; }\n});\n\nipcMain.handle('galaxy:backupRestore', async (e, name) => {\n  if (!/^galaxy-data-\\d{4}-\\d{2}-\\d{2}\\.json$/.test(String(name))) return { ok: false, error: 'Ge\u00e7ersiz yedek ad\u0131' };\n  const file = path.join(DATA_DIR, 'backups', name);\n  if (!fs.existsSync(file)) return { ok: false, error: 'Yedek bulunamad\u0131' };\n  const win = BrowserWindow.fromWebContents(e.sender);\n  const { response } = await dialog.showMessageBox(win, {\n    type: 'warning',\n    title: 'Yede\u011fe D\u00f6n',\n    message: `${name.slice(12, 22)} tarihli yede\u011fe d\u00f6n\u00fcls\u00fcn m\u00fc?`,\n    detail: 'Mevcut veri \u00f6nce g\u00fcvenlik kopyas\u0131 olarak saklan\u0131r, ard\u0131ndan uygulama yeniden ba\u015flar.',\n    buttons: ['Vazge\u00e7', 'Evet, Geri Y\u00fckle'],\n    defaultId: 0, cancelId: 0\n  });\n  if (response !== 1) return { ok: true, action: 'cancel' };\n  try {\n    try { fs.copyFileSync(DATA_FILE, path.join(DATA_DIR, 'backups', 'pre-restore-' + Date.now() + '.json')); } catch (err) {}\n    fs.copyFileSync(file, DATA_FILE);\n    try { fs.writeFileSync(path.join(DATA_DIR, 'galaxy-data.js'), 'window.GALAXY_DATA = ' + fs.readFileSync(DATA_FILE, 'utf8') + ';', 'utf8'); } catch (err) {}\n    app.relaunch();\n    app.exit(0);\n    return { ok: true };\n  } catch (err) { return { ok: false, error: err.message }; }\n});\n" + '\n' + "g.slugify = slugify;\ng.buildTree = buildTree;\ng.safeJoin = safeJoin;\ng.needsOnboarding = needsOnboarding;\ng.createOnboardingWindow = createOnboardingWindow;\ng.openSettingsWindow = openSettingsWindow;\ng.TEXT_EXT = TEXT_EXT;\ng.IMAGE_EXT = IMAGE_EXT;\ng.MEDIA_EXT = MEDIA_EXT;\ng.onboardWin = onboardWin;\ng.settingsWin = settingsWin;" + '\n}')(g);
+  with (g) {
+// ---------- proje silme / gizleme (onaylı) ----------
+ipcMain.handle('galaxy:projectDelete', async (e, projectId) => {
+  const scan = scanProjects();
+  const proj = scan.projects.find(p => p.id === projectId);
+  if (!proj || !proj.path) return { ok: false, error: 'Proje bulunamadı' };
+  const win = BrowserWindow.fromWebContents(e.sender);
+
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'warning',
+    title: 'Projeyi Kaldır',
+    message: `"${proj.name}" ne yapılsın?`,
+    detail: `Klasör: ${proj.path}\n\n• Evrenden Gizle: klasöre dokunulmaz, sadece galakside görünmez olur (geri alınabilir).\n• Çöp Kutusuna Taşı: klasör macOS Çöp Kutusu'na taşınır (Finder'dan geri alınabilir).`,
+    buttons: ['Vazgeç', 'Evrenden Gizle', 'Çöp Kutusuna Taşı'],
+    defaultId: 0,
+    cancelId: 0
+  });
+
+  if (response === 0) return { ok: true, action: 'cancel' };
+
+  const data = loadData();
+  if (response === 1) {
+    data.ignored = data.ignored || [];
+    if (!data.ignored.includes(projectId)) data.ignored.push(projectId);
+    saveData(data);
+    return { ok: true, action: 'hidden' };
+  }
+
+  // Çöp kutusuna taşı — ikinci onay
+  const second = await dialog.showMessageBox(win, {
+    type: 'warning',
+    title: 'Son Onay',
+    message: `"${proj.name}" klasörü Çöp Kutusu'na taşınacak. Emin misin?`,
+    detail: proj.path,
+    buttons: ['Vazgeç', 'Evet, Çöp Kutusuna Taşı'],
+    defaultId: 0,
+    cancelId: 0
+  });
+  if (second.response !== 1) return { ok: true, action: 'cancel' };
+
+  try {
+    await shell.trashItem(proj.path);
+    delete data.projects[projectId];
+    data.ignored = (data.ignored || []).filter(x => x !== projectId);
+    saveData(data);
+    return { ok: true, action: 'trashed' };
+  } catch (err) {
+    return { ok: false, error: 'Taşınamadı: ' + err.message };
+  }
+});
+
+ipcMain.handle('galaxy:projectUnhide', (e, projectId) => {
+  const data = loadData();
+  data.ignored = (data.ignored || []).filter(x => x !== projectId);
+  saveData(data);
+  return { ok: true };
+});
+
+// Galaksiden gizle (klasöre dokunulmaz) — onay kartı renderer’da
+ipcMain.handle('galaxy:projectHide', (e, projectId) => {
+  if (!projectId) return { ok: false, error: 'Proje yok' };
+  const data = loadData();
+  data.ignored = data.ignored || [];
+  if (!data.ignored.includes(projectId)) data.ignored.push(projectId);
+  saveData(data);
+  return { ok: true, action: 'hidden' };
+});
+
+ipcMain.handle('galaxy:load', async () => {
+  // Uzak sunucular varsa: önbellek boşsa ilk taramayı bekle, doluysa
+  // arka planda tazele ve eldeki veriyle hemen dön (stale-while-revalidate).
+  const servers = (loadData().servers || []);
+  if (servers.length && !IS_MAS) {
+    const cold = servers.filter(s => !remoteCache.has(s.id));
+    if (cold.length) await Promise.all(cold.map(s => remoteRefresh(s.id, true)));
+    for (const s of servers) if (!cold.includes(s)) remoteRefresh(s.id);
+  }
+  return scanProjects();
+});
+
+// ---------- evren CRUD ----------
+function slugify(s) {
+  return s.toLowerCase().replace(/[çğıöşü]/g, c => ({ 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' }[c]))
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'evren';
+}
+
+ipcMain.handle('galaxy:universeAdd', (e, { name, root, bookmark }) => {
+  if (!name || !root) return { ok: false, error: 'Ad ve klasör yolu gerekli' };
+  root = root.replace(/^~/, os.homedir()).trim();
+  try {
+    if (!fs.statSync(root).isDirectory()) return { ok: false, error: 'Bu yol bir klasör değil' };
+  } catch (err) { return { ok: false, error: 'Klasör bulunamadı: ' + root }; }
+  const data = loadData();
+  let id = slugify(name);
+  while (data.universes.find(u => u.id === id)) id += '2';
+  const prefix = path.basename(root).normalize('NFC');
+  if (data.universes.find(u => u.prefix === prefix)) return { ok: false, error: 'Aynı klasör adına sahip bir evren zaten var' };
+  data.universes.push({ id, name, subtitle: prefix, root, prefix, bookmark: bookmark || undefined, expandDirs: [] });
+  saveData(data);
+  startBookmarkAccess(bookmark);
+  return { ok: true, id };
+});
+
+// Klasör seçici — MAS sürümünde kalıcı erişim için security-scoped bookmark üretir
+ipcMain.handle('galaxy:pickFolder', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const r = await dialog.showOpenDialog(win, {
+    title: 'Klasör seç',
+    properties: ['openDirectory', 'createDirectory'],
+    securityScopedBookmarks: true
+  });
+  if (r.canceled || !r.filePaths.length) return null;
+  return { path: r.filePaths[0], bookmark: (r.bookmarks && r.bookmarks[0]) || null };
+});
+
+ipcMain.handle('galaxy:universeUpdate', (e, { id, name, root, bookmark }) => {
+  const data = loadData();
+  const local = data.universes.find(x => x.id === id);
+  if (local) {
+    if (name) local.name = name;
+    if (root) {
+      root = root.replace(/^~/, os.homedir()).trim();
+      try {
+        if (!fs.statSync(root).isDirectory()) return { ok: false, error: 'Bu yol bir klasör değil' };
+      } catch (err) { return { ok: false, error: 'Klasör bulunamadı: ' + root }; }
+      local.root = root;
+      if (bookmark) local.bookmark = bookmark;
+      if (local.prefix) { // ".." kökü (ana PAPILON) prefixsizdir, ona dokunma
+        local.prefix = path.basename(root).normalize('NFC');
+        local.subtitle = local.prefix;
+      }
+    }
+    saveData(data);
+    return { ok: true };
+  }
+  for (const srv of (data.servers || [])) {
+    for (const rt of (srv.roots || [])) {
+      const uid = 'ssh-' + srv.id + '-' + slugify(rt.name || rt.path);
+      if (uid !== id) continue;
+      if (name) rt.name = String(name).slice(0, 60);
+      if (root) rt.path = String(root).slice(0, 400);
+      saveData(data);
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'Evren bulunamadı' };
+});
+
+ipcMain.handle('galaxy:universeDelete', (e, id) => {
+  const data = loadData();
+  const remoteCount = (data.servers || []).reduce((n, s) => n + ((s.roots || []).length), 0);
+  if ((data.universes.length + remoteCount) <= 1) return { ok: false, error: 'Son evren silinemez' };
+  const idx = data.universes.findIndex(x => x.id === id);
+  if (idx >= 0) {
+    data.universes.splice(idx, 1);
+    saveData(data);
+    return { ok: true }; // proje metadataları korunur; evren geri eklenirse geri gelir
+  }
+  for (const srv of (data.servers || [])) {
+    const roots = srv.roots || [];
+    const ridx = roots.findIndex(rt => ('ssh-' + srv.id + '-' + slugify(rt.name || rt.path)) === id);
+    if (ridx < 0) continue;
+    roots.splice(ridx, 1);
+    srv.roots = roots;
+    saveData(data);
+    return { ok: true };
+  }
+  return { ok: false, error: 'Evren bulunamadı' };
+});
+
+// ---------- evren geneli TODO ----------
+ipcMain.handle('galaxy:todoList', (e, universe) => {
+  const data = loadData();
+  return (data.todos || []).filter(td => !universe || td.universe === universe).slice(0, 100);
+});
+ipcMain.handle('galaxy:todoAdd', (e, { universe, text, status, projectId, branch }) => {
+  if (!text || !text.trim()) return false;
+  const data = loadData();
+  data.todos = data.todos || [];
+  data.todos.unshift({ id: String(Date.now()), universe, text: text.trim(), done: status === 'done', status: status || 'todo', ts: new Date().toISOString(), projectId: projectId || '', branch: branch || '' });
+  data.todos = data.todos.slice(0, 300);
+  saveData(data);
+  return true;
+});
+ipcMain.handle('galaxy:todoSetStatus', (e, { id, status }) => {
+  const data = loadData();
+  const td = (data.todos || []).find(x => x.id === id);
+  if (td) { td.status = status; td.done = status === 'done'; saveData(data); }
+  return true;
+});
+ipcMain.handle('galaxy:todoToggle', (e, id) => {
+  const data = loadData();
+  const td = (data.todos || []).find(x => x.id === id);
+  if (td) { td.done = !td.done; saveData(data); }
+  return true;
+});
+ipcMain.handle('galaxy:todoDelete', (e, id) => {
+  const data = loadData();
+  data.todos = (data.todos || []).filter(x => x.id !== id);
+  saveData(data);
+  return true;
+});
+
+ipcMain.handle('galaxy:save', (e, project) => {
+  const data = loadData();
+  const { id, name, group, status, stage, progress, plan, notes, desc, links } = project;
+  data.projects[id] = { name, group, status, stage, progress, plan, notes, desc, links: links || [] };
+  saveData(data);
+  // README'deki eşleşen todo satırlarının işaretini plan durumuna göre güncelle (çift yönlü senkronun yazma yönü)
+  try {
+    if (project.path) {
+      const readmePath = path.join(project.path, 'README.md');
+      if (fs.existsSync(readmePath)) {
+        let content = fs.readFileSync(readmePath, 'utf8');
+        let changed = false;
+        for (const item of plan || []) {
+          const escaped = item.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const re = new RegExp(`^(\\s*)- \\[( |x|X)\\] ${escaped}\\s*$`, 'm');
+          const want = item.done ? 'x' : ' ';
+          content = content.replace(re, (m0, sp, cur) => {
+            if (cur.toLowerCase() !== want.trim() && !(cur === ' ' && want === ' ')) changed = true;
+            return `${sp}- [${want}] ${item.text}`;
+          });
+        }
+        if (changed) fs.writeFileSync(readmePath, content, 'utf8');
+      }
+    }
+  } catch (err) {}
+  return true;
+});
+
+// README'si olmayan projeye başlangıç README.md yaz (ad + açıklama + plan + not)
+ipcMain.handle('galaxy:createReadme', (e, projectId) => {
+  const scan = scanProjects();
+  const proj = scan.projects.find(p => p.id === projectId);
+  if (!proj || !proj.path) return { ok: false, error: 'Proje yolu yok' };
+  if (isRemotePath(proj.path)) return { ok: false, error: 'Uzak projede README oluşturulamıyor' };
+  const readmePath = path.join(proj.path, 'README.md');
+  if (fs.existsSync(readmePath)) return { ok: false, error: 'README zaten var' };
+  const saved = (loadData().projects || {})[projectId] || {};
+  const desc = (saved.desc || proj.desc || '').trim();
+  const plan = saved.plan || proj.plan || [];
+  const notes = (saved.notes || proj.notes || '').trim();
+  const lines = [`# ${proj.name}`, ''];
+  if (desc) lines.push(desc, '');
+  lines.push('## Kurulum', '', '```bash', '# kurulum adımlarını buraya yaz', '```', '');
+  if (plan.length) { lines.push('## Yapılacaklar', ''); for (const it of plan) lines.push(`- [${it.done ? 'x' : ' '}] ${it.text}`); lines.push(''); }
+  if (notes) lines.push('## Notlar', '', notes, '');
+  try { fs.writeFileSync(readmePath, lines.join('\n'), 'utf8'); return { ok: true, path: readmePath }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+
+// README'deki "- [ ]" maddelerini plana aktar (okuma yönü)
+ipcMain.handle('galaxy:syncReadme', (e, projectId) => {
+  const scan = scanProjects();
+  const proj = scan.projects.find(p => p.id === projectId);
+  if (!proj || !proj.path) return { ok: false, added: 0 };
+  try {
+    const readmePath = path.join(proj.path, 'README.md');
+    if (!fs.existsSync(readmePath)) return { ok: true, added: 0 };
+    const content = fs.readFileSync(readmePath, 'utf8');
+    const data = loadData();
+    if (!data.projects[projectId]) {
+      data.projects[projectId] = { name: proj.name, group: proj.group, status: proj.status, stage: proj.stage, progress: proj.progress, plan: [], notes: proj.notes, desc: proj.desc, links: proj.links };
+    }
+    const plan = data.projects[projectId].plan = data.projects[projectId].plan || [];
+    let added = 0;
+    const re = /^\s*- \[( |x|X)\] (.+?)\s*$/gm;
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      const text = m[2].trim();
+      const done = m[1].toLowerCase() === 'x';
+      const existing = plan.find(i => i.text === text);
+      if (!existing) { plan.push({ text, done }); added++; }
+      else if (existing.done !== done && done) { existing.done = true; } // README'de kapanmışsa planda da kapat
+    }
+    if (added > 0 || true) saveData(data);
+    return { ok: true, added, plan };
+  } catch (err) { return { ok: false, added: 0 }; }
+});
+
+ipcMain.handle('galaxy:openFolder', (e, p) => {
+  if (isRemotePath(p)) return { ok: false, error: 'Uzak klasör Finder\'da açılamaz' };
+  if (p && knownPaths.has(p)) shell.openPath(p);
+});
+
+ipcMain.handle('galaxy:openInEditor', async (e, { path: projectPath, app: editor } = {}) => {
+  const p = projectPath;
+  if (!p || !knownPaths.has(p)) return { ok: false, error: 'Geçersiz yol' };
+  if (isRemotePath(p)) return { ok: false, error: 'Uzak klasör editörde açılamaz' };
+  const want = String(editor || 'auto');
+  const win = process.platform === 'win32';
+  const bins = want === 'code'
+    ? (win ? ['code.cmd', 'code'] : ['code'])
+    : want === 'cursor'
+      ? (win ? ['cursor.cmd', 'cursor'] : ['cursor'])
+      : (win ? ['cursor.cmd', 'cursor', 'code.cmd', 'code'] : ['cursor', 'code']);
+  for (const bin of bins) {
+    const ok = await new Promise(res => {
+      execFile(bin, [p], { timeout: 8000 }, err => res(!err));
+    });
+    if (ok) return { ok: true, app: bin.replace(/\.cmd$/, '') };
+  }
+  try { await shell.openPath(p); return { ok: true, app: 'finder' }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+
+// Yalnızca yerel makinedeki bir portu tarayıcıda açar (Docker konteyner portları).
+// Keyfi URL açılmasın diye kalıp katı: http://localhost:<port>
+ipcMain.handle('galaxy:openLocalPort', (e, port) => {
+  const n = parseInt(port, 10);
+  if (!(n >= 1 && n <= 65535)) return { ok: false };
+  shell.openExternal('http://localhost:' + n);
+  return { ok: true };
+});
+
+// ---------- dosya ağacı ----------
+function buildTree(dir, depth) {
+  if (depth <= 0) return [];
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true })
+      .filter(d => !d.name.startsWith('.') && !IGNORE.has(d.name))
+      .slice(0, 60);
+  } catch (e) { return []; }
+  entries.sort((a, b) => (b.isDirectory() - a.isDirectory()) || a.name.localeCompare(b.name, 'tr'));
+  return entries.map(d => ({
+    name: d.name.normalize('NFC'),
+    dir: d.isDirectory(),
+    children: d.isDirectory() ? buildTree(path.join(dir, d.name), depth - 1) : undefined
+  }));
+}
+
+ipcMain.handle('galaxy:tree', async (e, p) => {
+  if (!p || !knownPaths.has(p)) return null;
+  if (isRemotePath(p)) return remoteTree(p, 3);
+  return buildTree(p, 3);
+});
+
+// ---------- tek seviye dizin listesi (gezegen yörüngesi) ----------
+function safeJoin(root, rel) {
+  const full = path.resolve(root, rel || '');
+  if (!(full === root || full.startsWith(root + path.sep))) return null;
+  // symlink'le kök dışına çıkışı engelle: gerçek yolu çöz ve tekrar doğrula
+  try {
+    const real = fs.realpathSync(full);
+    const realRoot = fs.realpathSync(root);
+    if (!(real === realRoot || real.startsWith(realRoot + path.sep))) return null;
+  } catch (e) { /* dosya henüz yoksa realpath atar — mantıksal kontrol yeterli */ }
+  return full;
+}
+
+ipcMain.handle('galaxy:list', async (e, { root, rel }) => {
+  if (!root || !knownPaths.has(root)) return null;
+  if (isRemotePath(root)) return remoteList(root, rel);
+  const dir = safeJoin(root, rel);
+  if (!dir) return null;
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true })
+      .filter(d => !d.name.startsWith('.') && !IGNORE.has(d.name) && !d.name.endsWith('.app'));
+  } catch (err) { return null; }
+  const out = entries.map(d => {
+    let size = 0;
+    try { if (!d.isDirectory()) size = fs.statSync(path.join(dir, d.name)).size; } catch (e2) {}
+    return { name: d.name.normalize('NFC'), dir: d.isDirectory(), size };
+  });
+  out.sort((a, b) => (b.dir - a.dir) || a.name.localeCompare(b.name, 'tr'));
+  return out;
+});
+
+// ---------- dosya içeriği (uygulama içi görüntüleyici) ----------
+const TEXT_EXT = new Set(['md','txt','js','jsx','ts','tsx','py','swift','kt','kts','java','c','cpp','h','m','mm','cs','go','rs','rb','php','sh','bash','zsh','yml','yaml','json','xml','html','htm','css','scss','sql','gradle','properties','toml','ini','cfg','conf','env','csv','tsv','log','dio','plist','entitlements','pbxproj','storyboard','xib','dart','vue','svelte','r','lua','pl','tex']);
+const IMAGE_EXT = new Set(['png','jpg','jpeg','gif','webp','svg','bmp','ico','heic','avif']);
+const MEDIA_EXT = new Set(['mp4','mov','webm','m4v','mp3','wav','m4a','aac','ogg']);
+
+ipcMain.handle('galaxy:file', async (e, { root, rel }) => {
+  if (!root || !knownPaths.has(root)) return null;
+  if (isRemotePath(root)) return remoteFile(root, rel);
+  const full = safeJoin(root, rel);
+  if (!full) return null;
+  let st;
+  try { st = fs.statSync(full); } catch (err) { return null; }
+  const ext = path.extname(full).slice(1).toLowerCase();
+  const url = 'file://' + full.split('/').map(encodeURIComponent).join('/');
+  const base = { name: path.basename(full), size: st.size, ext, path: full };
+
+  if (IMAGE_EXT.has(ext)) return { ...base, kind: 'image', url };
+  if (ext === 'pdf') return { ...base, kind: 'pdf', url };
+  if (MEDIA_EXT.has(ext)) return { ...base, kind: ['mp3','wav','m4a','aac','ogg'].includes(ext) ? 'audio' : 'video', url };
+  if (TEXT_EXT.has(ext) || st.size < 200 * 1024) {
+    try {
+      const content = fs.readFileSync(full, 'utf8').slice(0, 300 * 1024);
+      // ikili dosya sezgisi
+      if (/[\x00]/.test(content.slice(0, 1000))) return { ...base, kind: 'binary' };
+      return { ...base, kind: ext === 'md' ? 'markdown' : ((ext === 'html' || ext === 'htm') ? 'html' : 'text'), content, url };
+    } catch (err) { return { ...base, kind: 'binary' }; }
+  }
+  return { ...base, kind: 'binary' };
+});
+
+ipcMain.handle('galaxy:openFile', (e, p) => {
+  if (!p || typeof p !== 'string') return false;
+  // yalnızca bilinen proje köklerinin altındaki dosyalar
+  for (const root of knownPaths) {
+    if (p === root || p.startsWith(root + path.sep)) { shell.openPath(p); return true; }
+  }
+  return false;
+});
+
+// ---------- Dosya yaz/oluştur/sil/yeniden adlandır + projede ara ----------
+ipcMain.handle('galaxy:fileWrite', (e, { root, rel, content } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak dosya yazma desteklenmiyor' };
+  const full = safeJoin(root, rel);
+  if (!full) return { ok: false, error: 'Geçersiz yol' };
+  try { fs.writeFileSync(full, String(content == null ? '' : content), 'utf8'); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:fileCreate', (e, { root, rel } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const full = safeJoin(root, rel);
+  if (!full) return { ok: false, error: 'Geçersiz yol' };
+  if (fs.existsSync(full)) return { ok: false, error: 'Zaten var' };
+  try {
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    if (/\/$/.test(rel)) fs.mkdirSync(full, { recursive: true });   // klasör
+    else fs.writeFileSync(full, '', 'utf8');
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:fileDelete', (e, { root, rel } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const full = safeJoin(root, rel);
+  if (!full || full === root) return { ok: false, error: 'Geçersiz yol' };
+  try { fs.rmSync(full, { recursive: true, force: true }); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:fileRename', (e, { root, rel, newRel } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const a = safeJoin(root, rel), b = safeJoin(root, newRel);
+  if (!a || !b || a === root) return { ok: false, error: 'Geçersiz yol' };
+  try { fs.mkdirSync(path.dirname(b), { recursive: true }); fs.renameSync(a, b); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+// Projede metin ara (git grep varsa onu, yoksa basit tarama)
+ipcMain.handle('galaxy:projectGrep', async (e, { root, query } = {}) => {
+  if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
+  if (isRemotePath(root)) return { ok: false, error: 'Uzak desteklenmiyor' };
+  const q = String(query || '').trim();
+  if (q.length < 2) return { ok: false, error: 'En az 2 karakter' };
+  const useGit = fs.existsSync(path.join(root, '.git'));
+  const args = useGit
+    ? ['grep', '-n', '-I', '--no-color', '--fixed-strings', '--ignore-case', '-e', q]
+    : ['-rniI', '--exclude-dir=.git', '--exclude-dir=node_modules', '--fixed-strings', q, '.'];
+  const bin = useGit ? 'git' : 'grep';
+  return new Promise(res => {
+    execFile(bin, args, { cwd: root, env: ENV, timeout: 20000, maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
+      const lines = String(out || '').split('\n').filter(Boolean).slice(0, 200).map(l => {
+        const m = l.match(/^(?:\.\/)?(.+?):(\d+):(.*)$/);
+        return m ? { file: m[1], line: +m[2], text: m[3].slice(0, 200) } : null;
+      }).filter(Boolean);
+      res({ ok: true, matches: lines, truncated: lines.length >= 200 });
+    });
+  });
+});
+
+// ---------- ajan yönetimi ----------
+ipcMain.handle('galaxy:agentsFull', () => loadData().agents || []);
+
+ipcMain.handle('galaxy:agentSave', (e, agent) => {
+  if (!agent || !agent.name) return { ok: false, error: 'Ad gerekli' };
+  const data = loadData();
+  data.agents = data.agents || [];
+  if (!agent.id) {
+    agent.id = slugify(agent.name);
+    while (data.agents.find(a => a.id === agent.id)) agent.id += '2';
+  }
+  const idx = data.agents.findIndex(a => a.id === agent.id);
+  const clean = {
+    id: agent.id, name: agent.name, role: agent.role || 'AJAN', color: agent.color || '#61dcff',
+    prompt: agent.prompt || '', write: !!agent.write,
+    presets: Array.isArray(agent.presets) ? agent.presets.filter(p => p && p.label && p.ask).slice(0, 8) : []
+  };
+  if (idx >= 0) data.agents[idx] = clean; else data.agents.push(clean);
+  saveData(data);
+  return { ok: true, id: agent.id };
+});
+
+ipcMain.handle('galaxy:agentDelete', (e, id) => {
+  const data = loadData();
+  if ((data.agents || []).length <= 1) return { ok: false, error: 'Son ajan silinemez' };
+  data.agents = (data.agents || []).filter(a => a.id !== id);
+  saveData(data);
+  return { ok: true };
+});
+
+// ---------- ilk açılış: uygulama kullanıcısını bir defalığına tanır ----------
+let onboardWin = null;
+
+function needsOnboarding() {
+  const d = loadData();
+  return !(d.profile && d.profile.onboarded);
+}
+
+function createOnboardingWindow() {
+  if (onboardWin && !onboardWin.isDestroyed()) { onboardWin.focus(); return; }
+  onboardWin = new BrowserWindow({
+    width: 860, height: 800, resizable: false, fullscreenable: false,
+    backgroundColor: '#04060c',
+    titleBarStyle: 'hiddenInset',
+    webPreferences: { preload: path.join(APP_DIR, 'preload.js'), contextIsolation: true }
+  });
+  onboardWin.loadFile(path.join(APP_DIR, 'onboarding.html'));
+  onboardWin.on('closed', () => { onboardWin = null; });
+}
+
+ipcMain.handle('galaxy:onboardStatus', () => {
+  const d = loadData();
+  const lang = (d.profile && d.profile.lang) || 'tr';
+  return {
+    needed: !(d.profile && d.profile.onboarded),
+    profile: { name: (d.profile && d.profile.name) || '', lang },
+    universes: (d.universes || []).map(u => ({ id: u.id, name: u.name, root: resolveRoot(u.root) })),
+    agents: (d.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff' })),
+    isMas: IS_MAS
+  };
+});
+
+ipcMain.handle('galaxy:onboardComplete', (e, payload) => {
+  const p = payload || {};
+  const data = loadData();
+  data.profile = {
+    name: String(p.name || '').trim().slice(0, 60),
+    lang: p.lang === 'en' ? 'en' : 'tr',
+    onboarded: true,
+    ts: new Date().toISOString()
+  };
+  // Ajanlar dil seçimine göre (henüz özelleştirilmemişse) yeniden üretilir
+  if (!fs.existsSync(DATA_FILE)) data.agents = defaultAgents(data.profile.lang);
+  // Evrenler: onboarding'de seçilen klasörler eklenir/güncellenir
+  if (Array.isArray(p.universes)) {
+    for (const u of p.universes) {
+      if (!u || !u.root) continue;
+      const root = String(u.root);
+      const prefix = path.basename(root).normalize('NFC');
+      const existing = data.universes.find(x => resolveRoot(x.root) === root);
+      if (existing) {
+        if (u.name) existing.name = String(u.name).slice(0, 60);
+        if (u.bookmark) existing.bookmark = u.bookmark;
+        continue;
+      }
+      let id = slugify(u.name || prefix);
+      while (data.universes.find(x => x.id === id)) id += '2';
+      data.universes.push({ id, name: (u.name || prefix).slice(0, 60), subtitle: prefix, root, prefix, bookmark: u.bookmark || undefined, expandDirs: [] });
+    }
+  }
+  // Ajan adları/rolleri kişiselleştirmesi
+  if (Array.isArray(p.agents)) {
+    for (const a of p.agents) {
+      const ex = (data.agents || []).find(x => x.id === a.id);
+      if (ex) {
+        if (a.name) ex.name = String(a.name).slice(0, 30);
+        if (a.role) ex.role = String(a.role).slice(0, 40);
+      }
+    }
+  }
+  if (!data.universes.length) return { ok: false, error: data.profile.lang === 'en' ? 'Pick at least one folder' : 'En az bir klasör seç' };
+  saveData(data);
+  restoreBookmarks();
+  createWindow();
+  if (onboardWin && !onboardWin.isDestroyed()) onboardWin.close();
+  onboardWin = null;
+  return { ok: true };
+});
+
+ipcMain.handle('galaxy:profileGet', () => {
+  const d = loadData();
+  return d.profile || { name: '', lang: 'tr', onboarded: false };
+});
+
+// ---------- ayarlar penceresi ----------
+let settingsWin = null;
+
+function openSettingsWindow(pane) {
+  const q = { mode: 'settings' };
+  if (pane) q.pane = String(pane);
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus();
+    try { settingsWin.webContents.send('settings:setPane', q.pane || 'profil'); } catch (e) {}
+    return;
+  }
+  settingsWin = new BrowserWindow({
+    width: 960, height: 680, resizable: true, minWidth: 800, minHeight: 560, fullscreenable: false,
+    backgroundColor: '#04060c',
+    titleBarStyle: 'hiddenInset',
+    webPreferences: { preload: path.join(APP_DIR, 'preload.js'), contextIsolation: true }
+  });
+  settingsWin.loadFile(path.join(APP_DIR, 'onboarding.html'), { query: q });
+  settingsWin.on('closed', () => { settingsWin = null; });
+}
+
+ipcMain.handle('galaxy:openSettings', (e, pane) => { openSettingsWindow(pane); return true; });
+
+ipcMain.handle('galaxy:settingsGet', () => {
+  const d = loadData();
+  return {
+    profile: d.profile || { name: '', lang: 'tr', onboarded: false },
+    settings: getSettings(d),
+    dataDir: DATA_DIR,
+    version: app.getVersion(),
+    isMas: IS_MAS
+  };
+});
+
+ipcMain.handle('galaxy:settingsSave', (e, p) => {
+  p = p || {};
+  const d = loadData();
+  d.profile = d.profile || { onboarded: true };
+  if (p.name !== undefined) d.profile.name = String(p.name).trim().slice(0, 60);
+  if (p.lang !== undefined) d.profile.lang = p.lang === 'en' ? 'en' : 'tr';
+  const cur = getSettings(d);
+  d.settings = {
+    staleDays: cur.staleDays,
+    planPending: cur.planPending,
+    claudePath: (p.claudePath !== undefined) ? String(p.claudePath).trim() : cur.claudePath,
+    terminalApp: (p.terminalApp !== undefined) ? (p.terminalApp === 'iTerm' ? 'iTerm' : 'Terminal') : cur.terminalApp,
+    sshTimeout: Math.min(60, Math.max(3, +p.sshTimeout || cur.sshTimeout)),
+    focusMin: cur.focusMin,
+    assistantBio: (p.assistantBio !== undefined) ? String(p.assistantBio).slice(0, 2000) : cur.assistantBio,
+    mcpServers: (p.mcpServers !== undefined) ? normalizeMcpServers(p.mcpServers) : cur.mcpServers,
+    mailBriefTool: (p.mailBriefTool !== undefined) ? String(p.mailBriefTool).trim().slice(0, 80) : cur.mailBriefTool,
+    mailSendTool: (p.mailSendTool !== undefined) ? String(p.mailSendTool).trim().slice(0, 80) : cur.mailSendTool,
+    mailTo: (p.mailTo !== undefined) ? String(p.mailTo).trim().slice(0, 200) : cur.mailTo,
+    mailListTool: (p.mailListTool !== undefined) ? String(p.mailListTool).trim().slice(0, 80) : cur.mailListTool,
+    mailReadTool: (p.mailReadTool !== undefined) ? String(p.mailReadTool).trim().slice(0, 80) : cur.mailReadTool,
+    uiTheme: 'apex'
+  };
+  saveData(d);
+  return { ok: true, settings: getSettings(d) };
+});
+
+// ---------- döngü tuvali uzun bellek ----------
+ipcMain.handle('galaxy:loopGet', () => {
+  const d = loadData();
+  return { ok: true, remarks: d.loopRemarks || '', lastRun: d.loopLastRun || null };
+});
+ipcMain.handle('galaxy:loopSave', (e, p) => {
+  p = p || {};
+  const d = loadData();
+  if (p.remarks !== undefined) d.loopRemarks = String(p.remarks).slice(0, 8000);
+  if (p.lastRun) d.loopLastRun = p.lastRun;
+  saveData(d);
+  return { ok: true };
+});
+
+// ---------- MCP stdio (posta brifing; gelen kutusu yok) ----------
+ipcMain.handle('galaxy:mcpList', async () => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED, tools: [] };
+  const st = getSettings(loadData());
+  const spec = (st.mcpServers || [])[0];
+  if (!spec || !spec.command) return { ok: false, error: 'Ayarlar’da MCP komutu yok', tools: [] };
+  try {
+    const { withClient } = require('./lib/mcp-client');
+    const tools = await withClient(spec, c => c.listTools(), ENV);
+    return { ok: true, tools: (tools || []).map(t => ({ name: t.name, description: t.description || '' })), aliases: { brief: st.mailBriefTool, send: st.mailSendTool, list: st.mailListTool, read: st.mailReadTool } };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err), tools: [] };
+  }
+});
+ipcMain.handle('galaxy:mcpCall', async (e, { name, args, alias } = {}) => {
+  if (IS_MAS) return { ok: false, error: MAS_BLOCKED };
+  const st = getSettings(loadData());
+  const spec = (st.mcpServers || [])[0];
+  if (!spec || !spec.command) return { ok: false, error: 'Ayarlar’da MCP komutu yok' };
+  let tool = String(name || '').trim();
+  if (!tool && alias === 'brief') tool = st.mailBriefTool;
+  if (!tool && alias === 'send') tool = st.mailSendTool;
+  if (!tool && alias === 'list') tool = st.mailListTool;
+  if (!tool && alias === 'read') tool = st.mailReadTool;
+  if (!tool) return { ok: false, error: 'araç adı yok (Ayarlar’da alias yaz)' };
+  try {
+    const { withClient } = require('./lib/mcp-client');
+    const result = await withClient(spec, c => c.callTool(tool, args || {}), ENV);
+    return { ok: true, result };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+// ---------- yedekten geri yükleme ----------
+ipcMain.handle('galaxy:backupList', () => {
+  try {
+    const bdir = path.join(DATA_DIR, 'backups');
+    return fs.readdirSync(bdir)
+      .filter(f => /^galaxy-data-\d{4}-\d{2}-\d{2}\.json$/.test(f))
+      .sort().reverse()
+      .map(f => {
+        let size = 0;
+        try { size = fs.statSync(path.join(bdir, f)).size; } catch (err) {}
+        return { name: f, date: f.slice(12, 22), size };
+      });
+  } catch (e) { return []; }
+});
+
+ipcMain.handle('galaxy:backupRestore', async (e, name) => {
+  if (!/^galaxy-data-\d{4}-\d{2}-\d{2}\.json$/.test(String(name))) return { ok: false, error: 'Geçersiz yedek adı' };
+  const file = path.join(DATA_DIR, 'backups', name);
+  if (!fs.existsSync(file)) return { ok: false, error: 'Yedek bulunamadı' };
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'warning',
+    title: 'Yedeğe Dön',
+    message: `${name.slice(12, 22)} tarihli yedeğe dönülsün mü?`,
+    detail: 'Mevcut veri önce güvenlik kopyası olarak saklanır, ardından uygulama yeniden başlar.',
+    buttons: ['Vazgeç', 'Evet, Geri Yükle'],
+    defaultId: 0, cancelId: 0
+  });
+  if (response !== 1) return { ok: true, action: 'cancel' };
+  try {
+    try { fs.copyFileSync(DATA_FILE, path.join(DATA_DIR, 'backups', 'pre-restore-' + Date.now() + '.json')); } catch (err) {}
+    fs.copyFileSync(file, DATA_FILE);
+    try { fs.writeFileSync(path.join(DATA_DIR, 'galaxy-data.js'), 'window.GALAXY_DATA = ' + fs.readFileSync(DATA_FILE, 'utf8') + ';', 'utf8'); } catch (err) {}
+    app.relaunch();
+    app.exit(0);
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+g.slugify = slugify;
+g.buildTree = buildTree;
+g.safeJoin = safeJoin;
+g.needsOnboarding = needsOnboarding;
+g.createOnboardingWindow = createOnboardingWindow;
+g.openSettingsWindow = openSettingsWindow;
+g.TEXT_EXT = TEXT_EXT;
+g.IMAGE_EXT = IMAGE_EXT;
+g.MEDIA_EXT = MEDIA_EXT;
+g.onboardWin = onboardWin;
+g.settingsWin = settingsWin;
+  }
 };

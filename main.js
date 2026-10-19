@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, globalShortcut, dialog, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, globalShortcut, dialog, safeStorage, screen } = require('electron');
 
 // Tek örnek kilidi — uygulama tray'de arka planda kalmaya devam ettiği için (window-all-closed'da
 // çıkmıyor), kullanıcı simgeye/kısayola tekrar tıklarsa ikinci bir süreç açılıp aynı
@@ -30,6 +30,9 @@ require('./ipc/core')(g);
 require('./ipc/db-git')(g);
 require('./ipc/ai-runtime')(g);
 require('./ipc/infra')(g);
+require('./ipc/planet-work')(g);
+require('./ipc/devtools')(g);
+require('./ipc/agent-engine')(g);
 require('./lib/trainings')(g);
 
 const {
@@ -37,15 +40,90 @@ const {
   needsOnboarding, createOnboardingWindow, autoDetectLocalDbs, openSettingsWindow
 } = g;
 
+const WIN_FILE = path.join(DATA_DIR, 'window.json');
+function loadWinState() {
+  try { return JSON.parse(fs.readFileSync(WIN_FILE, 'utf8')) || {}; } catch (e) { return {}; }
+}
+function saveWinState(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    const b = (typeof win.getNormalBounds === 'function') ? win.getNormalBounds() : win.getBounds();
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(WIN_FILE, JSON.stringify({
+      x: b.x, y: b.y, width: b.width, height: b.height,
+      fullscreen: !!win.isFullScreen(),
+      maximized: !win.isFullScreen() && !!win.isMaximized()
+    }), 'utf8');
+  } catch (e) {}
+}
+function boundsOnScreen(b) {
+  if (!b || typeof b.x !== 'number') return false;
+  try {
+    return screen.getAllDisplays().some(d => {
+      const a = d.workArea;
+      return b.x < a.x + a.width && b.x + 80 > a.x && b.y < a.y + a.height && b.y + 40 > a.y;
+    });
+  } catch (e) { return false; }
+}
+function ensureUsableBounds(win) {
+  if (!win || win.isDestroyed() || win.isFullScreen()) return;
+  try {
+    const b = win.getBounds();
+    const wa = screen.getPrimaryDisplay().workAreaSize;
+    if (b.width < 900 || b.height < 560) {
+      win.setBounds({
+        x: Math.max(0, Math.round((wa.width - Math.min(1440, wa.width)) / 2)),
+        y: Math.max(0, Math.round((wa.height - Math.min(900, wa.height)) / 2)),
+        width: Math.min(1440, wa.width),
+        height: Math.min(900, wa.height)
+      });
+    }
+  } catch (e) {}
+}
+function bindMainWindow(win) {
+  const emitFs = () => { try { if (!win.isDestroyed()) win.webContents.send('galaxy:fullscreen', !!win.isFullScreen()); } catch (e) {} };
+  win.on('enter-full-screen', () => { emitFs(); saveWinState(win); });
+  win.on('leave-full-screen', () => {
+    emitFs();
+    setTimeout(() => { ensureUsableBounds(win); saveWinState(win); }, 40);
+  });
+  win.on('moved', () => saveWinState(win));
+  win.on('resized', () => saveWinState(win));
+  win.on('maximize', () => saveWinState(win));
+  win.on('unmaximize', () => saveWinState(win));
+  win.on('close', () => saveWinState(win));
+  win.webContents.on('did-finish-load', emitFs);
+  // Esc iç pop-up'ları kapatır; native tam ekrandan düşürmez (⌃⌘F / yeşil düğme durur).
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'Escape' && win.isFullScreen()) {
+      event.preventDefault();
+      try { win.webContents.send('galaxy:esc'); } catch (e) {}
+    }
+  });
+}
 function createWindow() {
-  const win = new BrowserWindow({
-    fullscreen: true,
+  const wa = (() => { try { return screen.getPrimaryDisplay().workAreaSize; } catch (e) { return { width: 1440, height: 900 }; } })();
+  const st = loadWinState();
+  const wantFs = st.fullscreen !== false;
+  const opts = {
+    width: Math.max(1024, st.width || Math.min(1440, wa.width)),
+    height: Math.max(640, st.height || Math.min(900, wa.height)),
+    minWidth: 960,
+    minHeight: 600,
     backgroundColor: '#04060c',
+    show: false,
+    fullscreenable: true,
+    fullscreen: wantFs,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
       preload: path.join(APP_DIR, 'preload.js'),
       contextIsolation: true
     }
-  });
+  };
+  if (boundsOnScreen(st)) { opts.x = st.x; opts.y = st.y; }
+  const win = new BrowserWindow(opts);
+  bindMainWindow(win);
   // Arayüzü öncelikle veri dizininden yükle — UI güncellemeleri için
   // uygulamayı yeniden paketlemek gerekmesin (index.html oraya kopyalanabilir)
   // Yeni tasarım arayüzü (newui/) — Three.js galaksi + dc-runtime, gerçek verine bağlı.
@@ -57,7 +135,18 @@ function createWindow() {
     fs.existsSync(extOld) ? extOld :
     path.join(APP_DIR, 'newui', 'index.html')
   );
+  win.once('ready-to-show', () => {
+    win.show();
+    if (wantFs && !win.isFullScreen()) win.setFullScreen(true);
+    else if (!wantFs && st.maximized) win.maximize();
+  });
 }
+ipcMain.handle('galaxy:toggleFullscreen', e => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w || w.isDestroyed()) return { ok: false };
+  w.setFullScreen(!w.isFullScreen());
+  return { ok: true, fullscreen: w.isFullScreen() };
+});
 g.createWindow = createWindow;
 
 // ---------- otomatik güncelleme (Developer ID / DMG sürümü) ----------
@@ -105,6 +194,7 @@ function setupAutoUpdate() {
 }
 ipcMain.handle('galaxy:checkUpdate', () => { checkForUpdate(true); return { ok: true }; });
 ipcMain.handle('galaxy:openUpdate', (e, url) => { try { require('electron').shell.openExternal(url || ('https://github.com/' + UPDATE_REPO + '/releases')); } catch (err) {} return { ok: true }; });
+ipcMain.handle('galaxy:homeDir', () => { try { return os.homedir(); } catch (err) { return ''; } });
 
 async function manualUpdateCheck() {
   if (IS_MAS) { dialog.showMessageBox({ type: 'info', title: 'Güncelleme', message: 'App Store sürümü', detail: 'Güncellemeler App Store üzerinden gelir.' }); return; }
@@ -162,10 +252,32 @@ function createTray() {
     tray.setToolTip('Project Galaxy');
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '⚡ Hızlı Not (⌘⇧G)', click: showQuickCapture },
-      { label: 'Galaxy\'yi Aç', click: () => { const wins = BrowserWindow.getAllWindows().filter(w => w !== quickWin); if (wins.length) { wins[0].show(); wins[0].focus(); } else createWindow(); } },
+      { label: 'Galaxy\'yi Aç', click: () => {
+        const wins = BrowserWindow.getAllWindows().filter(w => w !== quickWin);
+        if (wins.length) {
+          const w = wins[0];
+          if (w.isMinimized()) w.restore();
+          w.show(); w.focus();
+          if (loadWinState().fullscreen !== false && !w.isFullScreen()) w.setFullScreen(true);
+        } else createWindow();
+      } },
       { type: 'separator' },
       { label: 'Ayarlar…', click: openSettingsWindow },
       { label: 'Güncellemeleri Denetle', click: manualUpdateCheck },
+      { label: 'Kaynaklardan yenile…', click: () => {
+        try {
+          const { spawn } = require('child_process');
+          const script = path.join(APP_DIR, 'scripts', 'refresh-app.sh');
+          const alt = path.join(path.dirname(APP_DIR), 'ProjectGalaxy', 'scripts', 'refresh-app.sh');
+          const src = fs.existsSync(script) ? script : (fs.existsSync(alt) ? alt : null);
+          if (!src) {
+            const { dialog } = require('electron');
+            dialog.showMessageBox({ type: 'info', title: 'Yenile', message: 'Kaynak klasörde scripts/refresh-app.sh yok.', detail: 'Geliştirme için ProjectGalaxy klasöründeki Yenile.app.command dosyasına çift tıkla.' });
+            return;
+          }
+          spawn('bash', [src], { detached: true, stdio: 'ignore' }).unref();
+        } catch (e) {}
+      } },
       { type: 'separator' },
       { label: 'Çıkış', click: () => app.quit() }
     ]));
@@ -197,6 +309,11 @@ app.on('activate', () => {
 // mevcut pencereyi öne getir. Böylece aynı veri dosyasına iki süreç birden yazamaz.
 app.on('second-instance', () => {
   const wins = BrowserWindow.getAllWindows().filter(w => w !== quickWin);
-  if (wins.length) { const w = wins[0]; if (w.isMinimized()) w.restore(); w.show(); w.focus(); }
+  if (wins.length) {
+    const w = wins[0];
+    if (w.isMinimized()) w.restore();
+    w.show(); w.focus();
+    if (loadWinState().fullscreen !== false && !w.isFullScreen()) w.setFullScreen(true);
+  }
   else if (needsOnboarding()) createOnboardingWindow(); else createWindow();
 });
