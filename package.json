@@ -6,14 +6,21 @@
   "description": "Projelerini bir evren olarak gezdiğin, AI ajanlarıyla yönettiğin masaüstü uygulaması",
   "main": "main.js",
   "author": "Furkan Yıldız",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "electron .",
-    "test": "python3 newui/build.py && electron test/smoke.js",
+    "build:ui": "node newui/build.js",
+    "start": "node newui/build.js --quiet && electron .",
+    "test": "node newui/build.js && electron test/smoke.js",
+    "test:integration": "node test/integration.js",
     "smoke": "electron test/smoke.js",
-    "make-app": "electron-packager . \"Project Galaxy\" --platform=darwin --arch=arm64 --icon=build/galaxy.icns --out=dist --overwrite --prune --app-bundle-id=com.furkan.projectgalaxy --ignore=\"^/dist\" --ignore=\"\\.command$\" --ignore=\"backup\" --ignore=\"^/build/icon_preview\" --ignore=\"claude-design-result\" --ignore=\"^/reports\" --ignore=\"^/attachments\"",
-    "dist": "electron-builder --mac dmg",
+    "make-app": "bash scripts/package-mac.sh",
+    "dist": "node newui/build.js && electron-builder --mac",
+    "dist:win": "node newui/build.js && electron-builder --win",
     "release:mas": "node scripts/build-mas.js",
-    "dist:mas": "node scripts/build-mas.js"
+    "dist:mas": "node scripts/build-mas.js",
+    "refresh-app": "bash scripts/refresh-app.sh"
   },
   "build": {
     "appId": "com.furkan.projectgalaxy",
@@ -72,7 +79,12 @@
       "!.github${/*}",
       "!native/*.swift",
       "!newui/preview-sample.html",
-      "!newui/build.py",
+      "!newui/build.js",
+      "!newui/parts${/*}",
+      "!docs${/*}",
+      "!assets/claude-design-result.html",
+      "!**/*.mp4",
+      "!*.md",
       "!backups${/*}",
       "!reports${/*}",
       "!attachments${/*}",
@@ -105,7 +117,12 @@
     }
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "codemirror": "^5.65.18",
     "electron-updater": "^6.3.9",
+    "jszip": "^3.10.2",
+    "mssql": "^12.7.10",
     "mysql2": "^3.11.5",
     "pg": "^8.13.1",
     "sql.js": "^1.12.0"

@@ -1,17 +1,42 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="apex">
 <head>
 <meta charset="utf-8">
 <title>Project Galaxy</title>
 <style>
   :root {
-    --bg: #04060c;
-    --panel: rgba(14, 20, 40, .55);
-    --line: rgba(120, 160, 255, .22);
-    --ink: #e6ebff;
-    --dim: #8b93b8;
-    --faint: #4d5677;
-    --cy: #61dcff;
+    --bg: #0f1217;
+    --panel: #151921;
+    --line: rgba(255, 255, 255, .1);
+    --ink: #e6ebf2;
+    --dim: #95a0b0;
+    --faint: #677284;
+    --cy: #58a6ff;
+    --gx-bg: #0f1217;
+    --gx-panel: #151921;
+    --gx-panel-2: #11151c;
+  }
+  html[data-theme="ev"] {
+    --bg: #14110e;
+    --cy: #e8b86d;
+    --ink: #f3eadc;
+    --dim: #b8a894;
+    --faint: #7a6e5c;
+    --line: rgba(232,184,109,.16);
+    --gx-bg: #14110e;
+    --gx-panel: #1c1814;
+    --gx-panel-2: #161310;
+  }
+  html[data-theme="apex"] {
+    --bg: #0f1217;
+    --cy: #58a6ff;
+    --ink: #e6ebf2;
+    --dim: #95a0b0;
+    --faint: #677284;
+    --line: rgba(255, 255, 255, .1);
+    --gx-bg: #0f1217;
+    --gx-panel: #151921;
+    --gx-panel-2: #11151c;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -20,18 +45,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-user-select: none; user-select: none;
   }
-  canvas#stars { position: fixed; inset: 0; z-index: 0; }
-  #nebula {
-    position: fixed; inset: -12%; z-index: 0; pointer-events: none; opacity: .8;
-    background:
-      radial-gradient(38% 30% at 78% 18%, rgba(96, 60, 220, .16), transparent 70%),
-      radial-gradient(30% 26% at 12% 68%, rgba(30, 110, 230, .13), transparent 70%),
-      radial-gradient(24% 20% at 60% 82%, rgba(200, 50, 140, .10), transparent 70%),
-      radial-gradient(20% 16% at 30% 22%, rgba(40, 190, 220, .10), transparent 70%),
-      radial-gradient(12% 9% at 84% 62%, rgba(255, 170, 80, .07), transparent 70%);
-    filter: blur(28px);
-    animation: nebDrift 90s ease-in-out infinite alternate;
-  }
+  canvas#stars, #nebula { display: none; }
   @keyframes nebDrift { from { transform: translate(0, 0) scale(1); } to { transform: translate(-2.5%, -2%) scale(1.06); } }
   .drag { position: fixed; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; z-index: 5; }
   .wrap {
@@ -40,30 +54,30 @@
     padding: 48px 64px 40px;
   }
   .mono { font-family: Menlo, "JetBrains Mono", monospace; }
-  .hud { font-size: 10px; letter-spacing: .3em; color: var(--cy); text-transform: uppercase; }
-  .title { font-size: 24px; font-weight: 300; letter-spacing: .35em; margin: 10px 0 4px; }
-  .sub { color: var(--dim); font-size: 13px; margin-bottom: 26px; text-align: center; max-width: 520px; line-height: 1.55; }
+  .hud { font-size: 11px; letter-spacing: .08em; color: var(--cy); text-transform: uppercase; font-weight: 600; }
+  .title { font-size: 24px; font-weight: 600; letter-spacing: -.01em; margin: 8px 0 6px; }
+  .sub { color: var(--dim); font-size: 13px; margin-bottom: 22px; text-align: center; max-width: 520px; line-height: 1.55; }
   .card {
     width: 640px; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 10px; padding: 26px 28px; backdrop-filter: blur(8px);
+    border-radius: 10px; padding: 26px 28px;
     max-height: 320px; overflow-y: auto;
   }
   .row { display: flex; gap: 12px; }
   .grow { flex: 1; }
   input[type=text] {
-    width: 100%; background: rgba(20, 26, 60, .6); border: 1px solid rgba(120, 140, 255, .3);
-    color: var(--ink); padding: 11px 14px; font-size: 14px; outline: none; border-radius: 6px;
+    width: 100%; background: var(--gx-panel-2); border: 1px solid var(--line);
+    color: var(--ink); padding: 11px 14px; font-size: 14px; outline: none; border-radius: 8px;
     font-family: inherit; -webkit-user-select: text; user-select: text;
   }
   input[type=text]:focus { border-color: var(--cy); }
   .btn {
-    display: inline-block; border: 1px solid var(--line); color: var(--ink); background: transparent;
-    padding: 10px 22px; font-size: 12px; letter-spacing: .18em; cursor: pointer; border-radius: 6px;
-    font-family: Menlo, monospace; transition: all .15s;
+    display: inline-block; border: 1px solid var(--line); color: var(--ink); background: var(--panel);
+    padding: 10px 22px; font-size: 12px; font-weight: 600; letter-spacing: .04em; cursor: pointer; border-radius: 8px;
+    font-family: inherit; transition: all .15s;
   }
   .btn:hover { border-color: var(--cy); color: var(--cy); }
-  .btn.solid { background: var(--cy); color: #04121c; border-color: var(--cy); font-weight: 600; }
-  .btn.solid:hover { filter: brightness(1.15); color: #04121c; }
+  .btn.solid { background: var(--cy); color: #08111d; border-color: var(--cy); font-weight: 600; }
+  .btn.solid:hover { filter: brightness(1.08); color: #08111d; }
   .btn:disabled { opacity: .35; cursor: default; }
   .nav { display: flex; justify-content: space-between; align-items: center; width: 640px; margin-top: 22px; }
   .dots { display: flex; gap: 8px; }
@@ -71,15 +85,15 @@
   .dot.on { background: var(--cy); }
   .langCards { display: flex; gap: 18px; justify-content: center; }
   .langCard {
-    width: 200px; padding: 26px 20px; text-align: center; cursor: pointer;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; transition: all .15s;
+    width: 210px; padding: 24px 20px; text-align: center; cursor: pointer;
+    background: var(--panel); border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; transition: all .15s;
   }
-  .langCard:hover, .langCard.sel { border-color: var(--cy); box-shadow: 0 0 24px rgba(97, 220, 255, .12); }
+  .langCard:hover, .langCard.sel { border-color: var(--cy); background: rgba(88, 166, 255, .1); box-shadow: 0 0 0 1px var(--cy); }
   .langCard .flag { font-size: 30px; margin-bottom: 10px; }
-  .langCard .name { font-size: 15px; letter-spacing: .12em; }
+  .langCard .name { font-size: 14px; font-weight: 600; letter-spacing: .04em; color: var(--ink); }
   .uniRow {
     display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-    border: 1px solid var(--line); border-radius: 7px; margin-bottom: 10px; background: rgba(10, 14, 30, .5);
+    border: 1px solid var(--line); border-radius: 7px; margin-bottom: 10px; background: var(--gx-panel-2);
   }
   .uniRow .path { color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
   .uniRow input { padding: 7px 10px; font-size: 13px; }
@@ -88,11 +102,11 @@
   .uniCard {
     position: relative; padding: 18px 18px 16px;
     border: 1px solid var(--line);
-    background: linear-gradient(172deg, rgba(13,18,36,.92), rgba(5,8,18,.96));
-    clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);
+    border-radius: 10px;
+    background: var(--gx-panel-2);
     transition: border-color .15s, box-shadow .15s;
   }
-  .uniCard:hover { border-color: var(--line-strong, rgba(190,205,255,.38)); box-shadow: 0 0 26px rgba(97,220,255,.08); }
+  .uniCard:hover { border-color: var(--cy); }
   .uniCard .planet {
     width: 52px; height: 52px; border-radius: 50%; margin-bottom: 15px;
     transition: transform .3s cubic-bezier(.34,1.56,.5,1);
@@ -137,6 +151,13 @@
   @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .sumLine { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(120,160,255,.08); font-size: 13px; }
   .sumLine .k { color: var(--faint); width: 130px; flex: none; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding-top: 2px; }
+  .connGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .connCard { border: 1px solid var(--line); border-radius: 10px; padding: 12px 13px; text-align: left; background: rgba(8,14,28,.45); }
+  .connCard .t { font-size: 13px; font-weight: 600; color: var(--cy); margin-bottom: 5px; }
+  .connCard .b { font-size: 12px; color: var(--dim); line-height: 1.45; }
+  .connCard .w { font-family: Menlo, "JetBrains Mono", monospace; font-size: 10px; color: var(--faint); margin-top: 8px; letter-spacing: .02em; line-height: 1.4; }
+  .connNote { font-size: 12px; color: var(--dim); margin-top: 12px; line-height: 1.5; }
+  .card.wide { width: 640px; max-height: 380px; }
 
   /* --- tanıtım görselleri (docs/Project_Galaxy_Mission_Control.pdf) --- */
   .illus {
@@ -173,16 +194,260 @@
   @media (prefers-reduced-motion: reduce) {
     #nebula { animation: none !important; }
     .fade { animation: none !important; }
+    .pulse { animation: none !important; }
   }
+
+  /* --- ayarlar: tercih penceresi (onboarding sihirbazından ayrı) --- */
+  @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url("newui/assets/fonts/f02-750e0dbba1.woff2") format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:300 700;font-display:swap;src:url("newui/assets/fonts/f08-17e10d2ba2.woff2") format('woff2')}
+  body.prefs {
+    font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: var(--gx-bg);
+  }
+  body.prefs .wrap { display: none !important; }
+  body.prefs .drag { display: none; }
+  body.prefs canvas#stars, body.prefs #nebula { display: none; }
+  #prefs {
+    position: relative; z-index: 2; height: 100%;
+    display: grid; grid-template-rows: 52px 1fr 58px;
+    background: var(--gx-panel, #0d1324);
+  }
+  .prefs-top {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 22px 0 78px;
+    border-bottom: 1px solid var(--line);
+    background: var(--gx-panel, #0d1324);
+    -webkit-app-region: drag;
+  }
+  html[data-platform="win32"] .prefs-top, html[data-platform="linux"] .prefs-top { padding: 0 150px 0 22px; }
+  .prefs-top .mark {
+    width: 9px; height: 9px; background: var(--cy);
+    box-shadow: 0 0 12px var(--cy); transform: rotate(45deg); flex: none;
+  }
+  .prefs-top .brand {
+    font-weight: 600; letter-spacing: .16em; font-size: 13px; color: var(--ink);
+  }
+  .prefs-top .hud {
+    font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .22em;
+    color: var(--cy); margin-left: 4px;
+  }
+  .prefs-top .ver {
+    margin-left: auto; font-family: "JetBrains Mono", monospace;
+    font-size: 10px; color: var(--faint); -webkit-app-region: no-drag;
+  }
+  .prefs-body {
+    display: grid; grid-template-columns: 212px 1fr; min-height: 0;
+  }
+  .prefs-nav {
+    border-right: 1px solid var(--line);
+    padding: 14px 10px;
+    display: flex; flex-direction: column; gap: 3px;
+    background: var(--gx-panel-2, #0a101c);
+  }
+  .theme-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; max-width: 720px; }
+  .theme-card {
+    -webkit-app-region: no-drag;
+    text-align: left; cursor: pointer; border-radius: 14px;
+    border: 1px solid var(--line); background: var(--gx-panel-2, #0a101c);
+    padding: 12px; font-family: inherit; color: var(--ink);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .theme-card:hover { border-color: rgba(97,220,255,.28); }
+  html[data-theme="ev"] .theme-card:hover { border-color: rgba(232,184,109,.35); }
+  .theme-card.on {
+    border-color: var(--cy);
+    box-shadow: 0 0 0 1px var(--cy), 0 8px 28px rgba(0,0,0,.28);
+  }
+  .theme-card .lab { font-size: 15px; font-weight: 600; margin-top: 10px; }
+  .theme-card .sub { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .06em; color: var(--dim); margin-top: 2px; }
+  .theme-preview { height: 88px; border-radius: 10px; position: relative; overflow: hidden; }
+  .theme-preview.galaxy {
+    background:
+      radial-gradient(40% 50% at 20% 80%, rgba(97,220,255,.35), transparent 70%),
+      radial-gradient(50% 40% at 85% 20%, rgba(70,132,246,.3), transparent 70%),
+      linear-gradient(180deg, #0a1228, #05080f);
+  }
+  .theme-preview.ev {
+    background:
+      linear-gradient(180deg, transparent 74%, #6a4a2a 74.5%, #4a321c 100%),
+      linear-gradient(90deg, #e7f3ff 0 18%, transparent 18%),
+      repeating-linear-gradient(90deg, rgba(90,60,30,.1) 0 2px, transparent 2px 28px),
+      linear-gradient(180deg, #d4b07a, #a07848);
+  }
+  .theme-preview.ev::before {
+    content:""; position:absolute; left:22%; top:12%; right:8%; bottom:28%;
+    background:#c9a06a; border:4px solid #5a3a22;
+  }
+  .theme-preview.ev::after {
+    content:""; position:absolute; left:28%; top:22%; width:20%; height:32%;
+    background:#f3e6c4; box-shadow: 28px 10px 0 #efe0b8, 12px 38px 0 #e8d5a8;
+    transform:rotate(-6deg); z-index:1;
+  }
+  .theme-preview.apex {
+    background:
+      linear-gradient(rgba(79,224,255,.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,224,255,.12) 1px, transparent 1px),
+      radial-gradient(50% 40% at 70% 30%, rgba(79,224,255,.32), transparent 70%),
+      linear-gradient(180deg, #05070c, #020308);
+    background-size: 14px 14px, 14px 14px, auto, auto;
+  }
+  .theme-preview.apex::after {
+    content:""; position:absolute; left:14%; top:22%; width:34%; height:38%;
+    border:1px solid rgba(79,224,255,.55); border-radius:8px;
+    box-shadow: 42px 16px 0 -1px rgba(79,224,255,.28), 0 0 16px rgba(79,224,255,.25);
+  }
+  .prefs-nav button {
+    -webkit-app-region: no-drag;
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; text-align: left; cursor: pointer;
+    background: transparent; border: 1px solid transparent;
+    color: var(--dim); border-radius: 10px;
+    padding: 10px 12px; font-family: inherit; font-size: 13.5px;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .prefs-nav button:hover { color: var(--ink); background: rgba(97,220,255,.05); }
+  .prefs-nav button.on {
+    color: var(--cy); border-color: rgba(97,220,255,.28);
+    background: rgba(97,220,255,.08);
+  }
+  .prefs-nav .ico {
+    width: 22px; text-align: center; font-size: 13px; opacity: .85; flex: none;
+  }
+  .prefs-nav .sub {
+    font-family: "JetBrains Mono", monospace; font-size: 9px;
+    letter-spacing: .08em; color: var(--faint); margin-top: 1px;
+  }
+  .prefs-main { overflow: auto; padding: 28px 36px 40px; }
+  .prefs-main::-webkit-scrollbar { width: 8px; }
+  .prefs-main::-webkit-scrollbar-thumb { background: rgba(190,205,255,.22); border-radius: 4px; }
+  .pane-hud {
+    font-family: "JetBrains Mono", monospace; font-size: 10px;
+    letter-spacing: .28em; color: var(--cy); text-transform: uppercase;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .pulse {
+    width: 7px; height: 7px; border-radius: 50%; background: #55e88b;
+    box-shadow: 0 0 8px rgba(85,232,139,.7);
+    animation: gxpulse 2s ease-in-out infinite; flex: none;
+  }
+  .pulse.warn { background: #ffc861; box-shadow: 0 0 8px rgba(255,200,97,.55); }
+  .pulse.off { background: var(--faint); box-shadow: none; animation: none; }
+  @keyframes gxpulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .pane-title { font-size: 26px; font-weight: 500; letter-spacing: -.02em; margin-bottom: 6px; }
+  .pane-lead { color: var(--dim); font-size: 13.5px; line-height: 1.55; max-width: 52ch; margin-bottom: 26px; }
+  .fld { margin-bottom: 22px; }
+  .fld .lab { display: block; font-size: 13.5px; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+  .fld .hint { font-size: 12.5px; color: var(--dim); line-height: 1.5; margin-bottom: 10px; }
+  .fld input[type=text], .fld textarea, #prefs textarea, #prefs input[type=text] {
+    width: 100%; background: rgba(8,12,28,.72);
+    border: 1px solid rgba(120,160,255,.22);
+    color: var(--ink); padding: 12px 14px; font-size: 14px;
+    outline: none; border-radius: 10px;
+    font-family: inherit; -webkit-user-select: text; user-select: text;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  #prefs textarea {
+    resize: vertical; min-height: 108px; line-height: 1.55;
+  }
+  #prefs input[type=text]:focus, #prefs textarea:focus {
+    border-color: var(--cy); box-shadow: 0 0 0 3px rgba(97,220,255,.12);
+  }
+  .seg {
+    display: inline-flex; border: 1px solid rgba(190,205,255,.18);
+    border-radius: 10px; overflow: hidden; background: rgba(4,6,12,.4);
+  }
+  .seg button {
+    background: transparent; border: none; color: var(--dim);
+    padding: 10px 18px; font-size: 13px; cursor: pointer;
+    font-family: inherit; letter-spacing: .02em;
+    transition: background .15s, color .15s;
+  }
+  .seg button + button { border-left: 1px solid rgba(190,205,255,.14); }
+  .seg button.on { background: rgba(97,220,255,.14); color: var(--cy); font-weight: 600; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .stat {
+    border: 1px solid var(--line); border-radius: 14px;
+    background: linear-gradient(172deg, rgba(13,18,36,.72), rgba(5,8,18,.8));
+    padding: 16px 18px;
+  }
+  .stat .k { font-size: 12.5px; color: var(--dim); margin-bottom: 8px; }
+  .stat input {
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 28px !important; letter-spacing: .04em; color: var(--cy) !important;
+    padding: 4px 0 !important; background: transparent !important; border: none !important;
+    box-shadow: none !important; border-radius: 0 !important;
+  }
+  .stat .u { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .12em; color: var(--faint); text-transform: uppercase; }
+  .prefs-foot {
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 22px 0 22px;
+    border-top: 1px solid var(--line);
+    background: var(--gx-panel, #0d1324);
+  }
+  html[data-theme="ev"] .prefs-foot .save { color: #211a05; }
+  html[data-theme="ev"] #prefs input[type=text]:focus, html[data-theme="ev"] #prefs textarea:focus {
+    box-shadow: 0 0 0 3px rgba(232,184,109,.16);
+  }
+  html[data-theme="ev"] .fld input[type=text], html[data-theme="ev"] .fld textarea, html[data-theme="ev"] #prefs textarea, html[data-theme="ev"] #prefs input[type=text] {
+    background: rgba(28,22,16,.92); border-color: rgba(232,184,109,.22);
+  }
+  .prefs-foot .meta {
+    font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+    color: var(--faint); line-height: 1.45; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .prefs-foot .save {
+    margin-left: auto; -webkit-app-region: no-drag;
+    background: var(--cy); color: #04121c; border: 1px solid var(--cy);
+    padding: 10px 22px; font-size: 13px; font-weight: 600;
+    letter-spacing: .04em; cursor: pointer; border-radius: 10px;
+    font-family: inherit;
+  }
+  .prefs-foot .save:hover { filter: brightness(1.12); }
+  .prefs-foot .save:disabled { opacity: .4; cursor: default; }
+  .prefs-err { color: #ff8b8b; font-size: 12px; min-height: 0; }
+  .mono-in { font-family: "JetBrains Mono", monospace !important; font-size: 12.5px !important; }
+  .prefs-nav .lab { font-size: 13.5px; font-weight: 500; }
+  .btn-ghost {
+    -webkit-app-region: no-drag;
+    flex: none; white-space: nowrap;
+    background: transparent; color: var(--cy);
+    border: 1px solid color-mix(in srgb, var(--cy) 45%, transparent);
+    padding: 10px 14px; font-size: 13px; font-weight: 600;
+    letter-spacing: .02em; cursor: pointer; border-radius: 10px;
+    font-family: inherit;
+  }
+  .btn-ghost:hover { background: color-mix(in srgb, var(--cy) 12%, transparent); }
+  .fld-split { display: flex; gap: 8px; align-items: stretch; }
+  .fld-split input { flex: 1; min-width: 0; }
+  .test-msg { min-height: 18px; margin-top: 8px; font-size: 12.5px; color: var(--dim); line-height: 1.45; }
+  .test-msg.ok { color: #55e88b; }
+  .test-msg.bad { color: #ff8b8b; }
+  .cli-box {
+    font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--cy);
+    background: color-mix(in srgb, var(--cy) 8%, transparent);
+    padding: 8px 10px; border-radius: 8px; margin: 8px 0 4px;
+    user-select: text; -webkit-user-select: text;
+  }
+  .guide-ol {
+    margin: 0 0 12px; padding-left: 18px; color: var(--dim);
+    font-size: 12.5px; line-height: 1.55; max-width: 54ch;
+  }
+  .guide-ol li { margin-bottom: 4px; }
+  .pane-sec { font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--ink); margin: 8px 0 14px; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 10px 16px; max-width: 560px; }
+  .kv .k { font-size: 12px; color: var(--faint); padding-top: 2px; }
+  .kv .v { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--dim); word-break: break-all; user-select: text; -webkit-user-select: text; }
 </style>
 </head>
 <body>
 <div id="nebula"></div>
 <canvas id="stars"></canvas>
 <div class="drag"></div>
-<div class="wrap">
-  <div class="hud mono" id="hudLabel">İLK KALKIŞ</div>
-  <div class="title">PROJECT GALAXY</div>
+<div class="wrap" id="onboardWrap">
+  <div class="hud mono" id="hudLabel">KURULUM</div>
+  <div class="title">Kaptan</div>
   <div class="sub" id="stepSub"></div>
   <div id="illusHost"></div>
   <div id="stepBody"></div>
@@ -193,6 +458,7 @@
   </div>
   <div class="err mono" id="err"></div>
 </div>
+<div id="prefs" hidden></div>
 <div id="lb"><img alt=""></div>
 
 <script>
@@ -232,8 +498,21 @@ const STR = {
     s2none: 'Henüz klasör seçilmedi.',
     s2name: 'Evren adı',
     s3: 'Mürettebatın: 5 yapay zekâ ajanın. Adlarını ve rollerini istersen şimdi değiştir — sonra ⚙ ile her zaman düzenleyebilirsin.',
-    s4: 'Hazırız. Özet aşağıda — KALKIŞ ile evrenine geç.',
-    kName: 'Kaptan', kLang: 'Dil', kUni: 'Evrenler', kAgents: 'Ajanlar',
+    s4: 'Galaxy senin anahtarlarını saklamaz (DB parolası hariç, o Mac anahtarlığında şifreli). Bunlar opsiyonel — şimdi atla, içeride ilgili yerden bağla.',
+    s5: 'Hazırız. Özet aşağıda — KALKIŞ ile evrenine geç. Bağlantıları sonra sol alt Ayarlar’dan veya ilgili sekmeden tamamlarsın.',
+    kName: 'Kaptan', kLang: 'Dil', kUni: 'Evrenler', kAgents: 'Ajanlar', kSkip: 'hepsi sonra',
+    cClaudeT: 'Claude CLI', cClaudeB: 'Asistan, ajanlar ve konsol bunu çalıştırır. Token Galaxy’ye yazılmaz; Claude kendi girişini kullanır.',
+    cClaudeW: 'Sonra: sol alt Ayarlar → Araçlar → Dene',
+    cGhT: 'GitHub', cGhB: 'Üst şeritteki nokta `gh` oturumuna bakar. Galaxy’ye PAT yapıştırılmaz.',
+    cGhW: 'Terminal: brew install gh  ·  gh auth login',
+    cMailT: 'Posta (MCP)', cMailB: 'Gmail vb. bir MCP sunucusu. Komut, ortam anahtarları (CLIENT_ID, SECRET) ve liste/oku araç adları Ayarlar’da.',
+    cMailW: 'Sonra: Ayarlar → Posta',
+    cDbT: 'Veritabanı', cDbB: 'Postgres / MySQL / SQLite. Host, kullanıcı, parola. Parola uygulamada düz metin durmaz.',
+    cDbW: 'İçeride: üst bar DB → + Bağlantı',
+    cSshT: 'SSH / uzak evren', cSshB: 'Parola saklanmaz. Sistemin ~/.ssh anahtarı veya config Host takma adı yeter.',
+    cSshW: 'İçeride: Daha ▾ → SSH → + Sunucu',
+    cMicT: 'Mikrofon / konuşma', cMicB: 'Sesli asistan macOS “Mikrofon” ve “Konuşma Tanıma” izni ister. Zorunlu değil; yazarak da konuşulur.',
+    cMicW: 'Sistem Ayarları → Gizlilik → Project Galaxy',
     anon: '(isimsiz)', errFolder: 'En az bir klasör seçmelisin.',
     langNote: ''
   },
@@ -247,18 +526,38 @@ const STR = {
     s2none: 'No folder selected yet.',
     s2name: 'Universe name',
     s3: 'Your crew: 5 AI agents. Rename them or tweak their roles now — you can always edit later via ⚙.',
-    s4: 'Ready. Summary below — hit LAUNCH to enter your universe.',
-    kName: 'Captain', kLang: 'Language', kUni: 'Universes', kAgents: 'Agents',
+    s4: 'Galaxy does not keep your API keys (DB passwords are encrypted in the Mac keychain). All optional — skip now, wire them inside.',
+    s5: 'Ready. Summary below — hit LAUNCH. Finish connections later from bottom-left Settings or the matching tab.',
+    kName: 'Captain', kLang: 'Language', kUni: 'Universes', kAgents: 'Agents', kSkip: 'all later',
+    cClaudeT: 'Claude CLI', cClaudeB: 'Powers the assistant, agents and console. No token is pasted into Galaxy; Claude keeps its own login.',
+    cClaudeW: 'Later: bottom-left Settings → Tools → Test',
+    cGhT: 'GitHub', cGhB: 'The top-bar dot reads the `gh` session. Do not paste a PAT into Galaxy.',
+    cGhW: 'Terminal: brew install gh  ·  gh auth login',
+    cMailT: 'Mail (MCP)', cMailB: 'Gmail etc. via an MCP server. Command, env keys (CLIENT_ID, SECRET) and list/read tool names live in Settings.',
+    cMailW: 'Later: Settings → Mail',
+    cDbT: 'Database', cDbB: 'Postgres / MySQL / SQLite. Host, user, password. The password is not stored as plain text.',
+    cDbW: 'Inside: top bar DB → + Connection',
+    cSshT: 'SSH / remote universe', cSshB: 'No password stored. Your ~/.ssh key or a config Host alias is enough.',
+    cSshW: 'Inside: More ▾ → SSH → + Server',
+    cMicT: 'Mic / speech', cMicB: 'Voice needs macOS Microphone and Speech Recognition. Optional — typing still works.',
+    cMicW: 'System Settings → Privacy → Project Galaxy',
     anon: '(anonymous)', errFolder: 'Pick at least one folder.',
     langNote: ''
   }
 };
 
 // ---- durum ----
-const MODE = new URLSearchParams(location.search).get('mode') === 'settings' ? 'settings' : 'onboard';
+const qs = new URLSearchParams(location.search);
+const MODE = qs.get('mode') === 'settings' ? 'settings' : 'onboard';
+const PANE_OK = { profil:1, asistan:1, araclar:1, posta:1, hakkinda:1 };
 const state = { step: 0, lang: 'tr', name: '', universes: [], agents: [], isMas: false,
-  staleDays: 21, planPending: 5, dataDir: '', version: '',
-  claudePath: '', terminalApp: 'Terminal', sshTimeout: 8, focusMin: 25 };
+  dataDir: '', version: '',
+  claudePath: '', terminalApp: 'Terminal', sshTimeout: 8,
+  uiTheme: 'apex', setPane: PANE_OK[qs.get('pane')] ? qs.get('pane') : 'profil' };
+function applyPrefsTheme() {
+  document.documentElement.dataset.theme = 'apex';
+  document.body.dataset.theme = 'apex';
+}
 const $ = id => document.getElementById(id);
 const T = () => STR[state.lang];
 
@@ -268,13 +567,21 @@ async function init() {
       const sg = await window.galaxy.settingsGet();
       state.lang = (sg.profile && sg.profile.lang) || 'tr';
       state.name = (sg.profile && sg.profile.name) || '';
-      state.staleDays = sg.settings.staleDays;
-      state.planPending = sg.settings.planPending;
       state.claudePath = sg.settings.claudePath || '';
       state.terminalApp = sg.settings.terminalApp || 'Terminal';
       state.sshTimeout = sg.settings.sshTimeout || 8;
-      state.focusMin = sg.settings.focusMin || 25;
       state.assistantBio = sg.settings.assistantBio || '';
+      const srv = (sg.settings.mcpServers && sg.settings.mcpServers[0]) || {};
+      state.mcpCommand = srv.command || '';
+      state.mcpArgs = Array.isArray(srv.args) ? srv.args.join(' ') : (srv.args || '');
+      state.mcpEnv = srv.env && typeof srv.env === 'object' ? Object.keys(srv.env).map(k => k + '=' + srv.env[k]).join('\n') : '';
+      state.mailBriefTool = sg.settings.mailBriefTool || '';
+      state.mailSendTool = sg.settings.mailSendTool || '';
+      state.mailTo = sg.settings.mailTo || '';
+      state.mailListTool = sg.settings.mailListTool || '';
+      state.mailReadTool = sg.settings.mailReadTool || '';
+      state.uiTheme = 'apex';
+      applyPrefsTheme();
       state.dataDir = sg.dataDir || '';
       state.version = sg.version || '';
       state.isMas = !!sg.isMas;
@@ -287,96 +594,318 @@ async function init() {
       state.isMas = !!st.isMas;
     }
   } catch (e) {}
-  if (MODE === 'settings') renderSettings(); else render();
+  try {
+    if (MODE === 'settings' && window.galaxy && window.galaxy.onSettingsPane) {
+      window.galaxy.onSettingsPane(pane => { if (PANE_OK[pane]) { harvestSettings(); state.setPane = pane; renderSettings(); } });
+    }
+  } catch (e) {}
+  if (MODE === 'settings') {
+    document.body.classList.add('prefs');
+    const wrap = $('onboardWrap'); if (wrap) wrap.hidden = true;
+    const prefs = $('prefs'); if (prefs) prefs.hidden = false;
+    renderSettings();
+  } else render();
 }
 
-// ---- ayarlar modu: tek sayfalık form ----
+// ---- ayarlar: yan menülü tercih penceresi ----
+function harvestSettings() {
+  const v = id => { const el = $(id); return el ? el.value : undefined; };
+  const n = v('setName'); if (n !== undefined) state.name = n;
+  const bio = v('setBio'); if (bio !== undefined) state.assistantBio = bio;
+  const cl = v('setClaude'); if (cl !== undefined) state.claudePath = cl;
+  const ss = v('setSshTo'); if (ss !== undefined) { const n = parseInt(ss, 10); if (!isNaN(n)) state.sshTimeout = n; }
+  const mc = v('setMcpCmd'); if (mc !== undefined) state.mcpCommand = mc;
+  const ma = v('setMcpArgs'); if (ma !== undefined) state.mcpArgs = ma;
+  const me = v('setMcpEnv'); if (me !== undefined) state.mcpEnv = me;
+  const mb = v('setMailBrief'); if (mb !== undefined) state.mailBriefTool = mb;
+  const ms = v('setMailSend'); if (ms !== undefined) state.mailSendTool = ms;
+  const ml = v('setMailList'); if (ml !== undefined) state.mailListTool = ml;
+  const mr = v('setMailRead'); if (mr !== undefined) state.mailReadTool = mr;
+  const mt = v('setMailTo'); if (mt !== undefined) state.mailTo = mt;
+}
+
+function setPane(id) {
+  harvestSettings();
+  state.setPane = id;
+  renderSettings();
+}
+
+function paneHtml(tr) {
+  const p = state.setPane || 'profil';
+  if (p === 'gorunum' || p === 'esikler') { state.setPane = 'profil'; return paneHtml(tr); }
+  if (p === 'profil') return `
+    <div class="pane-hud"><span class="pulse"></span>${tr ? 'STATUS · KAPTAN' : 'STATUS · CAPTAIN'}</div>
+    <div class="pane-title">${tr ? 'Profil' : 'Profile'}</div>
+    <div class="pane-lead">${tr ? 'Galaxy seni bu isimle çağırır. Dil, arayüzü ve asistanı birlikte değiştirir.' : 'Galaxy addresses you by this name. Language switches the UI and the assistant together.'}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'İsim' : 'Name'}</div>
+      <div class="hint">${tr ? 'Kısa tut — “Furkan”, “Kaptan” gibi.' : 'Keep it short — “Furkan”, “Captain”.'}</div>
+      <input type="text" id="setName" value="${esc(state.name)}" maxlength="60" placeholder="${tr ? 'Adın…' : 'Your name…'}">
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Dil' : 'Language'}</div>
+      <div class="seg">
+        <button type="button" class="${tr ? 'on' : ''}" id="langTr">Türkçe</button>
+        <button type="button" class="${tr ? '' : 'on'}" id="langEn">English</button>
+      </div>
+    </div>`;
+  if (p === 'asistan' || p === 'ikiz') return `
+    <div class="pane-title">${tr ? 'Asistan' : 'Assistant'}</div>
+    <div class="pane-lead">${tr ? 'Sağdaki sohbet paneli her oturumda bunu okur. Haritadaki küreye tıkla veya «Kaptan» de.' : 'The chat panel on the right reads this every session. Click the orb on the map, or say “Captain”.'}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Hakkında' : 'About you'}</div>
+      <div class="hint">${tr ? 'Kim olduğun, işlerin, nasıl konuşulmasını istediğin. Kısa tut.' : 'Who you are, your work, how you like to be spoken to. Keep it short.'}</div>
+      <textarea id="setBio" rows="8" placeholder="${tr ? 'Furkan, mobil + AI. Kısa ve net konuşurum; teknik konuda derinlik isterim.' : 'Who you are, how you work, how you like to be spoken to.'}">${esc(state.assistantBio || '')}</textarea>
+      <div class="hint" style="margin-top:10px;margin-bottom:0">${tr ? 'Asistan Claude CLI ister. Kurulu değilse Araçlar’da Dene — Galaxy yolu kendi bulur.' : 'The assistant needs Claude CLI. If missing, use Test under Tools — Galaxy hunts the path.'}</div>
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Ses / mikrofon' : 'Voice / microphone'}</div>
+      <ol class="guide-ol">
+        <li>${tr ? 'Asistan panelinde Voice On. İlk seferde macOS izin ister. Yazarak da konuşulur — zorunlu değil.' : 'Voice On in the assistant panel. macOS asks once. Typing still works — optional.'}</li>
+        <li>${tr ? 'Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon ve Konuşma Tanıma → Project Galaxy.' : 'System Settings → Privacy & Security → Microphone and Speech Recognition → Project Galaxy.'}</li>
+        <li>${tr ? 'Kaptan kapalı gelir. Paneldeki Kaptan düğmesini aç; sonra «Kaptan» de, dinler. Ses kaydı sunucuya gitmez.' : 'Captain starts off. Toggle Kaptan on the panel, then say “Captain”. The recording is not uploaded.'}</li>
+      </ol>
+    </div>`;
+  if (p === 'araclar') return `
+    <div class="pane-title">${tr ? 'Araçlar' : 'Tools'}</div>
+    <div class="pane-lead">${tr ? 'Claude CLI ajanların motoru. Terminal, gezegene inince klasörü açar.' : 'Claude CLI runs the agents. Terminal opens the folder when you land.'}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Claude komut yolu' : 'Claude binary path'}</div>
+      <ol class="guide-ol">
+        <li>${tr ? 'Kurulu değilse Terminal’de:' : 'If missing, in Terminal:'}
+          <div class="cli-box" data-noi18n>npm install -g @anthropic-ai/claude-code</div>
+        </li>
+        <li>${tr ? 'Dene — Galaxy login PATH, Homebrew ve npm’de arar, yolu alana yazar. Kaydet ile kalıcı yap.' : 'Test — Galaxy hunts login PATH, Homebrew and npm, then fills the field. Save to keep it.'}</li>
+      </ol>
+      <div class="fld-split">
+        <input type="text" id="setClaude" class="mono-in" value="${esc(state.claudePath)}" placeholder="claude" spellcheck="false">
+        <button type="button" class="btn-ghost" id="testClaude">${tr ? 'Dene' : 'Test'}</button>
+      </div>
+      <div class="test-msg" id="claudeTestMsg"></div>
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Terminal uygulaması' : 'Terminal app'}</div>
+      <div class="seg">
+        <button type="button" class="${state.terminalApp !== 'iTerm' ? 'on' : ''}" id="termTerminal">Terminal</button>
+        <button type="button" class="${state.terminalApp === 'iTerm' ? 'on' : ''}" id="termIterm">iTerm</button>
+      </div>
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'SSH zaman aşımı' : 'SSH timeout'}</div>
+      <div class="hint">${tr ? 'Uzak evren taraması bu kadar saniye sonra pes eder.' : 'Remote universe scans give up after this many seconds.'}</div>
+      <input type="text" id="setSshTo" value="${state.sshTimeout}" inputmode="numeric" style="max-width:140px">
+    </div>
+    <div class="fld">
+      <div class="lab">GitHub</div>
+      <div class="hint">${tr ? 'Galaxy GitHub jetonu saklamaz. `gh` komut satırı oturumuna bakar (üst şeritteki nokta). PAT yapıştırma.' : 'Galaxy does not store a GitHub token. It reads the `gh` CLI session (top-bar dot). Do not paste a PAT.'}</div>
+      <ol class="guide-ol">
+        <li>${tr ? 'Kurulu değilse:' : 'If missing:'}
+          <div class="cli-box" data-noi18n>brew install gh</div>
+        </li>
+        <li>${tr ? 'Bir kez giriş yap — tarayıcı açılır:' : 'Sign in once — a browser opens:'}
+          <div class="cli-box" data-noi18n>gh auth login</div>
+        </li>
+        <li>${tr ? 'Galaxy’yi yeniden aç; şerit yeşile döner. Push/PR bu oturumu kullanır.' : 'Reopen Galaxy; the strip turns green. Push/PR use this session.'}</li>
+      </ol>
+    </div>`;
+  if (p === 'posta') {
+    const mcpOn = !!(state.mcpCommand && String(state.mcpCommand).trim());
+    return `
+    <div class="pane-title">${tr ? 'Posta' : 'Mail'}</div>
+    <div class="pane-lead">${tr ? 'Galaxy kendi gelen kutusu değil. Gmail bir MCP süreci üzerinden bağlanır. Ortam alanına satır satır GMAIL_CLIENT_ID=… yaz; Kaydet, sonra dene. Liste/Oku adları: search_emails / read_email.' : 'Galaxy is not an inbox. Gmail attaches through an MCP process. Put GMAIL_CLIENT_ID=… lines in Environment; Save, then test. Tool names: search_emails / read_email.'}</div>
+    <ol class="guide-ol">
+      <li>${tr ? 'MCP sunucusunu kur (örnek Gmail):' : 'Install an MCP server (Gmail example):'}
+        <div class="cli-box" data-noi18n>npx -y @modelcontextprotocol/server-gmail</div>
+      </li>
+      <li>${tr ? 'Aşağıya komutu, argümanları ve ortamı yaz (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN…). # satırı yorum.' : 'Fill command, args and env below (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN…). # starts a comment.'}</li>
+      <li>${tr ? 'Kaydet → Bağlantıyı dene. Araç adlarını (search_emails, read_email, send_email) sunucunun listesine göre düzelt.' : 'Save → Test connection. Match tool names (search_emails, read_email, send_email) to what the server exposes.'}</li>
+    </ol>
+    <div class="pane-sec">${tr ? 'Bağlantı' : 'Connection'}${mcpOn ? (tr ? ' · komut var' : ' · command set') : ''}</div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Komut' : 'Command'}</div>
+      <input type="text" id="setMcpCmd" class="mono-in" value="${esc(state.mcpCommand || '')}" placeholder="npx  ·  /usr/local/bin/mcp-gmail" spellcheck="false">
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Argümanlar' : 'Arguments'}</div>
+      <input type="text" id="setMcpArgs" class="mono-in" value="${esc(state.mcpArgs || '')}" placeholder="-y @modelcontextprotocol/server-gmail" spellcheck="false">
+    </div>
+    <div class="fld">
+      <div class="lab">${tr ? 'Ortam' : 'Environment'}</div>
+      <div class="hint">${tr ? 'Her satıra bir anahtar: GMAIL_CLIENT_ID=… · # ile başlayan satır yorum.' : 'One key per line: GMAIL_CLIENT_ID=… · lines starting with # are comments.'}</div>
+      <textarea id="setMcpEnv" rows="4" class="mono-in" placeholder="GMAIL_CLIENT_ID=…">${esc(state.mcpEnv || '')}</textarea>
+    </div>
+    <div class="fld">
+      <button type="button" class="btn-ghost" id="testMcp">${tr ? 'Bağlantıyı dene' : 'Test connection'}</button>
+      <div class="test-msg" id="mcpTestMsg"></div>
+    </div>
+    <div class="pane-sec">${tr ? 'Araç adları' : 'Tool names'}</div>
+    <div class="stat-grid">
+      <div class="fld" style="margin:0">
+        <div class="lab">${tr ? 'Liste' : 'List'}</div>
+        <input type="text" id="setMailList" class="mono-in" value="${esc(state.mailListTool || '')}" placeholder="search_emails" spellcheck="false">
+      </div>
+      <div class="fld" style="margin:0">
+        <div class="lab">${tr ? 'Oku' : 'Read'}</div>
+        <input type="text" id="setMailRead" class="mono-in" value="${esc(state.mailReadTool || '')}" placeholder="read_email" spellcheck="false">
+      </div>
+      <div class="fld" style="margin:0">
+        <div class="lab">${tr ? 'Gönder' : 'Send'}</div>
+        <input type="text" id="setMailSend" class="mono-in" value="${esc(state.mailSendTool || '')}" placeholder="send_email" spellcheck="false">
+      </div>
+      <div class="fld" style="margin:0">
+        <div class="lab">${tr ? 'Brifing' : 'Brief'}</div>
+        <input type="text" id="setMailBrief" class="mono-in" value="${esc(state.mailBriefTool || '')}" placeholder="send_email" spellcheck="false">
+      </div>
+    </div>
+    <div class="fld" style="margin-top:22px">
+      <div class="lab">${tr ? 'Varsayılan alıcı' : 'Default recipient'}</div>
+      <div class="hint">${tr ? 'Gönder aracı to/subject/body ister — Galaxy metni bu adrese yollar.' : 'Send tools need to/subject/body — Galaxy addresses the text here.'}</div>
+      <input type="text" id="setMailTo" class="mono-in" value="${esc(state.mailTo || '')}" placeholder="ad@ornek.com" spellcheck="false">
+    </div>`;
+  }
+  return `
+    <div class="pane-title">${tr ? 'Hakkında' : 'About'}</div>
+    <div class="pane-lead">${tr ? 'Sürüm ve veri klasörü. Evrenler ve ajanlar uygulama içinden düzenlenir.' : 'Version and data folder. Universes and agents are edited inside the app.'}</div>
+    <div class="kv">
+      <div class="k">${tr ? 'Sürüm' : 'Version'}</div>
+      <div class="v">v${esc(state.version || '')}${state.isMas ? ' · App Store' : ''}</div>
+      <div class="k">${tr ? 'Veri' : 'Data'}</div>
+      <div class="v">${esc(state.dataDir || '')}</div>
+    </div>`;
+}
+
 function renderSettings() {
   const tr = state.lang !== 'en';
-  $('hudLabel').textContent = tr ? 'AYARLAR' : 'SETTINGS';
-  $('stepSub').textContent = tr
-    ? 'Profil, uyarı eşikleri ve araçları (Claude yolu, terminal, odak, SSH) buradan ayarla. Evrenler ✎, ajanlar ⚙ ile uygulama içinden düzenlenir.'
-    : 'Set your profile, alert thresholds and tools (Claude path, terminal, focus, SSH) here. Universes (✎) and agents (⚙) are edited inside the app.';
-  $('illusHost').innerHTML = '';
-  $('backBtn').style.visibility = 'hidden';
-  $('dots').innerHTML = '';
-  $('nextBtn').textContent = tr ? 'KAYDET ▸' : 'SAVE ▸';
-  $('stepBody').innerHTML = `<div class="card fade" style="max-height:none">
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'AD / HİTAP' : 'NAME'}</div>
-    <input type="text" id="setName" value="${esc(state.name)}" maxlength="60" style="margin:6px 0 16px">
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'DİL / LANGUAGE' : 'LANGUAGE'}</div>
-    <div class="row" style="margin:8px 0 16px">
-      <button class="btn ${tr ? 'solid' : ''}" id="langTr" type="button">TÜRKÇE</button>
-      <button class="btn ${tr ? '' : 'solid'}" id="langEn" type="button">ENGLISH</button>
+  const pane = state.setPane || 'profil';
+  const nav = [
+    ['profil', tr ? 'Profil' : 'Profile', tr ? 'isim / dil' : 'name / lang'],
+    ['asistan', tr ? 'Asistan' : 'Assistant', tr ? 'kişilik / ses' : 'persona / voice'],
+    ['araclar', tr ? 'Araçlar' : 'Tools', 'claude / github / ssh'],
+    ['posta', tr ? 'Posta' : 'Mail', 'MCP'],
+    ['hakkinda', tr ? 'Hakkında' : 'About', tr ? 'sürüm / veri' : 'version / data']
+  ];
+  const host = $('prefs');
+  host.innerHTML = `
+    <div class="prefs-top">
+      <span class="mark"></span>
+      <span class="brand">Kaptan</span>
+      <span class="hud">${tr ? 'AYARLAR' : 'SETTINGS'}</span>
+      <span class="ver">v${esc(state.version)}${state.isMas ? ' · App Store' : ''}</span>
     </div>
-    <div class="row">
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'İHMAL UYARISI (GÜN)' : 'NEGLECT ALERT (DAYS)'}</div>
-        <input type="text" id="setStale" value="${state.staleDays}" style="margin-top:6px" inputmode="numeric">
+    <div class="prefs-body">
+      <div class="prefs-nav">
+        ${nav.map(([id, lab, sub]) => `<button type="button" class="${pane === id ? 'on' : ''}" data-pane="${id}">
+          <span><div class="lab">${lab}</div><div class="sub">${sub}</div></span>
+        </button>`).join('')}
       </div>
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'PLAN UYARISI (MADDE)' : 'PLAN ALERT (ITEMS)'}</div>
-        <input type="text" id="setPlan" value="${state.planPending}" style="margin-top:6px" inputmode="numeric">
-      </div>
+      <div class="prefs-main fade">${paneHtml(tr)}</div>
     </div>
-    <div style="height:1px;background:rgba(190,205,255,.12);margin:20px 0 16px"></div>
-    <div style="font-size:11px;letter-spacing:.16em;color:var(--faint);margin-bottom:14px" class="mono">${tr ? 'ARAÇLAR & DAVRANIŞ' : 'TOOLS & BEHAVIOR'}</div>
+    <div class="prefs-foot">
+      <div class="meta" title="${esc(state.dataDir)}">${esc(state.dataDir)}</div>
+      <div class="prefs-err" id="prefsErr"></div>
+      <button type="button" class="save" id="prefsSave">${tr ? 'Kaydet' : 'Save'}</button>
+    </div>`;
+  host.querySelectorAll('[data-pane]').forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
+  const bind = (id, fn) => { const el = $(id); if (el) el.addEventListener('input', fn); };
+  bind('setName', e => { state.name = e.target.value; });
+  bind('setBio', e => { state.assistantBio = e.target.value; });
+  bind('setClaude', e => { state.claudePath = e.target.value; });
+  bind('setMcpCmd', e => { state.mcpCommand = e.target.value; });
+  bind('setMcpArgs', e => { state.mcpArgs = e.target.value; });
+  bind('setMcpEnv', e => { state.mcpEnv = e.target.value; });
+  bind('setMailBrief', e => { state.mailBriefTool = e.target.value; });
+  bind('setMailSend', e => { state.mailSendTool = e.target.value; });
+  bind('setMailTo', e => { state.mailTo = e.target.value; });
+  bind('setMailList', e => { state.mailListTool = e.target.value; });
+  bind('setMailRead', e => { state.mailReadTool = e.target.value; });
+  const lt = $('langTr'), le = $('langEn');
+  if (lt) lt.addEventListener('click', () => { harvestSettings(); state.lang = 'tr'; renderSettings(); });
+  if (le) le.addEventListener('click', () => { harvestSettings(); state.lang = 'en'; renderSettings(); });
+  const tt = $('termTerminal'), ti = $('termIterm');
+  if (tt) tt.addEventListener('click', () => { harvestSettings(); state.terminalApp = 'Terminal'; renderSettings(); });
+  if (ti) ti.addEventListener('click', () => { harvestSettings(); state.terminalApp = 'iTerm'; renderSettings(); });
+  const save = $('prefsSave');
+  if (save) save.addEventListener('click', saveSettings);
+  const tc = $('testClaude');
+  if (tc) tc.addEventListener('click', testClaude);
+  const tm = $('testMcp');
+  if (tm) tm.addEventListener('click', testMcp);
+}
 
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'CLAUDE KOMUT YOLU (boşsa PATH’ten)' : 'CLAUDE BINARY PATH (blank = from PATH)'}</div>
-    <input type="text" id="setClaude" value="${esc(state.claudePath)}" placeholder="claude  ·  /opt/homebrew/bin/claude" style="margin:6px 0 16px" spellcheck="false">
+function setTestMsg(id, text, kind) {
+  const el = $(id); if (!el) return;
+  el.textContent = text || '';
+  el.className = 'test-msg' + (kind === 'ok' ? ' ok' : kind === 'bad' ? ' bad' : '');
+}
 
-    <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'TERMİNAL UYGULAMASI' : 'TERMINAL APP'}</div>
-    <div class="row" style="margin:8px 0 16px">
-      <button class="btn ${state.terminalApp !== 'iTerm' ? 'solid' : ''}" id="termTerminal" type="button">Terminal</button>
-      <button class="btn ${state.terminalApp === 'iTerm' ? 'solid' : ''}" id="termIterm" type="button">iTerm</button>
-    </div>
+async function testClaude() {
+  harvestSettings();
+  const tr = state.lang !== 'en';
+  setTestMsg('claudeTestMsg', tr ? 'Kontrol ediliyor…' : 'Checking…');
+  try {
+    if (!window.galaxy || !window.galaxy.claudeCheck) { setTestMsg('claudeTestMsg', tr ? 'Bu pencerede deneme yok.' : 'Test is unavailable here.', 'bad'); return; }
+    const r = await window.galaxy.claudeCheck({ path: state.claudePath || '' });
+    if (r && r.ok && r.path) {
+      state.claudePath = r.path;
+      const inp = $('setClaude'); if (inp) inp.value = r.path;
+      const head = r.discovered ? (tr ? 'Otomatik bulundu' : 'Auto-detected') : (tr ? 'Bulundu' : 'Found');
+      setTestMsg('claudeTestMsg', head + ' · ' + r.path + (tr ? ' — Kaydet' : ' — Save'), 'ok');
+    } else setTestMsg('claudeTestMsg', (r && r.error) || (tr ? 'Claude bulunamadı. Terminalde npm install -g @anthropic-ai/claude-code, sonra Dene.' : 'Claude not found. In Terminal: npm install -g @anthropic-ai/claude-code, then Test.'), 'bad');
+  } catch (e) {
+    setTestMsg('claudeTestMsg', (e && e.message) || (tr ? 'denenemedi' : 'failed'), 'bad');
+  }
+}
 
-    <div class="row">
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'ODAK SÜRESİ (DK)' : 'FOCUS TIMER (MIN)'}</div>
-        <input type="text" id="setFocus" value="${state.focusMin}" style="margin-top:6px" inputmode="numeric">
-      </div>
-      <div class="grow">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'SSH ZAMAN AŞIMI (SN)' : 'SSH TIMEOUT (SEC)'}</div>
-        <input type="text" id="setSshTo" value="${state.sshTimeout}" style="margin-top:6px" inputmode="numeric">
-      </div>
-    </div>
-
-    <div style="margin-top:18px">
-      <div style="font-size:10px;letter-spacing:.2em;color:var(--faint)" class="mono">${tr ? 'ASİSTAN KİŞİLİĞİ / HAKKINDA' : 'ASSISTANT PERSONA / ABOUT YOU'}</div>
-      <textarea id="setBio" rows="4" placeholder="${tr ? 'Dijital ikizin seni tanısın: kim olduğun, işlerin, konuşma tarzın, tercihlerin… (örn. \'Furkan, mobil + AI geliştiricisi. Kısa ve net konuşurum, teknik konularda derinlik severim.\')' : 'Let your twin know you: who you are, your work, tone, preferences…'}" style="margin-top:6px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px;font-family:inherit">${esc(state.assistantBio || '')}</textarea>
-    </div>
-
-    <div class="hint mono" style="margin-top:18px">${tr ? 'Veri' : 'Data'}: ${esc(state.dataDir)}<br>${tr ? 'Sürüm' : 'Version'}: v${esc(state.version)}${state.isMas ? ' · App Store' : ''}</div>
-  </div>`;
-  $('setName').addEventListener('input', e => { state.name = e.target.value; });
-  $('setBio').addEventListener('input', e => { state.assistantBio = e.target.value; });
-  $('langTr').addEventListener('click', () => { state.lang = 'tr'; renderSettings(); });
-  $('langEn').addEventListener('click', () => { state.lang = 'en'; renderSettings(); });
-  $('setClaude').addEventListener('input', e => { state.claudePath = e.target.value; });
-  $('termTerminal').addEventListener('click', () => { state.terminalApp = 'Terminal'; renderSettings(); });
-  $('termIterm').addEventListener('click', () => { state.terminalApp = 'iTerm'; renderSettings(); });
+async function testMcp() {
+  harvestSettings();
+  const tr = state.lang !== 'en';
+  setTestMsg('mcpTestMsg', tr ? 'Kaydedilmiş ayarlarla deneniyor…' : 'Trying saved settings…');
+  try {
+    if (!window.galaxy || !window.galaxy.mcpList) { setTestMsg('mcpTestMsg', tr ? 'Bu pencerede deneme yok.' : 'Test is unavailable here.', 'bad'); return; }
+    const r = await window.galaxy.mcpList();
+    if (r && r.ok) {
+      const names = (r.tools || []).map(t => t.name || t).filter(Boolean).slice(0, 8).join(', ');
+      setTestMsg('mcpTestMsg', (tr ? 'Bağlandı' : 'Connected') + (names ? ' · ' + names : ''), 'ok');
+    } else setTestMsg('mcpTestMsg', (r && r.error) || (tr ? 'Bağlanamadı. Kaydet, komutu kontrol et.' : 'Could not connect. Save, then check the command.'), 'bad');
+  } catch (e) {
+    setTestMsg('mcpTestMsg', (e && e.message) || (tr ? 'denenemedi' : 'failed'), 'bad');
+  }
 }
 
 async function saveSettings() {
-  const stale = parseInt($('setStale').value, 10);
-  const plan = parseInt($('setPlan').value, 10);
-  const focus = parseInt($('setFocus').value, 10);
-  const sshTo = parseInt($('setSshTo').value, 10);
-  $('nextBtn').disabled = true;
+  harvestSettings();
+  const btn = $('prefsSave');
+  if (btn) btn.disabled = true;
+  const err = $('prefsErr');
   try {
     await window.galaxy.settingsSave({
       name: state.name, lang: state.lang,
-      staleDays: isNaN(stale) ? state.staleDays : stale,
-      planPending: isNaN(plan) ? state.planPending : plan,
       claudePath: state.claudePath,
       terminalApp: state.terminalApp,
-      focusMin: isNaN(focus) ? state.focusMin : focus,
-      sshTimeout: isNaN(sshTo) ? state.sshTimeout : sshTo,
-      assistantBio: state.assistantBio || ''
+      sshTimeout: state.sshTimeout,
+      assistantBio: state.assistantBio || '',
+      mcpServers: state.mcpCommand ? [{
+        id: 'mail',
+        command: state.mcpCommand,
+        args: (state.mcpArgs || '').split(/\s+/).filter(Boolean),
+        env: (state.mcpEnv || '').split(/\r?\n/).reduce((o, line) => {
+          const s = line.trim(); if (!s || s.startsWith('#')) return o;
+          const i = s.indexOf('='); if (i <= 0) return o;
+          o[s.slice(0, i).trim()] = s.slice(i + 1).trim(); return o;
+        }, {})
+      }] : [],
+      mailBriefTool: state.mailBriefTool || '',
+      mailSendTool: state.mailSendTool || '',
+      mailTo: state.mailTo || '',
+      mailListTool: state.mailListTool || '',
+      mailReadTool: state.mailReadTool || '',
+      uiTheme: 'apex'
     });
     window.close();
-  } catch (e) { $('nextBtn').disabled = false; }
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    if (err) err.textContent = (e && e.message) || 'kaydedilemedi';
+  }
 }
 
 // Tanıtım görselleri: her adım, sunumdaki karşılık gelen infografikle açılır.
@@ -387,7 +916,8 @@ const STEP_ILLUS = [
   { img: 'eski-yeni.jpg', cap: { tr: 'Dağınık klasörlerden otonom seyir defterine', en: 'From scattered folders to an autonomous logbook' } },
   { img: 'terminoloji.jpg', cap: { tr: 'Galaksi · Yıldız Sistemi · Gezegen', en: 'Galaxy · Star System · Planet' } },
   { img: 'gorev-murettebati.jpg', cap: { tr: 'Görev mürettebatın', en: 'Your mission crew' } },
-  { img: 'kisayol-haritasi.jpg', cap: { tr: 'Kısayol haritası — evrenin seni bekliyor', en: 'Shortcut map — your universe awaits' } }
+  { img: 'kisayol-haritasi.jpg', cap: { tr: 'Bağlantılar — Claude, GitHub, posta, DB, SSH', en: 'Connections — Claude, GitHub, mail, DB, SSH' } },
+  { img: 'hero-kapak.jpg', cap: { tr: 'Kısayol haritası — evrenin seni bekliyor', en: 'Shortcut map — your universe awaits' } }
 ];
 
 function renderIllus(step) {
@@ -401,12 +931,12 @@ function renderIllus(step) {
 
 function render() {
   const t = T();
-  $('hudLabel').textContent = t.hud + ' · ' + (state.step + 1) + '/5';
+  $('hudLabel').textContent = t.hud + ' · ' + (state.step + 1) + '/6';
   renderIllus(state.step);
   $('backBtn').style.visibility = state.step === 0 ? 'hidden' : 'visible';
   $('backBtn').innerHTML = '◂ ' + t.back;
-  $('nextBtn').textContent = state.step === 4 ? t.start : t.next;
-  $('dots').innerHTML = [0, 1, 2, 3, 4].map(i => `<div class="dot ${i === state.step ? 'on' : ''}"></div>`).join('');
+  $('nextBtn').textContent = state.step === 5 ? t.start : t.next;
+  $('dots').innerHTML = [0, 1, 2, 3, 4, 5].map(i => `<div class="dot ${i === state.step ? 'on' : ''}"></div>`).join('');
   $('err').textContent = '';
   const body = $('stepBody');
   body.className = 'fade';
@@ -440,13 +970,25 @@ function render() {
     $('stepSub').textContent = t.s3;
     body.innerHTML = `<div class="card" id="agentList"></div>`;
     renderAgents();
-  } else {
+  } else if (state.step === 4) {
     $('stepSub').textContent = t.s4;
+    const cards = [
+      ['cClaudeT','cClaudeB','cClaudeW'],
+      ['cGhT','cGhB','cGhW'],
+      ['cMailT','cMailB','cMailW'],
+      ['cDbT','cDbB','cDbW'],
+      ['cSshT','cSshB','cSshW'],
+      ['cMicT','cMicB','cMicW']
+    ].map(([a,b,w]) => `<div class="connCard"><div class="t">${t[a]}</div><div class="b">${t[b]}</div><div class="w">${t[w]}</div></div>`).join('');
+    body.innerHTML = `<div class="card wide"><div class="connGrid">${cards}</div><div class="connNote">${t.kSkip ? (state.lang==='en' ? 'Nothing on this page is required to launch.' : 'Bu sayfadaki hiçbir şey kalkış için zorunlu değil.') : ''}</div></div>`;
+  } else {
+    $('stepSub').textContent = t.s5;
     body.innerHTML = `<div class="card" style="max-height:none">
       <div class="sumLine"><div class="k mono">${t.kName}</div><div>${esc(state.name) || t.anon}</div></div>
       <div class="sumLine"><div class="k mono">${t.kLang}</div><div>${state.lang === 'en' ? 'English' : 'Türkçe'}</div></div>
       <div class="sumLine"><div class="k mono">${t.kUni}</div><div>${state.universes.map(u => esc(u.name)).join(' · ') || '—'}</div></div>
-      <div class="sumLine" style="border:none"><div class="k mono">${t.kAgents}</div><div>${state.agents.map(a => esc(a.name)).join(' · ')}</div></div>
+      <div class="sumLine"><div class="k mono">${t.kAgents}</div><div>${state.agents.map(a => esc(a.name)).join(' · ')}</div></div>
+      <div class="sumLine" style="border:none"><div class="k mono">${state.lang==='en'?'Later':'Sonra'}</div><div>${state.lang==='en'?'Settings → Tools / Mail · DB tab · More → SSH · Terminal: gh auth login':'Ayarlar → Araçlar / Posta · DB sekmesi · Daha → SSH · Terminal: gh auth login'}</div></div>
     </div>`;
   }
 }
@@ -532,7 +1074,7 @@ function setLang(l) {
 function next() {
   const t = T();
   if (state.step === 2 && !state.universes.length) { $('err').textContent = t.errFolder; return; }
-  if (state.step < 4) { state.step++; render(); return; }
+  if (state.step < 5) { state.step++; render(); return; }
   finish();
 }
 
@@ -558,9 +1100,18 @@ document.addEventListener('click', e => {
   if (z) { const lb = $('lb'); lb.querySelector('img').src = z.dataset.zoom; lb.classList.add('on'); return; }
   if (e.target.closest && e.target.closest('#lb')) $('lb').classList.remove('on');
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') $('lb').classList.remove('on'); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const lb = $('lb');
+    if (lb && lb.classList.contains('on')) { lb.classList.remove('on'); return; }
+    if (MODE === 'settings') { window.close(); return; }
+  }
+  if (MODE === 'settings' && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault(); saveSettings();
+  }
+});
 
-$('nextBtn').addEventListener('click', () => { if (MODE === 'settings') saveSettings(); else next(); });
+$('nextBtn').addEventListener('click', () => { if (MODE !== 'settings') next(); });
 $('backBtn').addEventListener('click', () => { if (MODE !== 'settings' && state.step > 0) { state.step--; render(); } });
 window.setLang = setLang;
 init();

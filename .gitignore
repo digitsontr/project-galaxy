@@ -1,14 +1,28 @@
 node_modules/
 dist/
-backups/
-.DS_Store
-/tmp
-attachments/
 dist-mas/
 out/
+backups/
+attachments/
+reports/
+/tmp
+.DS_Store
 *.zip
 *.app
-reports/
 smoke.log
+
+# Derlenen arayüz — `npm start` / `npm test` / `npm run build:ui` üretir
 newui/index.html
+
+# Kişisel veri ve yerel araç ayarları (asla commit'lenmez)
 galaxy-data.json
+/galaxy-data.js
+.claude/
+.cursor/
+.env
+.env.*
+
+# Büyük medya (GitHub 100 MB sınırı) — tanıtım videoları Releases'e yüklenir
+*.mp4
+*.mov
+.video-frames/

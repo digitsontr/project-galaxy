@@ -20,10 +20,10 @@ jobs:
           node-version: '20'
 
       - name: Bağımlılıkları kur
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Arayüzü derle
-        run: python3 newui/build.py
+        run: node newui/build.js
 
       - name: Smoke test (paketlemeden önce güvence)
         run: |
@@ -74,13 +74,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - name: Bağımlılıkları kur
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Arayüzü derle
-        run: python newui/build.py
+        run: node newui/build.js
       - name: Windows .exe installer (electron-builder)
         run: npx --yes electron-builder --win --publish never
       - name: Release'e .exe ekle
