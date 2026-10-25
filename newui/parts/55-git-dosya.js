@@ -331,7 +331,8 @@
     if(force) load(); else this._guardDirty(load);
   }
   reloadPreview(){ const p=this.state._preview; if(p&&p.rel) this.openPreview(p.rel, true); }
-  closePreview(){ this._guardDirty(()=>{ this._cmDestroy(); this.setState({_preview:null,_editMode:false,_editContent:'',_editMsg:''}); }); }
+  closePreview(){ this._guardDirty(()=>{ this._cmDestroy(); this.setState({_preview:null,_editMode:false,_editContent:'',_editMsg:'',_history:null,_blame:null,_histShow:null,histBusy:false}); }); }
+  closeHistory(){ this.setState({_history:null,_blame:null,_histShow:null,histBusy:false}); }
   openPreviewExternal(){ const p=this.state._preview; if(p&&p.path&&window.galaxy.openFile){ try{ window.galaxy.openFile(p.path); }catch(e){} } }
   _isCodePreview(p){
     if(!p||p.kind!=='text') return false;
@@ -435,7 +436,13 @@
     this.setState({_editContent:cur.split(q).join(String(this.state.pvReplace||''))});
     this.toast(n+' eşleşme değiştirildi — Kaydet (⌘S) ile yaz');
   }
-  onTreeFilterInput(e){ this.setState({treeFilter:(e&&e.target&&e.target.value)||''}); }
+  onTreeFilterInput(e){
+    const v=(e&&e.target&&e.target.value)||'';
+    const next={treeFilter:v, grepQuery:v};
+    if(!String(v).trim()) next._grep=null;
+    this.setState(next);
+  }
+  onTreeFilterKey(e){ if(e&&e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.runGrep(); } }
   // --- Dosya oluştur/sil ---
   fileDelete(rel){ const root=(this.sel&&this.sel._path)||''; if(!root||!rel||!window.galaxy||!window.galaxy.fileDelete) return;
     this.askConfirm('"'+rel+'" silinsin mi? Bu geri alınamaz.', async()=>{
@@ -452,7 +459,7 @@
   // --- Projede ara (grep) ---
   onGrepInput(e){ this.setState({grepQuery:(e&&e.target&&e.target.value)||''}); }
   onGrepKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.runGrep(); } }
-  async runGrep(){ const root=(this.sel&&this.sel._path)||''; const q=String(this.state.grepQuery||'').trim(); if(!root||q.length<2||!window.galaxy||!window.galaxy.projectGrep) return;
+  async runGrep(){ const root=(this.sel&&this.sel._path)||''; const q=String(this.state.grepQuery||this.state.treeFilter||'').trim(); if(!root||q.length<2||!window.galaxy||!window.galaxy.projectGrep) return;
     this.setState({_grepBusy:true,_grep:null});
     try{ const r=await window.galaxy.projectGrep({root,query:q}); this.setState({_grepBusy:false,_grep:(r&&r.ok)?r.matches:[]}); }
     catch(e){ this.setState({_grepBusy:false,_grep:[]}); } }
@@ -484,11 +491,11 @@
   }
   rgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
 
-  select(id){ this._planAuto=null; const doSel=()=>{ this._cmDestroy(); if(this._pty&&this._pty.pid!==id) this._ptyDispose(); this.setState({selId:id, _fsCwd:'', _preview:null, _treeOpen:{}, fileTabs:[], _editSavedAt:'', filePalOpen:false}); this._loadGit(); if(this.state.mode==='planet') this._watchStartFor(); }; if(id!==this.state.selId) this._guardDirty(doSel); else doSel(); }
+  select(id){ this._planAuto=null; const doSel=()=>{ this._cmDestroy(); if(this._pty&&this._pty.pid!==id) this._ptyDispose(); this.setState({selId:id, _fsCwd:'', _preview:null, _treeOpen:{}, fileTabs:[], _editSavedAt:'', filePalOpen:false, _history:null, _blame:null, _histShow:null, histBusy:false}); this._loadGit(); if(this.state.mode==='planet') this._watchStartFor(); }; if(id!==this.state.selId) this._guardDirty(doSel); else doSel(); }
   enter(){
     this._planAuto=null; const p=this.sel; this._recentTouch(p&&p.id);
     const cons=this._consoleCollapsedPref();
-    const ns={mode:'planet', tab:'evren', orbitView:false, holdPlanet:true, moreOpen:false, consoleCollapsed:cons, activityId:'explorer', leftTab:'agac', fileTabs:this._wsRestoreTabs(p&&p.id)};
+    const ns={mode:'planet', tab:'evren', orbitView:false, holdPlanet:true, moreOpen:false, consoleCollapsed:cons, activityId:'explorer', leftTab:'agac', fileTabs:this._wsRestoreTabs(p&&p.id), rightCollapsed:false, _history:null, _blame:null, _histShow:null, histBusy:false};
     const prev=this._sessRead();
     const patch={mode:'planet', tab:'evren', selId:p&&p.id};
     if(!(prev&&p&&prev.selId===p.id)){ patch.lastFile=null; patch.lastFileName=null; }

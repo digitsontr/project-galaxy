@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 
 ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="x64"
 echo "▸ Arayüz derleniyor…"
-python3 newui/build.py >/dev/null
+node newui/build.js --quiet
 
 echo "▸ Paketleniyor (mimari: $ARCH)…"
 rm -rf dist
@@ -19,8 +19,8 @@ rm -rf dist
   --ignore="^/dist" --ignore="\.command$" --ignore="\.zip$" --ignore="backup" \
   --ignore="^/build/icon_preview" --ignore="claude-design-result" \
   --ignore="^/reports" --ignore="^/attachments" --ignore="preview-sample" \
-  --ignore="newui/build.py" --ignore="^/test" --ignore="^/\.github" --ignore="^/scripts" \
-  --ignore="galaxy-data.json"
+  --ignore="newui/build.js" --ignore="^/newui/parts" --ignore="^/test" --ignore="^/\.github" --ignore="^/scripts" \
+  --ignore="^/docs" --ignore="\.mp4$" --ignore="galaxy-data"
 
 APP="dist/Project Galaxy-darwin-$ARCH/Project Galaxy.app"
 

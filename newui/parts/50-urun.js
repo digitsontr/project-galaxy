@@ -535,6 +535,7 @@
       else this.setState({_dbRowMsg:'✕ '+((r&&r.error)||'silinemedi')}); }
     catch(e){ this.setState({_dbRowBusy:null,_dbRowMsg:'✕ hata'}); } }
   dbFormSet(k,v){ this.setState({dbForm:Object.assign({},this.state.dbForm,{[k]:v})}); }
+  dbFormSetType(t,port){ this.setState({dbForm:Object.assign({},this.state.dbForm,{type:t,port})}); }
   async dbTestConn(){ this.setState({_dbtest:'test ediliyor…'}); try{ const r=await window.galaxy.dbTest(this.state.dbForm); this.setState({_dbtest:(r&&r.ok)?'✓ bağlantı başarılı':('✕ '+((r&&r.error)||'başarısız'))}); }catch(e){ this.setState({_dbtest:'✕ hata'}); } }
   async dbSaveConn(){ try{ const p=this._ctxPlanet(); const form=Object.assign({},this.state.dbForm); if(p&&p.id) form.projectId=p.id; const r=await window.galaxy.dbSave(form); if(r&&r.ok){ this.setState({dbAddOpen:false,_dbtest:'',dbForm:{name:'',type:'postgres',host:'localhost',port:'5432',database:'',user:'',password:'',file:''}}); await this._loadDb(); if(r.id) this.dbSelectConn(r.id); this._loadPlanetWork(); } else this.setState({_dbtest:'✕ '+((r&&r.error)||'kaydedilemedi')}); }catch(e){ this.setState({_dbtest:'✕ hata'}); } }
   async dbDeleteConn(id){ try{ const wasSel=this.state.dbSel===id; await window.galaxy.dbDelete(id); await this._loadDb();

@@ -9,8 +9,24 @@ module.exports = function register(g) {
 
   const sendTo = (wc, ch, msg) => { try { if (wc && !wc.isDestroyed()) wc.send(ch, msg); } catch (e) {} };
 
-  // ---------- 1) Gerçek PTY terminali (macOS/Linux: `script` PTY köprüsü) ----------
+  // ---------- 1) Gerçek PTY terminali (python pty.spawn — `script` tty ister, pipe'da ölür) ----------
   const ptys = new Map();
+  const ptyHost = path.join(__dirname, 'pty-host.py');
+  const pickPython = () => {
+    if (process.env.GALAXY_PYTHON && fs.existsSync(process.env.GALAXY_PYTHON)) return process.env.GALAXY_PYTHON;
+    for (const c of ['/usr/bin/python3', '/opt/homebrew/bin/python3', '/usr/local/bin/python3']) {
+      if (fs.existsSync(c)) return c;
+    }
+    return 'python3';
+  };
+  const spawnPtyChild = (cwd, cols, rows, shellBin) => {
+    const env = { ...ENV, TERM: 'xterm-256color', COLUMNS: String(cols || 100), LINES: String(rows || 30) };
+    if (process.platform === 'win32') return spawn(shellBin, [], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    if (fs.existsSync(ptyHost)) {
+      return spawn(pickPython(), ['-u', ptyHost, cwd, shellBin, String(cols || 100), String(rows || 30)], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    }
+    return spawn(shellBin, ['-i'], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+  };
   g.ipcMain.handle('galaxy:ptyStart', (e, { id, cwd, cols, rows } = {}) => {
     if (g.IS_MAS) return { ok: false, error: 'Terminal App Store sürümünde devre dışı.' };
     if (!id || !cwd || !knownPaths.has(cwd)) return { ok: false, error: 'Geçersiz klasör' };
@@ -19,15 +35,8 @@ module.exports = function register(g) {
     if (ex && ex.child && !ex.child.killed && ex.child.exitCode === null) return { ok: true, reused: true };
     const shellBin = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/zsh');
     let child;
-    try {
-      if (process.platform === 'darwin') {
-        child = spawn('script', ['-q', '/dev/null', shellBin, '-i'], { cwd, env: { ...ENV, TERM: 'xterm-256color', COLUMNS: String(cols || 100), LINES: String(rows || 30) } });
-      } else if (process.platform === 'win32') {
-        child = spawn(shellBin, [], { cwd, env: { ...ENV, TERM: 'xterm-256color' } });
-      } else {
-        child = spawn('script', ['-qec', shellBin + ' -i', '/dev/null'], { cwd, env: { ...ENV, TERM: 'xterm-256color', COLUMNS: String(cols || 100), LINES: String(rows || 30) } });
-      }
-    } catch (err) { return { ok: false, error: err.message }; }
+    try { child = spawnPtyChild(cwd, cols, rows, shellBin); }
+    catch (err) { return { ok: false, error: err.message }; }
     const wc = e.sender;
     const onData = chunk => sendTo(wc, 'pty:out', { id, data: chunk.toString('utf8') });
     if (child.stdout) child.stdout.on('data', onData);

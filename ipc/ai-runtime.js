@@ -1,7 +1,8 @@
-// Sprint J — davranış taşındı; kopyalanmadı.
-// Faz 5: eval-blob açıldı — gövde birebir aynı kod; artık satır satır okunur, diff'lenir,
-// hata izinde gerçek satır numarası verir. with(g) bilinçli: çıplak isimler paylaşılan g'ye
-// çözülür, g.X = ... atamaları bu modülün çıktısıdır. (Bu yüzden dosya başında 'use strict' yok.)
+// Yapay zekâ ve kabuk çalışma zamanı: Claude CLI akışı, dijital ikiz (asistan) + sohbet geçmişi,
+// native ses tanıma, uzman ajanlar, günlük/rapor, yerel+SSH bash oturumları, zamanlayıcı.
+// with(g) bilinçli: çıplak isimler main.js'in paylaşılan g nesnesine çözülür; g.X = ... atamaları
+// bu modülün sonraki modüllere verdiği çıktıdır (sıra main.js'te). Bu yüzden 'use strict' yok ve
+// `require('./lib/…')` gibi göreli yollar main.js'e (proje köküne) göre çözülür.
 module.exports = function register(g) {
   with (g) {
 // ---------- README ----------

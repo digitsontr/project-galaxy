@@ -1,7 +1,8 @@
-// Sprint J — davranış taşındı; kopyalanmadı.
-// Faz 5: eval-blob açıldı — gövde birebir aynı kod; artık satır satır okunur, diff'lenir,
-// hata izinde gerçek satır numarası verir. with(g) bilinçli: çıplak isimler paylaşılan g'ye
-// çözülür, g.X = ... atamaları bu modülün çıktısıdır. (Bu yüzden dosya başında 'use strict' yok.)
+// Veritabanı (Postgres/MySQL/SQLite/SQL Server) gezgini + onaylı yazma ve denetim günlüğü;
+// git işlemleri (log/stage/commit/push/pull/switch/diff).
+// with(g) bilinçli: çıplak isimler main.js'in paylaşılan g nesnesine çözülür; g.X = ... atamaları
+// bu modülün sonraki modüllere verdiği çıktıdır (sıra main.js'te). Bu yüzden 'use strict' yok ve
+// `require('./lib/…')` gibi göreli yollar main.js'e (proje köküne) göre çözülür.
 module.exports = function register(g) {
   with (g) {
 // ---------- veritabanı görüntüleyici ----------
@@ -72,6 +73,34 @@ async function dbConnect(cfg) {
       end: () => conn.end().catch(() => {})
     };
   }
+  if (cfg.type === 'mssql') {
+    // Microsoft SQL Server (örn. .NET projelerinin Docker'daki SQL Server 2022'si).
+    // Yerel/kendinden imzalı sertifika yaygın olduğu için trustServerCertificate açık;
+    // encrypt kapalı (yerel ağ varsayımı) — uzak/Azure bağlantısında da TLS sertifikası
+    // güvenilir zincirden geliyorsa çalışır.
+    const sql = require('mssql');
+    const pool = new sql.ConnectionPool({
+      server: cfg.host, port: +cfg.port || 1433, user: cfg.user, password: cfg.password,
+      database: cfg.database || undefined,
+      connectionTimeout: 8000, requestTimeout: 30000,
+      options: { encrypt: false, trustServerCertificate: true },
+      pool: { max: 1, min: 0, idleTimeoutMillis: 5000 }
+    });
+    await pool.connect();
+    return {
+      query: async (text, params) => {
+        const req = pool.request();
+        (params || []).forEach((v, i) => req.input('p' + (i + 1), v));
+        const r = await req.query(text);
+        const rs = r.recordset;
+        const rows = rs ? Array.from(rs) : [];
+        const fields = rs && rs.columns ? Object.keys(rs.columns) : (rows.length ? Object.keys(rows[0]) : []);
+        const affected = Array.isArray(r.rowsAffected) && r.rowsAffected.length ? r.rowsAffected[0] : null;
+        return { rows, fields, rowCount: affected != null ? affected : rows.length };
+      },
+      end: () => pool.close().catch(() => {})
+    };
+  }
   const { Client } = require('pg');
   const client = new Client({ ...base, database: base.database || 'postgres', connectionTimeoutMillis: 6000 });
   await client.connect();
@@ -124,7 +153,8 @@ function probePort(port, timeoutMs) {
 
 const LOCAL_DB_CANDIDATES = [
   { port: 5432, type: 'postgres', name: 'Bu Mac — PostgreSQL', user: 'postgres', database: 'postgres' },
-  { port: 3306, type: 'mysql', name: 'Bu Mac — MySQL', user: 'root', database: '' }
+  { port: 3306, type: 'mysql', name: 'Bu Mac — MySQL', user: 'root', database: '' },
+  { port: 1433, type: 'mssql', name: 'Bu Mac — SQL Server', user: 'sa', database: '' }
 ];
 
 async function autoDetectLocalDbs() {
@@ -171,11 +201,12 @@ ipcMain.handle('galaxy:dbSave', (e, db) => {
   const idx = data.dbs.findIndex(d => d.id === db.id);
   const existing = idx >= 0 ? data.dbs[idx] : null;
   const pid = db.projectId || (existing && existing.projectId) || '';
+  const DB_PORTS = { mysql: 3306, postgres: 5432, mssql: 1433 };
   const clean = isSqlite
     ? { id: db.id, name: db.name, type: 'sqlite', file: db.file, host: '', port: 0, database: path.basename(db.file), user: '', password: encPass(''), projectId: pid }
     : {
-      id: db.id, name: db.name, type: db.type === 'mysql' ? 'mysql' : 'postgres',
-      host: db.host, port: +db.port || (db.type === 'mysql' ? 3306 : 5432),
+      id: db.id, name: db.name, type: DB_PORTS[db.type] ? db.type : 'postgres',
+      host: db.host, port: +db.port || DB_PORTS[db.type] || 5432,
       database: db.database || '', user: db.user,
       password: db.password ? encPass(db.password) : (existing ? existing.password : encPass('')),
       projectId: pid
@@ -214,7 +245,9 @@ ipcMain.handle('galaxy:dbDatabases', async (e, id) => {
   try {
     const sql = cfg.type === 'mysql'
       ? 'SHOW DATABASES'
-      : `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY 1`;
+      : cfg.type === 'mssql'
+        ? `SELECT name FROM sys.databases WHERE name NOT IN ('master','tempdb','model','msdb') ORDER BY 1`
+        : `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY 1`;
     const r = await withDb({ ...cfg, database: cfg.type === 'postgres' ? (cfg.database || 'postgres') : (cfg.database || undefined) }, c => c.query(sql));
     const skip = new Set(['information_schema', 'performance_schema', 'mysql', 'sys']);
     const databases = r.rows.map(row => Object.values(row)[0]).filter(d => !skip.has(d));
@@ -230,7 +263,9 @@ ipcMain.handle('galaxy:dbTables', async (e, { id, database }) => {
       ? `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY 1`
       : cfg.type === 'mysql'
         ? 'SHOW TABLES'
-        : `SELECT schemaname || '.' || tablename AS t FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY 1`;
+        : cfg.type === 'mssql'
+          ? `SELECT TABLE_SCHEMA + '.' + TABLE_NAME AS t FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY 1`
+          : `SELECT schemaname || '.' || tablename AS t FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY 1`;
     const r = await withDb(cfg.type === 'sqlite' ? cfg : { ...cfg, database: database || cfg.database }, c => c.query(sql));
     const tables = r.rows.map(row => Object.values(row)[0]);
     return { ok: true, tables };
@@ -259,6 +294,17 @@ async function buildDbSchema(cfg, database) {
       for (const r2 of cr.rows) (byT[r2.t] ||= []).push({ name: r2.c, type: r2.ty, pk: r2.k === 'PRI' });
       for (const [name, columns] of Object.entries(byT)) tables.push({ name, columns });
       const fr = await c.query(`SELECT TABLE_NAME f, COLUMN_NAME fc, REFERENCED_TABLE_NAME rt, REFERENCED_COLUMN_NAME rc FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='${db.replace(/'/g, "''")}' AND REFERENCED_TABLE_NAME IS NOT NULL`);
+      for (const r2 of fr.rows) fks.push({ from: r2.f, fromCol: r2.fc, to: r2.rt, toCol: r2.rc });
+    } else if (cfg.type === 'mssql') {
+      const cr = await c.query(`SELECT TABLE_SCHEMA + '.' + TABLE_NAME AS t, COLUMN_NAME AS c, DATA_TYPE AS ty FROM INFORMATION_SCHEMA.COLUMNS ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION`);
+      const pkr = await c.query(`SELECT tc.TABLE_SCHEMA + '.' + tc.TABLE_NAME AS t, kcu.COLUMN_NAME AS c FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'`);
+      const pkSet = new Set(pkr.rows.map(r2 => r2.t + '|' + r2.c));
+      const byT = {};
+      for (const r2 of cr.rows) (byT[r2.t] ||= []).push({ name: r2.c, type: r2.ty, pk: pkSet.has(r2.t + '|' + r2.c) });
+      for (const [name, columns] of Object.entries(byT)) tables.push({ name, columns });
+      // SQL Server'da INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE, FK'da başvurulan tarafı
+      // güvenilir vermez — sys.foreign_key_columns kesin kaynaktır.
+      const fr = await c.query(`SELECT OBJECT_SCHEMA_NAME(fkc.parent_object_id) + '.' + OBJECT_NAME(fkc.parent_object_id) AS f, COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS fc, OBJECT_SCHEMA_NAME(fkc.referenced_object_id) + '.' + OBJECT_NAME(fkc.referenced_object_id) AS rt, COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS rc FROM sys.foreign_key_columns fkc`);
       for (const r2 of fr.rows) fks.push({ from: r2.f, fromCol: r2.fc, to: r2.rt, toCol: r2.rc });
     } else {
       const cr = await c.query(`SELECT table_schema||'.'||table_name t, column_name c, data_type ty FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name, ordinal_position`);
@@ -292,7 +338,9 @@ ipcMain.handle('galaxy:dbQuery', async (e, { id, table, sql, database }) => {
   let finalSql;
   if (table) {
     if (!/^[\w.$]+$/.test(table)) return { ok: false, error: 'Geçersiz tablo adı' };
-    finalSql = cfg.type === 'mysql' ? `SELECT * FROM \`${table}\` LIMIT 100` : `SELECT * FROM ${table.includes('.') ? table : '"' + table + '"'} LIMIT 100`;
+    if (cfg.type === 'mysql') finalSql = `SELECT * FROM \`${table}\` LIMIT 100`;
+    else if (cfg.type === 'mssql') { const qt = quoteTableName(table, cfg.type); if (!qt) return { ok: false, error: 'Geçersiz tablo adı' }; finalSql = `SELECT TOP 100 * FROM ${qt}`; }
+    else finalSql = `SELECT * FROM ${table.includes('.') ? table : '"' + table + '"'} LIMIT 100`;
   } else {
     if (!/^\s*select\b/i.test(sql || '')) return { ok: false, error: 'Yalnızca SELECT sorgularına izin var' };
     // Çoklu-ifade kaçağını engelle (pg simple-query "SELECT 1; DELETE …" çalıştırır)
@@ -347,7 +395,9 @@ ipcMain.handle('galaxy:dbExec', async (e, { id, database, sql, confirm, agent, r
 // ---------- Tablo veri tarayıcı + satır düzenle/sil (parametreli, injection-güvenli) ----------
 function quoteIdent(name, type) {
   if (!/^[\w$]+$/.test(String(name))) return null;              // yalnız harf/rakam/_/$ — enjeksiyon yok
-  return type === 'mysql' ? '`' + name + '`' : '"' + name + '"';
+  if (type === 'mysql') return '`' + name + '`';
+  if (type === 'mssql') return '[' + name + ']';
+  return '"' + name + '"';
 }
 function quoteTableName(table, type) {
   const parts = String(table).split('.');                        // şema.tablo veya tablo
@@ -356,7 +406,7 @@ function quoteTableName(table, type) {
   if (q.some(x => x === null)) return null;
   return q.join('.');
 }
-function ph(type, i) { return type === 'postgres' ? '$' + i : '?'; }
+function ph(type, i) { if (type === 'mssql') return '@p' + i; return type === 'postgres' ? '$' + i : '?'; }
 
 // Tablonun ilk 100 satırı + PK bilgisi
 ipcMain.handle('galaxy:dbRows', async (e, { id, database, table, offset, orderBy, orderDir } = {}) => {
@@ -373,7 +423,10 @@ ipcMain.handle('galaxy:dbRows', async (e, { id, database, table, offset, orderBy
     const tbl = (sc.tables || []).find(t => t.name === table || t.name.split('.').pop() === String(table).split('.').pop());
     const pk = tbl ? tbl.columns.filter(c => c.pk).map(c => c.name) : [];
     const columns = tbl ? tbl.columns.map(c => ({ name: c.name, type: c.type, pk: !!c.pk })) : [];
-    const r = await withDb(cfg, c => c.query(`SELECT * FROM ${qt}${orderSql} LIMIT 100 OFFSET ${off}`));
+    const rowsSql = cfg.type === 'mssql'
+      ? `SELECT * FROM ${qt} ${orderSql || 'ORDER BY (SELECT NULL)'} OFFSET ${off} ROWS FETCH NEXT 100 ROWS ONLY`
+      : `SELECT * FROM ${qt}${orderSql} LIMIT 100 OFFSET ${off}`;
+    const r = await withDb(cfg, c => c.query(rowsSql));
     let total = null;
     try { const cr = await withDb(cfg, c => c.query(`SELECT COUNT(*) AS n FROM ${qt}`)); total = cr.rows && cr.rows[0] ? +Object.values(cr.rows[0])[0] : null; } catch (er) {}
     const fields = (r.fields && r.fields.length) ? r.fields : columns.map(c => c.name);
@@ -405,7 +458,7 @@ ipcMain.handle('galaxy:dbExportCsv', async (e, { id, database, table } = {}) => 
   const qt = quoteTableName(table, cfg.type);
   if (!qt) return { ok: false, error: 'Geçersiz tablo adı' };
   try {
-    const r = await withDb(cfg, c => c.query(`SELECT * FROM ${qt} LIMIT 10000`));
+    const r = await withDb(cfg, c => c.query(cfg.type === 'mssql' ? `SELECT TOP 10000 * FROM ${qt}` : `SELECT * FROM ${qt} LIMIT 10000`));
     const fields = r.fields || [];
     const esc = v => { if (v == null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const lines = [fields.map(esc).join(',')];
@@ -512,7 +565,7 @@ ipcMain.handle('galaxy:dbAgent', async (e, { id, database, request, confirm } = 
     `${t.name}(${t.columns.map(cl => `${cl.name}${cl.pk ? ' PK' : ''} ${cl.type}`).join(', ')})`
   ).join('\n');
   const fkTxt = (sc.fks || []).map(f => `${f.from}.${f.fromCol} -> ${f.to}.${f.toCol}`).join('\n');
-  const dialect = cfg.type === 'mysql' ? 'MySQL' : (cfg.type === 'sqlite' ? 'SQLite' : 'PostgreSQL');
+  const dialect = cfg.type === 'mysql' ? 'MySQL' : (cfg.type === 'sqlite' ? 'SQLite' : (cfg.type === 'mssql' ? 'Microsoft SQL Server (T-SQL)' : 'PostgreSQL'));
   // 2) Claude'dan SQL üret
   const prompt = `Sen bir ${dialect} SQL üreticisisin. Aşağıdaki veritabanı şemasına göre, kullanıcının doğal dildeki (Türkçe olabilir) isteğini TEK bir geçerli ${dialect} SQL ifadesine çevir.
 

@@ -23,6 +23,8 @@ const g = {
   String, Number, Boolean, encodeURIComponent, decodeURIComponent, URL, Intl, encodeURI, decodeURI
 };
 
+// Modüller ortak `g` nesnesine sırayla kendi yardımcılarını ekler; sonrakiler öncekilere dayanır
+// (config → data → projects → IPC katmanları). Sırayı değiştirme.
 require('./lib/config')(g);
 require('./lib/data')(g);
 require('./lib/projects')(g);
@@ -101,6 +103,15 @@ function bindMainWindow(win) {
     }
   });
 }
+// newui/index.html git'te tutulmaz (newui/build.js üretir). `electron .` ile doğrudan açılan
+// temiz bir klonda boş pencere çıkmasın diye eksikse açılışta derlenir.
+function ensureUiBuilt() {
+  const uiIndex = path.join(APP_DIR, 'newui', 'index.html');
+  const uiBuild = path.join(APP_DIR, 'newui', 'build.js');
+  if (fs.existsSync(uiIndex) || !fs.existsSync(uiBuild)) return;
+  try { require('child_process').execFileSync(process.execPath, [uiBuild, '--quiet'], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }); }
+  catch (err) { console.error('Arayüz derlenemedi (npm run build:ui):', err.message); }
+}
 function createWindow() {
   const wa = (() => { try { return screen.getPrimaryDisplay().workAreaSize; } catch (e) { return { width: 1440, height: 900 }; } })();
   const st = loadWinState();
@@ -124,17 +135,7 @@ function createWindow() {
   if (boundsOnScreen(st)) { opts.x = st.x; opts.y = st.y; }
   const win = new BrowserWindow(opts);
   bindMainWindow(win);
-  // Arayüzü öncelikle veri dizininden yükle — UI güncellemeleri için
-  // uygulamayı yeniden paketlemek gerekmesin (index.html oraya kopyalanabilir)
-  // Yeni tasarım arayüzü (newui/) — Three.js galaksi + dc-runtime, gerçek verine bağlı.
-  // DATA_DIR override'ı korunur (yeniden paketlemeden güncelleme): önce newui, sonra düz index.
-  const extNew = path.join(DATA_DIR, 'newui', 'index.html');
-  const extOld = path.join(DATA_DIR, 'index.html');
-  win.loadFile(
-    fs.existsSync(extNew) ? extNew :
-    fs.existsSync(extOld) ? extOld :
-    path.join(APP_DIR, 'newui', 'index.html')
-  );
+  win.loadFile(path.join(APP_DIR, 'newui', 'index.html'));
   win.once('ready-to-show', () => {
     win.show();
     if (wantFs && !win.isFullScreen()) win.setFullScreen(true);
@@ -293,6 +294,7 @@ app.whenReady().then(() => {
   } catch (e) {}
   migrateLegacyData();
   restoreBookmarks();
+  ensureUiBuilt();
   if (needsOnboarding()) createOnboardingWindow(); else createWindow();
   createTray();
   try { globalShortcut.register('CommandOrControl+Shift+G', showQuickCapture); } catch (e) {}

@@ -11,17 +11,16 @@ macOS · Windows · Electron · Claude Code · v2.3.13</p>
 ## İçindekiler
 
 - [Bu uygulama ne işe yarar?](#bu-uygulama-ne-i̇şe-yarar)
-- [Kurulum (hiç bilmeyenler için)](#kurulum-hiç-bilmeyenler-için)
+- [Kurulum](#kurulum)
 - [Terminoloji — galaksi · yıldız sistemi · gezegen](#terminoloji--galaksi--yıldız-sistemi--gezegen)
 - [Arayüz turu](#arayüz-turu)
   - [Üst bar & navigasyon](#üst-bar--navigasyon)
-  - [Kadet / Komutan](#kadet--komutan)
   - [İstasyon Araçları (saat · hızlı ara)](#i̇stasyon-araçları)
   - [Uzay modu — galaksi haritası](#uzay-modu--galaksi-haritası)
   - [Gezegen modu — projenin içi](#gezegen-modu--projenin-i̇çi)
   - [Konsol — kalıcı bash + Claude oturumları](#konsol--kalıcı-bash--claude-oturumları)
   - [🔮 Galaxy Asistanı — dijital ikizin](#-galaxy-asistanı--dijital-ikizin)
-  - [GİT — canlı panel + Git Merkezi](#gi̇t--canlı-panel--git-merkezi)
+  - [GİT — tek kapı](#gi̇t--tek-kapı)
 - [Sekmeler](#sekmeler)
   - [PANO (Kanban)](#-pano--kanban)
   - [DB (Veritabanı gezgini)](#-db--veritabanı-gezgini)
@@ -53,33 +52,59 @@ Diskinde onlarca proje klasörü var: kimi yarım, kimi bitmiş, kiminde ne kald
 
 ---
 
-## Kurulum (hiç bilmeyenler için)
+## Kurulum
 
-**Gerekenler:** macOS 12+ veya Windows 10+ ve ~10 dakika.
+**En kolayı:** [GitHub Releases](https://github.com/digitsontr/project-galaxy/releases)’ten hazır kurucuyu indir (macOS `.dmg`, Windows `.exe`). Aşağısı kaynak koddan kurmak isteyenler için.
 
-**Adım 1 — Node.js *veya* Bun kur** (uygulamanın motoru):
-[nodejs.org](https://nodejs.org) → "LTS" ile indir. (Alternatif ve daha hızlı: [bun.sh](https://bun.sh). Paketleyici otomatik olarak bun'ı tercih eder.)
+### Gerekenler
 
-**Adım 2 — Claude Code kur** (uzman ajanların ve ⌁ CLAUDE konsolunun beyni — **isteğe bağlı**: yerleşik ✦ AJAN, Geliştir sekmesine ekleyeceğin Anthropic API anahtarıyla CLI'sız da çalışır):
-Terminal'i aç (⌘+Boşluk → "Terminal") ve yapıştır:
+| | Zorunlu mu | Neden |
+|---|---|---|
+| **Node.js 20+** ([nodejs.org](https://nodejs.org), LTS) | Evet | Uygulamayı kurar ve çalıştırır |
+| **git** | Evet | Projeler git deposu olarak bulunur. macOS’ta `xcode-select --install` git + python3’ü birlikte kurar |
+| **python3** (macOS/Linux) | Gömülü terminal için | `>_ TERMİNAL` sekmesi gerçek bir tty için kullanır. macOS’ta yukarıdaki komutla gelir |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Hayır | ⌁ CLAUDE konsolu ve uzman ajanlar. Yoksa ✦ AJAN, Geliştir sekmesine girilen Anthropic API anahtarıyla çalışır |
+| Docker Desktop, SSH anahtarı | Hayır | Yalnız ilgili sekmeler için |
+| [Git for Windows](https://gitforwindows.org) | Windows’ta terminal için | Gömülü bash |
+
+### Kaynaktan çalıştır (2 komut)
+
 ```bash
-npm install -g @anthropic-ai/claude-code
-claude   # ilk çalıştırmada hesabınla giriş yapmanı ister
+git clone https://github.com/digitsontr/project-galaxy.git
+cd project-galaxy
+npm install
+npm start
 ```
 
-**Adım 3 — Uygulamayı paketle** (tek seferlik):
+`npm start` arayüzü (`newui/index.html`) derleyip uygulamayı açar. macOS’ta bunun yerine **`Başlat.command`**’a çift tıklayabilirsin (ilk seferde `npm install`’ı kendisi yapar).
 
-- **macOS:** `ProjectGalaxy` klasöründeki **`create_app.command`** dosyasına çift tıkla.
-  Sistem "tanımlanamayan geliştirici" derse: dosyaya **sağ tık → Aç → Aç**.
-  Script bağımlılıkları indirir, arayüzü derler (`newui/build.py`) ve bir üst klasöre **Project Galaxy.app** üretir, ad-hoc imzalayıp karantinayı temizler.
-- **Windows:** `npm install` sonra `npm run dist` — NSIS kurucu (`Project-Galaxy-Setup-….exe`) çıkar. Gömülü terminal için [Git for Windows](https://gitforwindows.org) (bash) gerekir. Hazır kurucu GitHub Releases’te de yayınlanır.
+İsteğe bağlı Claude Code:
 
-> Paketlemeden hızlıca denemek için: macOS’ta **`Başlat.command`**, her iki sistemde `npm start` — uygulamayı doğrudan kaynak koddan açar.
+```bash
+npm install -g @anthropic-ai/claude-code
+claude   # ilk çalıştırmada hesabınla giriş yapar
+```
 
-**Adım 4 — Aç ve tanış:**
-`Project Galaxy.app`'e çift tıkla (ilk sefer yine sağ tık → Aç gerekebilir). İlk açılışta uygulama seni **bir defalığına tanır**: dil (TR/EN), adın (ajanlar sana ismiyle hitap eder), proje klasörlerin (her biri bir evren) ve 5 ajanının kişiselleştirmesi. Bu ekran bir daha çıkmaz — hepsi sonradan **⚙ Ayarlar**'dan değişir. Dock'ta sağ tık → Seçenekler → **Dock'ta Tut**.
+### Uygulama olarak paketle
 
-> Güncellemelerde: yalnızca arayüz değiştiyse (`newui/`) kapat-aç yeterli; `main.js` değiştiyse Adım 3'ü bir kez tekrarla.
+- **macOS (kişisel .app):** **`create_app.command`**’a çift tıkla (“tanımlanamayan geliştirici” derse sağ tık → Aç). Bağımlılıkları kurar, arayüzü derler, smoke testi koşar ve bir üst klasöre ad-hoc imzalı **Project Galaxy.app** koyar. Sonraki kod güncellemelerinde tam paketleme yerine **`Yenile.app.command`** yeter.
+- **macOS (dağıtım DMG):** `npm run dist` — imza/notarize için `docs/RELEASE.md`.
+- **Windows:** `npm run dist:win` → `dist/Project-Galaxy-Setup-<sürüm>.exe` (NSIS). Ayrıntı: `docs/WINDOWS.md`.
+
+### İlk açılış
+
+Uygulama seni **bir defalığına tanır**: dil (TR/EN), adın, proje klasörlerin (her biri bir evren) ve ajanların. Hepsi sonradan **⚙ Ayarlar**’dan değişir. Verin kod klasöründe değil, `~/Library/Application Support/ProjectGalaxy/` (Windows: `%APPDATA%\ProjectGalaxy\`) altında durur.
+
+### Geliştirirken
+
+| Komut | Ne yapar |
+|---|---|
+| `npm start` | Arayüzü derler + uygulamayı açar |
+| `npm run build:ui` | Yalnız `newui/index.html`’i yeniden üretir |
+| `npm test` | Derler + headless Electron smoke testi (CI’daki ile aynı) |
+| `npm run test:integration` | Gerçek git/dosya/ajan motoru testleri (`GALAXY_IT_CLAUDE=1`, `GALAXY_IT_MSSQL=1` ile canlı servisler) |
+
+Arayüzü düzenlerken `newui/index.html`’e **dokunma** — üretilmiş dosyadır ve git’te tutulmaz. Şablon `newui/preview-sample.html`, mantık `newui/parts/*.js`.
 
 ---
 
@@ -108,19 +133,13 @@ claude   # ilk çalıştırmada hesabınla giriş yapmanı ister
 
 Soldan sağa:
 
-- **GALAXY** logosu + **durum noktası** (hazır / çalışıyor / hata) · gezegen modundayken **‹** (uzaya dön) düğmesi.
-- **Konum breadcrumb'ı** — nerede olduğun her an bellidir: **🌌 Evren › 🪐 Gezegen ▾**. Tıkla → **hızlı geçiş anahtarı** açılır: üstte tüm **evrenler** (aktif olan işaretli), altta o evrenin **gezegenleri** (bulunduğun "buradasın" etiketiyle). Tek tıkla başka evrene/projeye ışınlan.
-- **Segmentli sekme çubuğu** — **Özet / Evren / DB / Docker** + **Daha ▾** (Pano, Zaman, SSH, Döngü, Posta, Eğitim). Her bölümde kapatılabilir yardım kartı (“Anladım”).
-- **Asistan** — dijital ikiz her zaman üst barda. Sağ İSTASYON (uzman ajanlar) varsayılan kapalı.
-- **🎓 Kadet / ★ Komutan** — yoğunluk anahtarı (aşağıda).
-- **◷ Saat** — canlı saat; tıkla → **İstasyon Araçları**.
-- **⌕ Ara (⌘K)** — hızlı komut paleti: proje ara, komut çalıştır.
-- **🚀 HUD** — alttaki gösterge panelini aç/kapat.
-- **⚙ Ayarlar**.
+- **KAPTAN** markası + **durum noktası** (hazır / çalışıyor / hata) · gezegen modundayken **‹** (uzaya dön) düğmesi.
+- **Konum breadcrumb'ı** — **🌌 Evren › 🪐 Gezegen ▾**. Tıkla → hızlı geçiş: üstte tüm **evrenler**, altta o evrenin **gezegenleri**. Tek tıkla başka evrene/projeye geç.
+- **Segmentli sekme çubuğu** — **Özet / Evren / DB / Docker** + **Daha ▾** (Pano, Zaman, SSH, Döngü, Posta, Eğitim).
+- **Kaptan** — dijital ikiz (asistan) her zaman üst barda.
+- **◷ Saat** — tıkla → **İstasyon Araçları**. **⌘K** — komut paleti. **⚙ Ayarlar**.
 
-### Kadet / Komutan
-
-Kadet / Komutan anahtarı kaldırıldı — uygulama her zaman tam görünümde açılır (Özet / Evren / Pano + Daha). Eski belgelerdeki 🎓/★ düğmelerini yok say.
+Ekran 3 kolondur: sol (ağaç / git), orta (iş), sağ **bağlam** (nerede kaldın + hızlı atlamalar). Kapalı bir ray, imleç ekran kenarına yaklaşınca açılır; ◀▶ ile sabitlenir.
 
 ### İstasyon Araçları
 
@@ -136,7 +155,7 @@ Kadet / Komutan anahtarı kaldırıldı — uygulama her zaman tam görünümde 
 - **Galaksi görseli:** fareyle sürükle, tekerlekle yaklaş. WASD/oklar + / − ile de gezinilir.
 - **Sol panel — PROJELER:** aktif evrenin gezegenleri, **son aktiviteye göre sıralı** (en taze üstte). Her satır: durum noktası + proje adı + **dal ve son aktivite** (`main · 2g önce`). **Tek tık seçer, inmez;** **j / k** ile listede gez, **Enter** · **İn** · çift tık ile inersin. Evren boşsa **Evren bağla** tek CTA.
 - **Sağ istasyon:** 5 AI ajanın avatarları (üzerine gel → görev kartı, tıkla → sohbet).
-- **GALAXY HUD (alt):** 🚀 ile aç. Üç kart: **En Aktif Yıldız** (son 30 günde en çok commit alan projen), **Son Yapılanlar** (+ RAPOR arşivi), **Notlarım** (hızlı not ekle). Panel taşarsa iç kısmı kaydırılır; içerik asla kırpılmaz.
+- **GALAXY HUD (alt):** Üç kart: **En Aktif Yıldız** (son 30 günde en çok commit alan projen), **Son Yapılanlar** (+ RAPOR arşivi), **Notlarım** (hızlı not ekle). Panel taşarsa iç kısmı kaydırılır; içerik asla kırpılmaz.
 
 ### Gezegen modu — projenin içi
 
@@ -179,17 +198,14 @@ Ekranın **sağ istasyon** sütununun altında parçacıklı bir **asistan orbu*
 
 > Ses: mic / “Hey Galaxy” / Chat | Voice On arayüzde açık. Kota veya CLI yoksa ajan durur; hata metni SQL gibi çalıştırılmaz.
 
-### GİT — canlı panel + Git Merkezi
+### GİT — tek kapı
 
-Sol paneldeki **⎇ GİT** sekmesi artık pasif bir liste değil, **canlı bir kontrol** paneli:
+Git'e giden tek yer sol paneldeki **⎇ Git** sekmesidir (aktivite çubuğu, sağ bağlam ve Kaptan komutları da oraya açar):
 
-- **Durum kartı:** hangi daldasın, **ahead/behind** (`↑2 ↓0`), ve "N değişiklik bekliyor / çalışma alanı temiz".
-- **Tek birincil CTA:** kirliyse **Commit…** (Git Merkezi durum), temiz+ahead ise **Push**, temiz+behind ise **Pull**, aksi **Güncel**. Push/pull/commit bitince yeşil **kanıt toast’ı** (~4 sn), örn. `main ← 2 commit`. Push öncesi uygulama içi onay kartı.
-- **Git Merkezi** ikinci satır, sönük. (Git deposu değilse **git init** tek düğmesi.)
+- **Durum kartı:** dal, **ahead/behind** (`↑2 ↓0`), "N değişiklik bekliyor / çalışma alanı temiz".
+- **Tek birincil düğme:** kirliyse **Commit…**, temiz+ahead ise **Push**, temiz+behind ise **Pull**, aksi **Güncel**. Push öncesi uygulama içi onay; bitince kısa bir sonuç bildirimi (örn. `main ← 2 commit`). Git deposu değilse tek düğme **git init**.
 
-**Git Merkezi** dört sekmeli tam iş tezgahı:
-
-<p align="center"><img src="assets/guide/hud-git-merkezi.jpg" alt="HUD ve Git Merkezi" width="900"></p>
+Commit ekranı dört bölümlü bir tezgah içinde açılır:
 
 - **DURUM** — dal değiştir/oluştur, dosyaları stage/unstage et, commit mesajı yaz → commit.
 - **TAKIM AKIŞI** — senin o andaki gerçek durumuna göre (dal, bekleyen değişiklik, `develop` var mı) yazılan adım adım teslim akışı: gerekiyorsa `git stash` ile işini kaybetmeden feature dalına taşı, `feature/…` adı öner, küçük commit → `push -u` → **MR/PR aç** (kopyalanabilir açıklama şablonu) → rebase + `--force-with-lease` → birleştir + dal temizliği. Her komut kutusu tıklayınca panoya kopyalanır.
@@ -291,7 +307,7 @@ Yedeklerden geri dönüş: ⌘K → Yedekler.
 | | |
 |---|---|
 | **F1** / **⌘/** | Seyir Rehberi (görselli tanıtım + kullanım) |
-| **⌘K** | Hızlı komut: proje ara, Git Merkezi, ayarlar, yedekler |
+| **⌘K** | Komut paleti: proje ara, git, ayarlar, yedekler |
 | **Daha ▾ → İstasyon** | Saat · hızlı ara |
 | **🌌 breadcrumb** | Konum switcher: evren/gezegen değiştir |
 | **j / k** | Uzayda gezegen listesinde seç (**Enter** = in) · palette **↑↓** |
@@ -351,27 +367,48 @@ Terminal istemezsen: **Sistem Ayarları → Gizlilik ve Güvenlik** → aşağı
 
 ```
 ProjectGalaxy/                       (kod)
-├── main.js                          # Electron ana süreç — tarama, git, ajanlar, DB, Docker, SSH, zamanlayıcı (106 IPC handler)
-├── preload.js                       # Güvenli köprü (window.galaxy.*)
-├── newui/                           # GERÇEK ARAYÜZ (uygulamanın yüklediği)
-│   ├── preview-sample.html          #   şablon (dc template sözdizimi)
-│   ├── parts/                       #   arayüz mantığı: tek class Component'in dilimleri (00-cekirdek … 80-pixel)
-│   ├── build.py                     #   derleyici → newui/index.html
-│   └── index.html                   #   derlenmiş çıktı (elle düzenleme; build.py üretir)
+├── main.js                          # Electron ana süreç: pencere, tray, güncelleme; modülleri sırayla yükler
+├── preload.js                       # Arayüze açılan güvenli köprü (window.galaxy.*)
+├── lib/                             # Paylaşılan çekirdek (main.js'in `g` nesnesine eklenir, sıra önemli)
+│   ├── config.js                    #   veri klasörü, PATH, eski veri taşıma, MAS izinleri
+│   ├── data.js                      #   galaxy-data.json, yedek + otomatik commit, ayarlar, Claude keşfi
+│   ├── projects.js                  #   evren tarama → gezegenler, knownPaths (izinli yollar)
+│   ├── planet-work.js               #   proje bağlamı: .env anahtarları, compose, script, migrate
+│   ├── mcp-client.js                #   MCP stdio istemcisi (posta vb.)
+│   └── trainings.js                 #   Eğitimlerim: docx/pptx/ipynb okuma
+├── ipc/                             # Arayüzün çağırdığı IPC kanalları
+│   ├── core.js                      #   evren/proje, dosya ağacı ve dosya CRUD, todo, README, Ayarlar
+│   ├── db-git.js                    #   Postgres/MySQL/SQLite/SQL Server + git işlemleri
+│   ├── ai-runtime.js                #   Claude CLI, dijital ikiz, ses, ajanlar, bash/SSH kabukları, zamanlayıcı
+│   ├── infra.js                     #   SSH sunucuları + Docker
+│   ├── planet-work.js               #   gezegen bağlamı, PR/CI/issue (gh), evren trafiği/grep
+│   ├── devtools.js                  #   gerçek PTY terminal, dosya izleme, tanılama, LSP, debug, işler
+│   ├── agent-engine.js              #   yerleşik ajan motoru (CLI ya da API anahtarı)
+│   ├── pty-host.py                  #   PTY köprüsü (python pty.spawn) — terminal sekmesi
+│   ├── lang-worker.js, scan-worker.js  # worker thread'ler: TypeScript dil servisi, toplu arama
+├── newui/                           # Uygulamanın yüklediği arayüz
+│   ├── preview-sample.html          #   şablon (dc template sözdizimi) + stiller
+│   ├── parts/00-…80-*.js            #   tek `class Component`'in sıralı dilimleri (tek başına geçerli JS değil)
+│   ├── build.js                     #   derleyici: şablon + parts → index.html
+│   ├── index.html                   #   ÜRETİLİR, git'te yok — elle düzenleme
+│   └── vendor/                      #   three.js, react, dc-runtime, codemirror, xterm (gömülü kopyalar)
 ├── onboarding.html                  # İlk açılış + Ayarlar penceresi (?mode=settings)
-├── galaxy-hud.js                    # Eski HUD katmanı (geçmiş sürüm)
-├── assets/guide/                    # Tanıtım infografikleri + mürettebat portreleri
-├── docs/                            # Görseller + DEPLOYMENT.md / RELEASE.md / REMOTE-SSH.md
+├── native/galaxy-stt.swift          # macOS ses tanıma yardımcısı (paketlerken derlenir)
+├── test/                            # smoke.js (headless UI) + mock-preload.js + integration.js
+├── scripts/                         # package-mac.sh, refresh-app.sh, build-mas.js
+├── assets/guide/                    # Onboarding/rehber görselleri
+├── docs/                            # OZELLIKLER, RELEASE, WINDOWS, REMOTE-SSH, PRIVACY…
 ├── build/                           # ikon, tray, entitlements (DMG + MAS)
-├── Başlat.command                   # paketlemeden çalıştır
-└── create_app.command               # kişisel paketleyici (bun/node otomatik, ad-hoc imza)
+├── Başlat.command                   # kaynaktan çalıştır (macOS çift tık)
+├── create_app.command               # kişisel .app paketleyici
+└── Yenile.app.command               # .app'e yalnız kodu kopyala (hızlı güncelleme)
 
 ~/Library/Application Support/ProjectGalaxy/   (veri — koddan ayrı yaşar)
 ├── galaxy-data.json                 # TÜM verin — tek kaynak
 └── backups/  reports/  attachments/
 ```
 
-**Teknik notlar:** Arayüz proprietary `dc-runtime` bileşen çatısıyla yazılır; `newui/build.py`, `preview-sample.html` + `component.js`'ten `index.html` üretir. Galaksi arka planı WebGL (three.js) ile ayrı katmanda çizilir, bu yüzden arayüz yeniden render'ları 3D'yi etkilemez. Git bilgisi süreç başlatmadan `.git` dosyalarından okunur; ahead/behind `git rev-list` ile hesaplanır. Yerel/uzak kabuklar `SHELL_SENTINEL` ile komut bitişini yakalar; konsol çıktısı ve oturumları **proje bazlı** tutulur (`_consoles[pid]`, `_claudeSess[pid]`). DB sürücüleri saf JS (pg/mysql2/sql.js). Native ses tanıma `native/galaxy-stt.swift` (yalnız macOS). Windows gömülü terminal Git-Bash ister. Dağıtım: macOS DMG/zip (Developer ID + notarize), Windows NSIS, MAS sandbox kısıtlı.
+**Teknik notlar:** Arayüz `dc-runtime` bileşen çatısıyla yazılır; `newui/build.js`, `preview-sample.html` + `parts/*.js`'ten `index.html` üretir. Galaksi arka planı WebGL (three.js) ile ayrı katmanda çizilir, bu yüzden arayüz yeniden render'ları 3D'yi etkilemez. Git bilgisi süreç başlatmadan `.git` dosyalarından okunur; ahead/behind `git rev-list` ile hesaplanır. Yerel/uzak kabuklar `SHELL_SENTINEL` ile komut bitişini yakalar; konsol çıktısı ve oturumları **proje bazlı** tutulur (`_consoles[pid]`, `_claudeSess[pid]`). DB sürücüleri saf JS (pg/mysql2/sql.js/mssql). Native ses tanıma `native/galaxy-stt.swift` (yalnız macOS). Windows gömülü terminal Git-Bash ister. Dağıtım: macOS DMG/zip (Developer ID + notarize), Windows NSIS, MAS sandbox kısıtlı.
 
 ---
 

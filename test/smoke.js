@@ -42,7 +42,11 @@ function staticChecks() {
     const uiSrc = fs.readdirSync(path.join(ROOT, 'newui', 'parts')).filter(f => f.endsWith('.js')).sort().map(f => fs.readFileSync(path.join(ROOT, 'newui', 'parts', f), 'utf8')).join('');
     check('no-calendar', !/calDayOpen/.test(h) && !/EVENT CREATED/.test(h) && !/\bcalList\b/.test(uiSrc) && !/calMonthOffset/.test(uiSrc) && !/mini takvim/i.test(h), '');
     check('db-agent-sql-guard', /parseAgentSql/.test(dbGit) && /session limit/.test(dbGit) && /_sqlLooks/.test(uiSrc) && /you've hit/.test(uiSrc), '');
+    check('mssql-support', /setDbTypeMs/.test(h) && /SQL Server/.test(h) && /dbIsMssql/.test(h) && /cfg\.type === 'mssql'/.test(dbGit) && /sys\.foreign_key_columns/.test(dbGit) && /mssql: 1433/.test(dbGit), 'SQL Server tipi: form + sürücü dalı + FK kaynağı');
     check('daily-desk', /resumeSession/.test(h) && /Kaldığın yerden devam/.test(h) && /openInEditor/.test(h) && /Editörde Aç/.test(h) && /gxSession/.test(uiSrc), '');
+    check('sade-chrome', />KAPTAN</.test(h) && /Nerede kaldın/.test(h) && /ctxJumps/.test(h) && /closeHistory/.test(h) && /_chromeMove/.test(uiSrc) && /_rememberSurface/.test(uiSrc) && /showPlanetIdent/.test(h), 'kenar hover + sağ bağlam + Kaptan markası + geçmiş kapanır');
+    const ptySrc = fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8');
+    check('calm-ui', /filtrele veya Enter ile içerikte ara/.test(h) && !/placeholder="içerikte ara/.test(h) && !/Git Merkezi<\/button>/.test(h) && /pty-host\.py/.test(ptySrc) && /spawnPtyChild/.test(ptySrc) && fs.existsSync(path.join(ROOT, 'ipc', 'pty-host.py')) && /box-shadow:none!important/.test(h), 'tek ağaç araması + tek Git + sakin yüzey + gerçek PTY');
     const onb = fs.readFileSync(path.join(ROOT, 'onboarding.html'), 'utf8');
     check('settings-prefs', /prefs-nav/.test(onb) && /STATUS · KAPTAN/.test(onb) && /id="prefsSave"/.test(onb) && /Asistan/.test(onb) && /id="testClaude"/.test(onb) && /id="testMcp"/.test(onb) && !/id="themeApex"/.test(onb) && !/id="themeEv"/.test(onb), '');
     check('onboard-connections', /connGrid/.test(onb) && /cClaudeT/.test(onb) && /gh auth login/.test(onb) && /GMAIL_CLIENT_ID/.test(onb) && /step < 5/.test(onb) && /\/6/.test(onb), '');

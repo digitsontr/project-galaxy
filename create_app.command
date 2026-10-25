@@ -26,10 +26,8 @@ if [ ! -d "node_modules/@electron/packager" ]; then
 fi
 
 # ---- newui arayüzünü (index.html) template'ten yeniden üret ----
-if command -v python3 >/dev/null 2>&1 && [ -f "newui/build.py" ]; then
-  echo "▸ Arayüz derleniyor (newui/index.html)…"
-  python3 newui/build.py >/dev/null || true
-fi
+echo "▸ Arayüz derleniyor (newui/index.html)…"
+if [ "$RUNNER" = "node" ]; then node newui/build.js --quiet; else bun newui/build.js --quiet; fi
 
 # ---- Regresyon smoke-test (paketlemeden önce güvence) — SKIP_SMOKE=1 ile atlanır ----
 if [ "$SKIP_SMOKE" != "1" ] && [ -f "test/smoke.js" ]; then
@@ -55,7 +53,8 @@ PKG_ARGS=(. "Project Galaxy"
   --extend-info=build/extra-info.plist
   --ignore="^/dist" --ignore="\.zip$" --ignore="\.command$" --ignore="backup" --ignore="^/build/icon_preview"
   --ignore="claude-design-result" --ignore="^/reports" --ignore="^/attachments"
-  --ignore="preview-sample" --ignore="newui/build.py" --ignore="galaxy-data.json" --ignore="^/test")
+  --ignore="preview-sample" --ignore="newui/build.js" --ignore="^/newui/parts" --ignore="galaxy-data" \
+  --ignore="^/test" --ignore="^/docs" --ignore="^/scripts" --ignore="^/\.github" --ignore="\.mp4$")
 
 # Yerel @electron/packager binary'sini çalıştır (npx deprecated 'electron-packager'ı çeker — YANLIŞ)
 if [ "$RUNNER" = "bun" ]; then

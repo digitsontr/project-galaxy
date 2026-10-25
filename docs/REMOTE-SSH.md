@@ -53,11 +53,11 @@ Yardımcılar: `sshExec` (execFile, kabuk yok), `sshBaseArgs`, `sshTarget`,
 > ```
 > İşin bitince `docker rm -f galaxy-ssh-test` ile kaldır — dışarıya açık sshd bırakma.
 
-### Gerçek sunucu testi — 10.6.2.214 (22 Tem 2026)
+### Gerçek sunucu testi — iç ağdaki bir Windows makinesi (22 Tem 2026)
 
 Kullanıcının verdiği sunucuya karşı doğrulandı. **İki yapısal bulgu çıktı:**
 
-**1) Sunucu Windows.** `mugo@10.6.2.214` → Windows 10 (19045), `DESKTOP-1JKEO6O`,
+**1) Sunucu Windows.** `user@192.0.2.10` → Windows 10 (19045), `DESKTOP-XXXXXXX`,
 varsayılan kabuk `cmd.exe`, PowerShell 5.1, git 2.51.2, **Docker 29.1.3 kurulu**.
 POSIX tarama betiği burada hiç çalışmaz. Çözüldü:
 
@@ -70,7 +70,7 @@ POSIX tarama betiği burada hiç çalışmaz. Çözüldü:
 
 Doğrulanan çıktı (gerçek `D:\` içeriği):
 ```
-✓ sshProbe → kind=windows arch=AMD64 host=DESKTOP-1JKEO6O user=mugo
+✓ sshProbe → kind=windows arch=AMD64 host=DESKTOP-XXXXXXX user=user
 ✓ git="git version 2.51.2.windows.1" powershell=5.1.19041.6456 docker="29.1.3"
 ✓ sshScan(windows) 5 proje · yollar D:\… biçiminde · mtime/staleDays doğru
 ✓ git deposu testi: isGit=1, branch=develop, README.md algılandı
@@ -82,7 +82,7 @@ Karar bekliyor:
 
 | Seçenek | Etki |
 |---------|------|
-| **A. Anahtarı kur** (`ssh-copy-id mugo@10.6.2.214`, parola bir kez elle girilir) | Tasarım korunur, uygulama hiçbir parola saklamaz. **Önerilen.** |
+| **A. Anahtarı kur** (`ssh-copy-id user@192.0.2.10`, parola bir kez elle girilir) | Tasarım korunur, uygulama hiçbir parola saklamaz. **Önerilen.** |
 | **B. Parola desteği ekle** | `safeStorage` ile şifreli saklama + parola sürücüsü gerekir (`BatchMode` kapanır). Saklanan sır yüzeyi artar; ilk kararın tersine döner. |
 
 > **Karar (22 Tem 2026): Windows geliştirmesi faz 1'de donduruldu.** Algılama (`sshProbe`)

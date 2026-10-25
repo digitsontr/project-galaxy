@@ -323,8 +323,9 @@
     if(id==='posta') ns.mailPane=this.state.mailPane||'inbox';
     if(fromPlanet){ ns.mode='space'; ns.holdPlanet=true; }
     else if(this.state.mode!=='space') ns.mode='space';
-    if(id==='dongu'||id==='db'||id==='docker'||id==='zaman'||id==='servers'||id==='posta'||id==='pixel'){ ns.leftCollapsed=true; ns.rightCollapsed=true; ns.hudOpen=false; }
+    if(id==='dongu'||id==='db'||id==='docker'||id==='zaman'||id==='servers'||id==='posta'||id==='pixel'){ ns.leftCollapsed=true; ns.hudOpen=false; }
     else if(id==='genel'||id==='evren'||id==='pano'){ ns.leftCollapsed=false; }
+    this._rememberSurface(id);
     if(id==='docker') ns.activityId='docker';
     else if(id==='pixel') ns.activityId='pixel';
     else if(this.state.activityId==='docker'||this.state.activityId==='pixel') ns.activityId='explorer';

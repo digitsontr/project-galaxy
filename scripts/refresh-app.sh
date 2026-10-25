@@ -16,7 +16,7 @@ if [ ! -d "$APP" ]; then
 fi
 
 echo "▸ Arayüz derleniyor…"
-python3 newui/build.py
+node newui/build.js
 
 echo "▸ .app içine kopyalanıyor…"
 mkdir -p "$RES/newui" "$RES/ipc" "$RES/lib"

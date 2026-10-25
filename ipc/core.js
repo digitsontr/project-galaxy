@@ -1,7 +1,8 @@
-// Sprint J — davranış taşındı; kopyalanmadı.
-// Faz 5: eval-blob açıldı — gövde birebir aynı kod; artık satır satır okunur, diff'lenir,
-// hata izinde gerçek satır numarası verir. with(g) bilinçli: çıplak isimler paylaşılan g'ye
-// çözülür, g.X = ... atamaları bu modülün çıktısıdır. (Bu yüzden dosya başında 'use strict' yok.)
+// Çekirdek IPC: evren/proje CRUD, dosya ağacı ve dosya okuma/yazma, todo, README senkronu,
+// ajan tanımları, onboarding + Ayarlar penceresi, MCP sunucu listesi.
+// with(g) bilinçli: çıplak isimler main.js'in paylaşılan g nesnesine çözülür; g.X = ... atamaları
+// bu modülün sonraki modüllere verdiği çıktıdır (sıra main.js'te). Bu yüzden 'use strict' yok ve
+// `require('./lib/…')` gibi göreli yollar main.js'e (proje köküne) göre çözülür.
 module.exports = function register(g) {
   with (g) {
 // ---------- proje silme / gizleme (onaylı) ----------
@@ -669,7 +670,7 @@ ipcMain.handle('galaxy:mcpList', async () => {
   const spec = (st.mcpServers || [])[0];
   if (!spec || !spec.command) return { ok: false, error: 'Ayarlar’da MCP komutu yok', tools: [] };
   try {
-    const { withClient } = require('./lib/mcp-client');
+    const { withClient } = require(path.join(APP_DIR, 'lib', 'mcp-client'));
     const tools = await withClient(spec, c => c.listTools(), ENV);
     return { ok: true, tools: (tools || []).map(t => ({ name: t.name, description: t.description || '' })), aliases: { brief: st.mailBriefTool, send: st.mailSendTool, list: st.mailListTool, read: st.mailReadTool } };
   } catch (err) {
@@ -688,7 +689,7 @@ ipcMain.handle('galaxy:mcpCall', async (e, { name, args, alias } = {}) => {
   if (!tool && alias === 'read') tool = st.mailReadTool;
   if (!tool) return { ok: false, error: 'araç adı yok (Ayarlar’da alias yaz)' };
   try {
-    const { withClient } = require('./lib/mcp-client');
+    const { withClient } = require(path.join(APP_DIR, 'lib', 'mcp-client'));
     const result = await withClient(spec, c => c.callTool(tool, args || {}), ENV);
     return { ok: true, result };
   } catch (err) {

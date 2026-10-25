@@ -7,9 +7,8 @@
 3. GitHub Releases’ten `Project-Galaxy-Setup-….exe` **veya** kaynakta:
 
 ```bash
-npm install
-python newui/build.py
-npx electron-builder --win --publish never
+npm ci
+npm run dist:win
 ```
 
 Çıktı: `dist/Project-Galaxy-Setup-<version>.exe` (NSIS, x64).
@@ -19,7 +18,7 @@ npx electron-builder --win --publish never
 Statik + Electron smoke macOS CI’da (`ci.yml`) koşar. Windows’ta aynı kontroller:
 
 ```bash
-python newui/build.py
+npm run build:ui
 # PowerShell / cmd:
 set ELECTRON_RUN_AS_NODE=
 node_modules\.bin\electron test\smoke.js
@@ -39,5 +38,5 @@ Paket yapılandırması smoke içinde doğrulanır: `package.json` → `build.wi
 
 ## CI
 
-- `ci.yml` → macos smoke + (isteğe bağlı) windows-smoke job: `build.py` + `smoke.js`
+- `ci.yml` → macos smoke + (isteğe bağlı) windows-smoke job: `newui/build.js` + `smoke.js`
 - `release.yml` → `build-windows` NSIS üretir ve Release’e ekler

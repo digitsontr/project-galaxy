@@ -29,7 +29,8 @@ class Component extends DCLogic {
     trainingAddOpen:false, _trainingAddCat:'', trainingAddNewCat:'', _trainingAddFiles:[], _trainingAddBusy:false, _trainingAddErr:'',
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     _conBusy:false, _claudeOk:null, _githubOk:null, _githubMsg:'', _hubPulse:null, planInput:'',
-    leftCollapsed:false, rightCollapsed:true, activityId:'explorer', consoleCollapsed:true, _helpTick:0, splashOpen:true, _masBlocked:false,
+    leftCollapsed:false, rightCollapsed:false, activityId:'explorer', consoleCollapsed:true, _helpTick:0, splashOpen:true, _masBlocked:false,
+    _leftPeek:false, _rightPeek:false, _lastSurface:'',
     schAddOpen:false, _schResult:'', schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},
     consoleH:240, hudH:128, agentFormOpen:false, agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''},
     mailPane:'inbox', _inbox:[], mailSel:null, mailReadBody:'', mailTo:'', mailSub:'', mailBody:'', mailAtts:[], _treeOpen:{},
@@ -70,7 +71,31 @@ class Component extends DCLogic {
   ];
 
   _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
-  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
+  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s._history||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
+  _rememberSurface(id){
+    const key=String(id||''); if(!key) return;
+    this._lastSurface=key;
+    try{ localStorage.setItem('gxLastSurface', JSON.stringify({tab:key, at:Date.now(), proj:(this.sel&&this.sel.id)||''})); }catch(e){}
+    if(this.state._lastSurface!==key) this.setState({_lastSurface:key});
+  }
+  _surfaceLabel(id){
+    return ({genel:'Özet',evren:'Projeler',db:'Veritabanı',docker:'Docker',pano:'Pano',zaman:'Zaman',dongu:'Döngü',posta:'Posta',servers:'SSH',pixel:'Agents',git:'Git',dev:'Geliştir',agac:'Ağaç',dosya:'Dosya'}[id])||id||'';
+  }
+  _chromeMove(e){
+    if(this._barDragging) return;
+    const x=e.clientX, y=e.clientY, w=window.innerWidth;
+    const st=this.state||{};
+    const leftOpen=!st.leftCollapsed||st._leftPeek;
+    const rightOpen=!st.rightCollapsed||st._rightPeek;
+    const leftEdge=leftOpen?380:80;
+    const rightEdge=rightOpen?208:0;
+    let lp=!!st._leftPeek, rp=!!st._rightPeek;
+    if(x<=16) lp=true; else if(x>leftEdge+28) lp=false;
+    if(x>=w-16) rp=true; else if(x<w-rightEdge-28) rp=false;
+    if(lp===st._leftPeek && rp===st._rightPeek) return;
+    if(this._chromeT) cancelAnimationFrame(this._chromeT);
+    this._chromeT=requestAnimationFrame(()=>this.setState({_leftPeek:lp,_rightPeek:rp}));
+  }
   _activeDialog(){
     try{
       const list=[...document.querySelectorAll('[data-gx-dialog="true"]')].filter(el=>{
@@ -118,6 +143,7 @@ class Component extends DCLogic {
     if(s._srvTerm){ this.closeSrvTerm(); return true; }
     if(s._gitDiff){ this.closeGitDiff(); return true; }
     if(s._reportView){ this.closeReport(); return true; }
+    if(s._history||s._histShow){ this.closeHistory(); return true; }
     if(s._preview){ this.closePreview(); return true; }
     if(s._dlog){ this.closeDlog(); return true; }
     if(s.locOpen){ this.setState({locOpen:false}); return true; }
@@ -163,7 +189,7 @@ class Component extends DCLogic {
   }
   _float(sec){ return this._reduced()?'':`animation:floatOrb ${sec}s ease-in-out infinite`; }
   _floatC(sec){ return this._reduced()?'':`animation:floatOrbC ${sec}s ease-in-out infinite`; }
-  _pulse(){ return this._reduced()?'':'animation:pulseGlow 1.6s ease-in-out infinite'; }
+  _pulse(){ return ''; }
   _planetTint(p, base){
     const pal=['#61dcff','#7aa2ff','#c77bff','#ff6b9a','#55e88b','#ffc861','#4fe0ff','#a78bfa','#5eead4','#ff8ec8','#f59e0b'];
     const s=String((p&&p.id)||(p&&p.name)||'x'); let h=2166136261;
@@ -238,8 +264,17 @@ class Component extends DCLogic {
     this.setState({activityId:'explorer', leftCollapsed:false});
   }
   _actGit(){
-    this.setState({activityId:'git', gitCenter:'durum'});
-    this._loadGit();
+    const st=this.state||{};
+    if(st.mode==='planet'||st.holdPlanet){
+      this._setLeftTab('git');
+      this.setState({activityId:'git', gitCenter:null, leftCollapsed:false});
+      this._loadGit();
+      this._rememberSurface&&this._rememberSurface('git');
+      return;
+    }
+    this.setState({activityId:'git', gitCenter:null});
+    if(this.enter) this.enter();
+    setTimeout(()=>{ try{ this._setLeftTab('git'); this._loadGit(); }catch(e){} }, 0);
   }
   _openPrefs(pane){
     if(window.galaxy&&window.galaxy.openSettings){
@@ -290,6 +325,8 @@ class Component extends DCLogic {
       this._startBarResize(t.getAttribute('data-bar'), e);
     };
     document.addEventListener('pointerdown', this._onBarPtr, true);
+    this._onChromeMove=e=>this._chromeMove(e);
+    document.addEventListener('mousemove', this._onChromeMove, {passive:true});
     try{ setTimeout(()=>this._clampBars(), 0); }catch(e){}
     try{ this.state.uiMode='komutan'; }catch(e){}
     try{ if(this.state.kayitSub==='baglanti') this.state.kayitSub='gorevler'; }catch(e){}
@@ -303,7 +340,8 @@ class Component extends DCLogic {
     if(this.state.splashOpen){ clearTimeout(this._splashT); this._splashT=setTimeout(()=>this.dismissSplash(),1600); }
     try{ if(localStorage.getItem('gxReadmeOpen')==='1') this.state.readmeOpen=true; else this.state.readmeOpen=false; }catch(e){}
     try{ const lt=localStorage.getItem('gxLeftTab'); if(lt==='kayit'||lt==='agac'||lt==='git'||lt==='dev') this.state.leftTab=lt; }catch(e){}
-    try{ if(localStorage.getItem('gxRightCollapsed')==='0') this.state.rightCollapsed=false; else this.state.rightCollapsed=true; }catch(e){}
+    try{ const rc=localStorage.getItem('gxRightCollapsed'); if(rc==='1') this.state.rightCollapsed=true; else this.state.rightCollapsed=false; }catch(e){}
+    try{ const ls=JSON.parse(localStorage.getItem('gxLastSurface')||'null'); if(ls&&ls.tab) this.state._lastSurface=ls.tab; }catch(e){}
     try{ this._applyTheme(); }catch(e){ this._uiTheme='apex'; }
     this._waitThree(0);
     this._loadReal();

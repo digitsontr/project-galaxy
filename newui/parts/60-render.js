@@ -235,7 +235,7 @@
       toggleCls:s.on?'gx-toggle on':'gx-toggle',
       onToggle:s.id?()=>this._schedToggle(s):(()=>{}),
       onRun:s.id?()=>this._schedRun(s.id):(()=>{}), onDelete:s.id?()=>this.askConfirm('"'+(s.name||s.task||'görev')+'" zamanlanmış görevini sil?',()=>this._schedDelete(s.id)):(()=>{}),
-      dotStyle:`width:9px;height:9px;border-radius:50%;background:${s.on?'#55e88b':'#9aa3c2'};${s.on?'box-shadow:0 0 8px #55e88b':''}`,
+      dotStyle:`width:9px;height:9px;border-radius:50%;background:${s.on?'#55e88b':'#9aa3c2'}`,
       pillStyle:`font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:.08em;padding:5px 10px;border:1px solid ${s.on?'rgba(85,232,139,.35)':'rgba(190,205,255,.16)'};color:${s.on?'#55e88b':'#9aa3c2'};border-radius:8px` }));
 
     const _g = realMode ? st._git : null;
@@ -264,7 +264,7 @@
     const gitPriGreen=gitPriBase+'border:1px solid #55e88b;background:rgba(85,232,139,.1);color:#55e88b';
     const gitPriMuted=gitPriBase+'border:1px solid rgba(190,205,255,.18);background:transparent;color:#9aa3c2;cursor:default';
     let gitPrimaryLabel='Güncel', gitPrimaryTitle='Çalışma alanı güncel', gitPrimaryStyle=gitPriMuted, gitShowPullGhost=false, gitPrimaryFn=()=>{};
-    if(gitDirtyCount>0){ gitPrimaryLabel='Değişiklikleri incele'; gitPrimaryTitle='Dosyaları incele, seç ve commit et'; gitPrimaryStyle=gitPriGreen; gitPrimaryFn=async()=>{ this.setState({gitCenter:'durum'}); await this._loadGit(); this.setState({gitMsg:this._suggestCommitMsg()}); }; gitShowPullGhost=gitBehind>0; }
+    if(gitDirtyCount>0){ gitPrimaryLabel='Değişiklikleri incele'; gitPrimaryTitle='Dosyaları incele, seç ve commit et'; gitPrimaryStyle=gitPriGreen; gitPrimaryFn=async()=>{ await this._loadGit(); this.setState({gitMsg:this._suggestCommitMsg()}); }; gitShowPullGhost=gitBehind>0; }
     else if(gitAhead>0){ gitPrimaryLabel='⬆ Push'; gitPrimaryTitle='Push (uzağa gönder)'; gitPrimaryStyle=gitPriCyan; gitPrimaryFn=()=>this.gitPush(); gitShowPullGhost=gitBehind>0; }
     else if(gitBehind>0){ gitPrimaryLabel='⬇ Pull'; gitPrimaryTitle='Pull (uzaktan indir)'; gitPrimaryStyle=gitPriCyan; gitPrimaryFn=()=>this.gitPull(); }
     const gitTopCommit=commits[0]||null;
@@ -302,7 +302,7 @@
       ? st._db.map(s=>{ const c=s.type==='postgres'?'#61dcff':(s.type==='mysql'?'#ffc861':'#55e88b');
           return [s.name||s.host||'DB', [s.host,s.type].filter(Boolean).join(' · ')||(s.host||''), c, 'kayıtlı', s.type||'veritabanı']; })
       : (demoData?[['Yerel PostgreSQL','localhost:5432','#55e88b','bağlı','4 veritabanı'],['papilon-prod (SSH)','10.0.2.14 · postgres','#61dcff','bağlı','12 veritabanı'],['staging-mysql (SSH)','staging.local · mysql','#8a8fa8','uyku','3 veritabanı']]:[]);
-    const servers=serverSrc.map(([name,host,c,state,dbs])=>({name,host,dbs,state,dotStyle:`width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0;${state==='bağlı'?`box-shadow:0 0 8px ${c}`:''}`,stateStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:${c}`}));
+    const servers=serverSrc.map(([name,host,c,state,dbs])=>({name,host,dbs,state,dotStyle:`width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0`,stateStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;color:${c}`}));
     // DOCKER — gerçek konteyner + imaj + durum + aksiyonlar
     const ds=st._dstatus, dRunning=realMode?!!(ds&&ds.running):!!demoData;
     const dContsAll = realMode ? (st._docker||[]) : (demoData?[{id:'a',name:'galaxy-api',image:'node:20-alpine',state:'running',ports:'0.0.0.0:3000->3000/tcp',compose:'alphaapi'},{id:'b',name:'galaxy-db',image:'postgres:16',state:'running',ports:'0.0.0.0:5432->5432/tcp',compose:'alphaapi'},{id:'c',name:'redis-cache',image:'redis:7',state:'exited'}]:[]);
@@ -315,7 +315,7 @@
       const cid=d.id||d.name;
       const ports=this._dockerPorts(d.ports).map(port=>({port, onClick:(e)=>{ this._dockerStopEv(e); this.openLocalPort(port); }}));
       return {name:d.name||d.id||'container',image:d.image||'',state:up?'çalışıyor':(d.state||'durdu'),up, ports, hasPorts:ports.length>0,
-        dotStyle:`width:8px;height:8px;border-radius:50%;background:${c};${up?`box-shadow:0 0 8px ${c}`:''}`,
+        dotStyle:`width:8px;height:8px;border-radius:50%;background:${c}`,
         stateStyle:`font-family:'Space Grotesk',sans-serif;font-size:12px;color:${c}`,act:up?'⏹':'▸',
         onClick:()=>this.dockerOpenDetail({kind:'container',id:cid,name:d.name||cid,image:d.image,state:d.state,status:d.status,ports:d.ports,created:d.created,up}),
         onToggle:(e)=>{ this._dockerStopEv(e); this._dockerAct(cid,up?'stop':'start'); },
@@ -431,7 +431,7 @@
     if((pw.listening||[]).length) deskBriefLines.push(_bl('Çalışan iş: localhost:'+pw.listening.join(', ')+'.', ()=>this._openPlanetPort((pw.listening||[])[0])));
     if(!deskBriefLines.length) deskBriefLines.push(_bl('Sakin bir gün. Bir proje aç veya yeni çalışma alanı bağla.', ()=>this._openTab('evren')));
     const deskBriefTitle=dirtyAll.length?'Önce commit bekleyenler':(staleAll.length?'İhmal edilenlere bak':(resumeP?('Şimdi: '+(resumeP.name||'')):(openTodos?'Açık görevler':'Bugün masası')));
-    const deskNextCta=dirtyAll.length?{label:'Değişiklikleri incele', onClick:async()=>{ const p=dirtyAll[0]; if(!p) return; this._gotoProject(p.id); this._setLeftTab('git'); await this._loadGit(); this.setState({gitCenter:'durum',gitMsg:this._suggestCommitMsg()}); }}
+      const deskNextCta=dirtyAll.length?{label:'Değişiklikleri incele', onClick:async()=>{ const p=dirtyAll[0]; if(!p) return; this._gotoProject(p.id); this._setLeftTab('git'); await this._loadGit(); this.setState({gitMsg:this._suggestCommitMsg()}); }}
       :(resumeP?{label:'Kaldığın yerden devam', onClick:()=>this.resumeSession()}
       :(staleAll.length?{label:'İhmale bak', onClick:()=>this._gotoProject(staleAll[0].id)}
       :((!(this._unis&&this._unis.length))?{label:'Çalışma alanı bağla', onClick:()=>this.setState({addUni:true})}:null)));
@@ -697,7 +697,7 @@
       dlogAct:(st._dlog&&st._dlog.up)?'⏹ Durdur':'▸ Başlat',
       dlogToggle:()=>{ const d=this.state._dlog; if(d&&d.kind!=='image') this._dockerAct(d.id, d.up?'stop':'start'); },
       dlogRestart:()=>{ const d=this.state._dlog; if(d&&d.kind!=='image') this._dockerAct(d.id,'restart'); },
-      dlogDotStyle:(()=>{ const d=st._dlog, up=d&&d.up, img=d&&d.kind==='image', c=img?'#61dcff':(up?'#55e88b':'#8a8fa8'); return `width:7px;height:7px;border-radius:50%;background:${c};box-shadow:0 0 8px ${c};margin-right:2px${up?';animation:pulseGlow 1.6s ease-in-out infinite':''}`; })(),
+      dlogDotStyle:(()=>{ const d=st._dlog, up=d&&d.up, img=d&&d.kind==='image', c=img?'#61dcff':(up?'#55e88b':'#8a8fa8'); return `width:7px;height:7px;border-radius:50%;background:${c};margin-right:2px`; })(),
       dlogFields:(st._dlog&&st._dlog.fields)||[],
       dlogShowInspect:!!(st._dlog&&(st._dlog.kind==='image'||st._dlog.tab!=='logs')),
       dlogShowLogs:!!(st._dlog&&st._dlog.kind!=='image'&&st._dlog.tab==='logs'),
@@ -709,9 +709,9 @@
       dockExec:st.dockExec||'', onDockExec:(e)=>this.onDockExec(e), onDockExecKey:(e)=>this.onDockExecKey(e), dockerExecRun:()=>this.dockerExecRun(),
       // DB
       dbConns, dbHasConns, dbAddOpen:st.dbAddOpen, openDbAdd:()=>this.setState({dbAddOpen:true,_dbtest:''}), closeDbAdd:()=>this.setState({dbAddOpen:false}),
-      dbTypePg:dbTypeBtn('postgres'), dbTypeMy:dbTypeBtn('mysql'), dbTypeLite:dbTypeBtn('sqlite'),
-      setDbTypePg:()=>this.dbFormSet('type','postgres'), setDbTypeMy:()=>this.dbFormSet('type','mysql'), setDbTypeLite:()=>this.dbFormSet('type','sqlite'),
-      dbIsSqlite:dbf.type==='sqlite', dbNotSqlite:dbf.type!=='sqlite',
+      dbTypePg:dbTypeBtn('postgres'), dbTypeMy:dbTypeBtn('mysql'), dbTypeMs:dbTypeBtn('mssql'), dbTypeLite:dbTypeBtn('sqlite'),
+      setDbTypePg:()=>this.dbFormSetType('postgres','5432'), setDbTypeMy:()=>this.dbFormSetType('mysql','3306'), setDbTypeMs:()=>this.dbFormSetType('mssql','1433'), setDbTypeLite:()=>this.dbFormSetType('sqlite',''),
+      dbIsSqlite:dbf.type==='sqlite', dbNotSqlite:dbf.type!=='sqlite', dbIsMssql:dbf.type==='mssql',
       dbSetName:(e)=>this.dbFormSet('name',e.target.value), dbSetHost:(e)=>this.dbFormSet('host',e.target.value), dbSetPort:(e)=>this.dbFormSet('port',e.target.value),
       dbSetDatabase:(e)=>this.dbFormSet('database',e.target.value), dbSetUser:(e)=>this.dbFormSet('user',e.target.value), dbSetPassword:(e)=>this.dbFormSet('password',e.target.value), dbSetFile:(e)=>this.dbFormSet('file',e.target.value),
       dbTestConn:()=>this.dbTestConn(), dbSaveConn:()=>this.dbSaveConn(), dbTestMsg:st._dbtest||'',
@@ -801,27 +801,25 @@
       ctxChips:(()=>{
         if(!(st.mode==='planet'||st.holdPlanet)) return [];
         const g=st._git||{}; const chips=[];
-        const reduce=this._reduced();
-        const mk=(id,label,onClick,tone,pulse)=>{
+        const mk=(id,label,onClick,tone)=>{
           const warn=tone==='warn', ok=tone==='ok', bad=tone==='bad';
           const col=bad?'var(--gx-err)':(warn?'var(--gx-warn)':(ok?'var(--gx-ok)':'var(--gx-dim)'));
           const border=bad?'color-mix(in srgb, var(--gx-err) 45%, transparent)':(warn?'color-mix(in srgb, var(--gx-warn) 45%, transparent)':(ok?'color-mix(in srgb, var(--gx-ok) 40%, transparent)':'var(--gx-line)'));
-          const anim=pulse&&!reduce?'animation:gxhubpulse 1.1s ease-in-out infinite;':'';
-          return {id,label,onClick, style:`font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border:1px solid ${border};border-radius:999px;color:${col};background:color-mix(in srgb, ${col} 8%, transparent);cursor:${onClick?'pointer':'default'};${anim}`};
+          return {id,label,onClick, style:`font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border:1px solid ${border};border-radius:999px;color:${col};background:color-mix(in srgb, ${col} 8%, transparent);cursor:${onClick?'pointer':'default'}`};
         };
         if(sel&&sel._remote) chips.push(mk('ro','salt okuma',null,'warn'));
-        chips.push(mk('br','⎇ '+(g.branch||sel.branch||'—'), ()=>{this._setLeftTab('git'); this.setState({gitCenter:'durum'});}));
+        chips.push(mk('br','⎇ '+(g.branch||sel.branch||'—'), ()=>{this._setLeftTab('git');}));
         if(g.dirty>0) chips.push(mk('dirt', g.dirty+' değişiklik', ()=>{ this._setLeftTab('git'); this.setState({gitMsg:this._suggestCommitMsg()}); }, 'warn'));
         const composeUp=!!(pw.compose && (dContsAll||[]).some(c=>_cmpCo(c.compose, pw.compose.project) && /^up|running/i.test(c.state||c.status||'')));
         if(pw.boundDbName) chips.push(mk('db', 'DB · '+(pw.boundDbName), ()=>this._openTab('db'), 'ok'));
         else if(pw.env&&pw.env.dbHint) chips.push(mk('dbx','DB bağla', ()=>this._bindPlanetDb(), ''));
-        if(pw.compose) chips.push(mk('co', composeUp?('● '+(pw.compose.project||'compose')):('○ '+(pw.compose.project||'compose')), ()=>this._openTab('docker'), composeUp?'ok':'warn', composeUp));
-        (pw.listening||[]).slice(0,2).forEach(port=>chips.push(mk('p'+port, '● :'+port, ()=>this._openPlanetPort(port), 'ok', true)));
+        if(pw.compose) chips.push(mk('co', composeUp?('● '+(pw.compose.project||'compose')):('○ '+(pw.compose.project||'compose')), ()=>this._openTab('docker'), composeUp?'ok':'warn'));
+        (pw.listening||[]).slice(0,2).forEach(port=>chips.push(mk('p'+port, ':'+port, ()=>this._openPlanetPort(port), 'ok')));
         (pw.ports||[]).filter(p=>!(pw.listening||[]).includes(p)).slice(0,1).forEach(port=>chips.push(mk('x'+port, '○ :'+port, ()=>this._openPlanetPort(port), 'bad')));
         if(pw.env&&pw.env.missing&&pw.env.missing.length) chips.push(mk('env', '.env '+pw.env.missing.length+' eksik', ()=>{ this.toast('Eksik: '+pw.env.missing.slice(0,4).join(', ')); this._openTab('db'); }, 'warn'));
         return chips;
       })(),
-      hasCtxChips: !!(st.mode==='planet'||st.holdPlanet),
+      hasCtxChips: !!(st.mode==='planet'||st.holdPlanet) && !!st.rightCollapsed && !st._rightPeek,
       relatedPlanets:((pw.related)||[]).map(r=>({ name:r.name, why:r.why, onClick:()=>this._gotoProject(r.id) })),
       hasRelated:!!(pw.related&&pw.related.length),
       planetScripts:(pw.scripts||[]).map(s=>({ name:s.name, kind:s.kind||'', onClick:()=>this._runPlanetScript(s) })),
@@ -889,9 +887,9 @@
       gitFlowSteps:['Dal','Değişiklik','Commit','Push','Birleştir','Dağıt'].map(label=>({label, style:"font-family:var(--gx-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;border:1px solid var(--gx-line);border-radius:8px;color:var(--gx-dim)"})),
       board, schedule,
       todoInput: st.todoInput, onTodoInput:(e)=>this.onTodoInput(e), onTodoKey:(e)=>this.onTodoKey(e), addTodo:()=>this.addTodo(),
-      agentsW: st.rightCollapsed?'0px':'208px',
+      agentsW: (st.rightCollapsed && !st._rightPeek)?'0px':'220px',
       dockH: (st.hudOpen||this._barDragging==='hud')?((hudH||128)+'px'):'28px',
-      railW: st.leftCollapsed?'0px':'300px',
+      railW: (st.leftCollapsed && !st._leftPeek)?'0px':'300px',
       termH: (st.consoleCollapsed && this._barDragging!=='term')?'32px':(conH+14)+'px',
       shellRows: '48px minmax(0,1fr) '+(st.consoleCollapsed && this._barDragging!=='term'?'32px':((conH+14)+'px'))+' '+(st.hudOpen||this._barDragging==='hud'?((hudH||128)+'px'):'28px'),
       termExpanded: !st.consoleCollapsed, termCollapsed: !!st.consoleCollapsed,
@@ -919,8 +917,23 @@
         return [
           mk('settings','gear','Ayarlar',()=>this._openPrefs()),
         ]; })(),
-      toggleLeft:()=>this.setState({leftCollapsed:!st.leftCollapsed}),
-      toggleRight:()=>{ const on=!st.rightCollapsed; this.setState({rightCollapsed:on}); try{ localStorage.setItem('gxRightCollapsed',on?'1':'0'); }catch(e){} },
+      toggleLeft:()=>this.setState({leftCollapsed:!st.leftCollapsed, _leftPeek:false}),
+      toggleRight:()=>{ const on=!st.rightCollapsed; this.setState({rightCollapsed:on, _rightPeek:false}); try{ localStorage.setItem('gxRightCollapsed',on?'1':'0'); }catch(e){} },
+      pinLeft:()=>this.setState({leftCollapsed:false, _leftPeek:false}),
+      pinRight:()=>{ this.setState({rightCollapsed:false, _rightPeek:false}); try{ localStorage.setItem('gxRightCollapsed','0'); }catch(e){} },
+      leftPeeking: !!(st.leftCollapsed && st._leftPeek),
+      rightPeeking: !!(st.rightCollapsed && st._rightPeek),
+      showPlanetIdent: !(st._preview && (st.mode==='planet'||st.holdPlanet)),
+      hideCtxChips: !st.rightCollapsed || !!st._rightPeek,
+      ctxLastLabel: this._surfaceLabel(st._lastSurface||st.tab),
+      ctxLastHint: (st._lastSurface||st.tab)==='db'?'Son durak: veritabanı':(st._lastSurface||st.tab)==='docker'?'Son durak: Docker':(st._lastSurface==='git'||st.leftTab==='git')?'Son durak: Git':'Son durak: '+this._surfaceLabel(st._lastSurface||st.tab),
+      ctxJumps:[
+        {label:'Dosya', on: (st.mode==='planet'||st.holdPlanet)&&st.tab==='evren'&&st.leftTab!=='git', onClick:()=>{ if(!(st.mode==='planet'||st.holdPlanet)) this.enter(); this._setLeftTab('agac'); this._rememberSurface('dosya'); }},
+        {label:'Git', on: st.leftTab==='git', onClick:()=>{ if(!(st.mode==='planet'||st.holdPlanet)) this.enter(); this._setLeftTab('git'); this._rememberSurface('git'); }},
+        {label:'DB', on: st.tab==='db', onClick:()=>this._openTab('db')},
+        {label:'Docker', on: st.tab==='docker', onClick:()=>this._openTab('docker')},
+        {label:'Geliştir', on: st.leftTab==='dev', onClick:()=>{ if(!(st.mode==='planet'||st.holdPlanet)) this.enter(); this._setLeftTab('dev'); this._rememberSurface('dev'); }},
+      ].map(x=>({...x, style:`padding:5px 8px;border:1px solid ${x.on?'var(--gx-accent)':'var(--gx-line)'};border-radius:7px;background:${x.on?'rgba(106,167,255,.12)':'transparent'};color:${x.on?'var(--gx-accent)':'var(--gx-dim)'};cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;width:100%;text-align:left`})),
       asstBtnStyle:(()=>{ const live=this._asstSessionLive(); const on=!!st.asstOpen;
         const col=this._asstLiveListen()?'var(--gx-ok)':(live?'var(--gx-accent)':'var(--gx-dim)');
         const bd=on||live?col:'var(--gx-line)';
@@ -995,7 +1008,7 @@
         this._healthMissLabel=miss.length?(miss.length+' eksik'):'';
         this._healthHasMiss=miss.length>0;
         return items.map(h=>({ key:h.k, icon:h.ic, title:h.label+' · '+h.detail, onClick:h.go,
-          dotStyle:`width:6px;height:6px;border-radius:50%;background:${h.ok?'var(--gx-ok)':'var(--gx-faint)'};${h.ok?'box-shadow:0 0 6px var(--gx-ok)':''}`,
+          dotStyle:`width:6px;height:6px;border-radius:50%;background:${h.ok?'var(--gx-ok)':'var(--gx-faint)'}`,
           style:`display:flex;align-items:center;gap:4px;font-size:12px;color:${h.ok?'var(--gx-dim)':'var(--gx-faint)'};opacity:${h.ok?'1':'.55'};cursor:pointer;background:transparent;border:none;padding:4px 2px` })); })(),
       healthMissLabel:this._healthMissLabel||'', healthHasMiss:!!this._healthHasMiss,
       consoleInput: st.consoleInput, onConsoleInput:(e)=>this.onConsoleInput(e), onConsoleKey:(e)=>this.onConsoleKey(e), sendConsole:()=>this.sendConsole(),
@@ -1083,7 +1096,7 @@
             style:`display:flex;align-items:center;gap:2px;min-height:27px;padding:4px 6px 4px ${t.depth*13+4}px;margin:1px 4px;cursor:pointer;color:${on?'#eef5ff':isDirty?'var(--gx-warn)':(t.dir?'#cfe6ff':'var(--gx-dim)')};background:${on?'linear-gradient(90deg,rgba(106,167,255,.20),rgba(106,167,255,.05))':'transparent'};border:1px solid ${on?'rgba(106,167,255,.35)':'transparent'};border-radius:7px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px`}; });
       })(),
       hasTree: (this._treeNodes&&this._treeNodes.length)>0, noTree: !(this._treeNodes&&this._treeNodes.length),
-      treeFilter: st.treeFilter||'', onTreeFilterInput:(e)=>this.onTreeFilterInput(e),
+      treeFilter: st.treeFilter||'', onTreeFilterInput:(e)=>this.onTreeFilterInput(e), onTreeFilterKey:(e)=>this.onTreeFilterKey(e),
       treeFileCount: this._flatTree(this._treeNodes||[], '', 0).filter(n=>!n.dir).length,
       quickFiles: this._flatTree(this._treeNodes||[], '', 0).filter(n=>!n.dir).slice(0,6).map(n=>({ name:n.path, rel:n.path, onClick:()=>this._openFilePreview(n.path) })),
       hasQuickFiles: this._flatTree(this._treeNodes||[], '', 0).some(n=>!n.dir),
@@ -1240,7 +1253,7 @@
       testRunner: (st._tests||{}).runner||'', hasTests: !!((st._tests||{}).tests||[]).length,
       testsList: ((st._tests||{}).tests||[]).map(t=>({ label:t.name, meta:t.file+':'+t.line, running:st._testRunning===(t.file+':'+t.line), runLabel:st._testRunning===(t.file+':'+t.line)?'…':'▶', onRun:()=>this.testRunOne(t), onOpen:()=>{ this._openFilePreview(t.file); setTimeout(()=>this._gotoLine(t.line),320); } })),
       // Geçmiş + blame
-      histBusy: !!st.histBusy, loadHistory:()=>this.loadHistory(),
+      histBusy: !!st.histBusy, loadHistory:()=>this.loadHistory(), closeHistory:()=>this.closeHistory(),
       hasHistory: !!((st._history||{}).commits||[]).length,
       histList: ((st._history||{}).commits||[]).map(c=>({ label:c.short+' · '+c.subject, meta:c.date+' · '+c.author, onShow:()=>this.histShowVersion(c), onRestore:()=>this.histRestoreVersion(c) })),
       histShowOpen: !!st._histShow, histShowTitle: st._histShow?((st._histShow.rev||'')+' · '+(st._histShow.subject||'')):'', histShowText: (st._histShow||{}).content||'', closeHistShow:()=>this.setState({_histShow:null}),
@@ -1383,7 +1396,7 @@
       asstVoiceOn:(()=>{ const A=this._asst; return (A&&(A.state==='listening'||A.sttMode==='command'||A.convo))?'true':'false'; })(),
       asstIsTr:this._lang!=='en'?'true':'false', asstIsEn:this._lang==='en'?'true':'false',
       asstWakeOn:(this._asst&&this._asst.wakeOn)?'true':'false',
-      asstDotStyle:(()=>{ const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:9px;height:9px;border-radius:50%;background:${col};box-shadow:0 0 10px ${col};flex-shrink:0`; })(),
+      asstDotStyle:(()=>{ const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0`; })(),
       asstOrbStyle:(()=>{ const n=!!st.agentId; const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:${n?'22px':'44px'};height:${n?'22px':'44px'};filter:drop-shadow(0 0 ${n?10:18}px ${col})`; })(),
       asstOrbCenterStyle:(()=>{ const n=!!st.agentId; const col=(this._asst&&this._asst.dotCol)||'var(--gx-accent)'; return `width:${n?'18px':'36px'};height:${n?'18px':'36px'};filter:drop-shadow(0 0 ${n?8:16}px ${col})`; })(),
       asstPanelStyle:`opacity:${st.asstOpen?'1':'0'};visibility:${st.asstOpen?'visible':'hidden'}`,
@@ -1401,7 +1414,7 @@
       confirmCardStyle:`width:430px;max-width:90vw;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.45)':'rgba(255,107,122,.35)'};background:linear-gradient(172deg,${(st._confirm&&st._confirm.kind==='warn')?'rgba(20,14,10,.98),rgba(8,6,5,.99)':'rgba(20,12,14,.98),rgba(8,5,7,.99)'});box-shadow:0 30px 80px rgba(0,0,0,.6);padding:22px 24px;border-radius:14px`,
       confirmOkStyle:`padding:8px 20px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid ${(st._confirm&&st._confirm.kind==='warn')?'#ff9650':'#ff6b7a'};background:${(st._confirm&&st._confirm.kind==='warn')?'rgba(255,150,80,.14)':'rgba(255,107,122,.14)'};color:${(st._confirm&&st._confirm.kind==='warn')?'#ffb060':'#ff6b7a'}`,
       hubTitle:(()=>{ const err=st._hubPulse==='error'; const listen=this._asstLiveListen(); const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); return err?'hata':(listen?'dinliyor':(work?'çalışıyor':'hazır')); })(),
-      hubDotStyle:(()=>{ const err=st._hubPulse==='error'; const listen=this._asstLiveListen(); const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); const col=err?t.err:(listen?t.ok:(work?t.info:t.acc)); return `display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};box-shadow:0 0 8px ${col};flex-shrink:0;${(listen||(work&&!err))&&!this._reduced()?'animation:gxhubpulse 1.1s ease-in-out infinite;':''}`; })(),
+      hubDotStyle:(()=>{ const err=st._hubPulse==='error'; const listen=this._asstLiveListen(); const work=!!(st._gitBusy||st._agentBusy||st._conBusy||(this._asst&&this._asst.state==='working')); const col=err?t.err:(listen?t.ok:(work?t.info:t.acc)); return `display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0`; })(),
       // Özellik rehberi
       guideOpen:!!st._guideOpen, openGuide:()=>this.openGuide(), closeGuide:()=>this.closeGuide(),
       guideSections:this._guideData().map(([title,items])=>({title, items:items.map(t=>({t}))})),

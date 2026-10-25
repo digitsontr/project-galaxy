@@ -709,6 +709,36 @@ Hedef: Galaxy'de kapsama ~%85 → ~%95. Kalan delikler (refactor/debug/çakışm
 4. **CLI modunda tur-sonu değişiklik izi:** `acceptEdits` dosyaları sessizce yazdığı için ajan motoru artık CLI turundan önce/sonra `git status` fotoğrafını karşılaştırır (durum + boyut + mtime imzası); değişen dosyalar ✦ AJAN akışına "✏️ Bu turda değişen dosyalar" başlığıyla satır satır düşer, satıra tıklayınca dosya editörde açılır. Ön-onay değil (CLI'ın doğasına sadık), ama gözden kaçan yazma kalmaz. Ajan testleri **20/20** (sahte CLI dosya yazar, `changed` olayı `done`'dan önce gelir); smoke `faz4-agent-send` liste görünümünü de doğrular (mock-preload artık gerçek olay dizisi ateşliyor: metin → changed → done).
 5. **Git hijyeni:** çalışma ağacı alan bazlı checkpoint commit'leriyle çapalandı (backend / arayüz / test / doküman). Büyük tanıtım videoları bilinçli olarak commit dışı bırakıldı.
 
+## 32. SQL Server (MSSQL) — .NET projeleri için dördüncü veritabanı tipi (2026-10-20)
+
+DB formu artık **Postgres / MySQL / SQL Server / SQLite**. Tip `mssql` olarak saklanır (eskiden `mysql` değilse her şey `postgres`'e zorlanıyordu — .NET + Docker SQL Server 2022 bu yüzden eklenemiyordu).
+
+- Sürücü: `mssql` npm paketi. Yerel/Docker için `encrypt: false`, `trustServerCertificate: true` (kendinden imzalı sertifika). Parametreler `@p1…` (T-SQL).
+- Liste/şema: `sys.databases` (sistem DB'leri hariç), `INFORMATION_SCHEMA.TABLES` (`dbo.Users` biçiminde), PK `INFORMATION_SCHEMA`, FK **`sys.foreign_key_columns`** (SQL Server'da `CONSTRAINT_COLUMN_USAGE` yanlış tarafı verir).
+- Satır işlemleri: `SELECT TOP` / `OFFSET…FETCH NEXT` (LIMIT yok), `quoteIdent` köşeli parantez (`[Users]`).
+- Otomatik algılama: 1433 açık ve daha önce eklenmemişse "Bu Mac — SQL Server" (`sa`) adayı. Docker eşlemesi `14333` gibi ise formda Port'u elle yaz.
+- Testler: gerçek SQL Server 2022 kabına karşı `/tmp/mssql-test.js` **21/21** (kayıt, yanlış parola, şema+FK, TOP 100, parametreli insert/update/delete, onaylı `dbExec`). `npm run test:integration` + `GALAXY_IT_MSSQL=1` + `GX_MSSQL_PASS` ile kalıcı takımda **24/24**. Smoke `mssql-support`.
+
+## 33. Sade sahne — 3 kolon + kenar hover + tek kimlik (2026-10-20)
+
+Ekranda kaybolma / baş ağrısı: aynı bilgi 2-3 yerde, açık overlay'ler proje değişince kalıyor, çubuklar hep açık.
+
+- **Geçmiş overlay bug:** `select` / `enter` / `closePreview` `_history/_blame/_histShow` sıfırlar. Panelde ✕ var; Esc önce geçmişi kapatır (sonra dosyayı).
+- **Tek kimlik:** dosya açıkken gezegen kimlik şeridi gizlenir (`showPlanetIdent`); ad/dal/yol sağ bağlamda bir kez durur. Üst çipler sağ ray açıkken tekrarlanmaz.
+- **3 kolon:** sol (ağaç/git) + orta (iş) + sağ **bağlam** (`Nerede kaldın` + Dosya/Git/DB/Docker/Geliştir atlamaları). Son durak `_rememberSurface` ile kalır (DB'ye girip çıkınca sağda yazar).
+- **Kenar hover:** imleç sol/sağ 16px'e yaklaşınca kapalı ray peek açılır, uzaklaşınca kapanır. Kenardaki ◀▶ düğmesi sabitle/gizle (localStorage).
+- **Marka:** görünür "PROJECT GALAXY" → **KAPTAN** (üst bar, splash, rehber, onboarding). macOS izin metinleri uygulama paket adı olduğu için `Project Galaxy` kalır.
+
+## 34. Sakin yüzey — gerçek terminal + tek Git + tek arama (2026-10-20)
+
+İkinci tur sadeleştirme: yanıp sönen yeşil, aynı yere giden Git kapıları, üç arama kutusu, açılmayan PTY.
+
+- **PTY:** macOS `script` pipe üzerinde `tcgetattr` ile ölüyordu (`Operation not supported on socket`). Artık `ipc/pty-host.py` (`pty.spawn`) kabuğa gerçek tty verir; python yoksa kabuk pipe’a düşer.
+- **Sakin renk:** sürekli `gxpulse` / `gxhubpulse` / `pulseGlow` ve yeşil `box-shadow` glow’ları kapalı. Sağlık noktaları, dinleme şeridi, Docker/port çipleri statik.
+- **Tek Git:** sol **Git** sekmesi tek kapı. Aktivite çubuğu, sağ bağlam, Kaptan komutu oraya gider. Kahraman kartındaki ve Git sekmesindeki **Git Merkezi** düğmeleri kalktı.
+- **Tek arama (ağaç):** “içerikte ara” + “dosya adına göre filtrele” birleşti. Yazınca ağaç süzülür; Enter içerikte arar. Global ⌘K paleti durur (komut, dosya değil).
+- **Tek kimlik:** sol rayda ad/yol + Klasör/Editör. Ortadaki kahraman kartı kısa: ad, cümle, kaldığın dosya. Üst kimlik şeridi yalnızca Dosya/Yörünge + README.
+
 ---
 
 *Kaynak: çalışan uygulama kodu (v2.3.13). README’deki eski Kadet/Komutan, “Pano Daha’da” ve HUD dişlisi bu belgede yok — ürün onları bıraktı.*
