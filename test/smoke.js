@@ -52,7 +52,8 @@ function staticChecks() {
     check('onboard-connections', /connGrid/.test(onb) && /cClaudeT/.test(onb) && /gh auth login/.test(onb) && /GMAIL_CLIENT_ID/.test(onb) && /step < 5/.test(onb) && /\/6/.test(onb), '');
     check('inline-howto', /gx-howto/.test(h) && /gx-setup/.test(h) && /setupItems/.test(h) && /openMailSettings/.test(h) && /Nasıl bağlanır/.test(h) && /Posta nasıl bağlanır/.test(h), '');
     const mainSrc = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
-    check('fullscreen-window', /fullscreenable:\s*true/.test(mainSrc) && /getNormalBounds/.test(mainSrc) && /galaxy:esc/.test(mainSrc) && /titleBarStyle:\s*'hiddenInset'/.test(mainSrc) && /html\.gx-fs/.test(h), '');
+    const cfgSrc = fs.readFileSync(path.join(ROOT, 'lib', 'config.js'), 'utf8');
+    check('fullscreen-window', /fullscreenable:\s*true/.test(mainSrc) && /getNormalBounds/.test(mainSrc) && /galaxy:esc/.test(mainSrc) && /windowChrome\(\)/.test(mainSrc) && /titleBarStyle:\s*'hiddenInset'/.test(cfgSrc) && /titleBarOverlay/.test(cfgSrc) && /html\.gx-fs/.test(h) && /data-platform="win32"/.test(h), '');
     check('sprint-l-health', /Sistem sağlığı/.test(h) && /healthItems/.test(h) && /galaxy:githubCheck/.test(fs.readFileSync(path.join(ROOT, 'lib', 'data.js'), 'utf8')), '');
     check('no-egitim-tab', !/Eğitimlerim/.test(h) && !/id="tr-reader"/.test(h), '');
     check('no-calculator', !/hesap makinesi/i.test(h) && !/takvim · hesap/.test(h) && !/\bcalcKeys\b/.test(uiSrc) && !/gx-calc/.test(h), '');

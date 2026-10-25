@@ -1,5 +1,10 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+// CSS platform kancası: html[data-platform="win32"] — Windows pencere düğmeleri için boşluk vb.
+window.addEventListener('DOMContentLoaded', () => {
+  try { document.documentElement.setAttribute('data-platform', process.platform); } catch (e) {}
+});
+
 contextBridge.exposeInMainWorld('galaxy', {
   load: () => ipcRenderer.invoke('galaxy:load'),
   save: (project) => ipcRenderer.invoke('galaxy:save', project),

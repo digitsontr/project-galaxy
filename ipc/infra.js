@@ -742,7 +742,7 @@ ipcMain.handle('galaxy:openClaude', (e, p) => {
   if (!p || !knownPaths.has(p)) return false;
   if (process.platform === 'win32') {
     const dir = String(p); const { exec } = require('child_process');
-    exec(`start "" cmd /k "cd /d "${dir}" && claude"`, { env: ENV }, () => {});
+    exec(`start "" /D "${dir}" cmd /k claude`, { env: ENV }, () => {});
     return true;
   }
   const cmd = `cd '${String(p).replace(/'/g, "'\\''")}' && claude`;

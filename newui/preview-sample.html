@@ -754,6 +754,8 @@ button[style*="border-radius:50%"],button[style*="border-radius: 50%"]{border-ra
   header.gx-chrome{-webkit-app-region:drag;padding-left:78px}
   header.gx-chrome button,header.gx-chrome input,header.gx-chrome a,header.gx-chrome [role="button"],header.gx-chrome select{ -webkit-app-region:no-drag }
   html.gx-fs header.gx-chrome{padding-left:12px}
+  html[data-platform="win32"] header.gx-chrome,html[data-platform="linux"] header.gx-chrome{padding-left:12px;padding-right:150px!important}
+  html.gx-fs[data-platform] header.gx-chrome{padding-right:12px!important}
   .gx-mark{background:var(--gx-accent);box-shadow:0 0 12px var(--gx-accent)}
   .gx-hud-bay{border:1px solid var(--gx-frame);box-shadow:var(--gx-glow);border-radius:16px;background:color-mix(in srgb, var(--gx-panel) 90%, transparent)}
 .gx-sector{position:absolute;right:18px;bottom:18px;z-index:6;width:228px;padding:12px 12px 10px;pointer-events:auto;

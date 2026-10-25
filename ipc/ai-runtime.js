@@ -28,7 +28,7 @@ function streamClaude({ win, channel, runId, cwd, args, sessionKey, continued })
   const send = (kind, text) => { if (!win.isDestroyed()) win.webContents.send(channel, { runId, kind, text }); };
   let child;
   try {
-    child = spawn(claudeBin(), args, { cwd, env: ENV, shell: process.platform === "win32" });
+    child = cliSpawn(claudeBin(), args, { cwd, env: ENV });
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -320,7 +320,7 @@ function runClaudeJson(prompt, cwd) {
     if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
-      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });
+      child = cliSpawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
     } catch (err) { return resolve({ error: err.message }); }
     let out = '';
     const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 90000);
@@ -499,6 +499,7 @@ function ensureShell(shellId, cwd) {
       if (line) broadcastShell({ id: shellId, kind: 'err', text: line });
     }
   });
+  child.on('error', err => broadcastShell({ id: shellId, kind: 'err', text: 'Kabuk başlatılamadı: ' + err.message }));
   child.on('close', () => {
     broadcastShell({ id: shellId, kind: 'exit' });
     shells.delete(shellId);
@@ -617,7 +618,7 @@ ipcMain.handle('galaxy:openTerminal', (e, p) => {
   if (process.platform === 'win32') {
     const dir = String(p); const { exec } = require('child_process');
     // Windows Terminal (wt) → yoksa cmd
-    exec(`start "" wt -d "${dir}"`, { env: ENV }, err => { if (err) exec(`start "" cmd /k cd /d "${dir}"`, { env: ENV }, () => {}); });
+    exec(`start "" wt -d "${dir}"`, { env: ENV }, err => { if (err) exec(`start "" /D "${dir}" cmd`, { env: ENV }, () => {}); });
     return true;
   }
   if (process.platform === 'linux') {
@@ -653,7 +654,7 @@ function runClaudeText(prompt, cwd) {
     if (IS_MAS) return resolve({ error: MAS_BLOCKED });
     let child;
     try {
-      child = spawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV, shell: process.platform === 'win32' });
+      child = cliSpawn(claudeBin(), ['-p', prompt, '--output-format', 'json'], { cwd, env: ENV });
     } catch (err) { return resolve({ error: err.message }); }
     let out = '';
     const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({ error: 'zaman aşımı' }); }, 240000);

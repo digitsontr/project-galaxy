@@ -252,7 +252,7 @@ module.exports = function register(g) {
       if (sid) args.push('--resume', sid);
       args.push('-p', promptText, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits');
       let child;
-      try { child = spawn(bin, args, { cwd: root, env: ENV, shell: process.platform === 'win32' }); }
+      try { child = g.cliSpawn(bin, args, { cwd: root, env: ENV }); }
       catch (err) { emit('error', { text: 'CLI başlatılamadı: ' + err.message }); return finish(); }
       run.child = child;
       try { child.stdin && child.stdin.end(); } catch (e) {}

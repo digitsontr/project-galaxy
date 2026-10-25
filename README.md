@@ -374,6 +374,7 @@ ProjectGalaxy/                       (kod)
 │   ├── data.js                      #   galaxy-data.json, yedek + otomatik commit, ayarlar, Claude keşfi
 │   ├── projects.js                  #   evren tarama → gezegenler, knownPaths (izinli yollar)
 │   ├── planet-work.js               #   proje bağlamı: .env anahtarları, compose, script, migrate
+│   ├── cli.js                       #   platformdan bağımsız CLI çağrısı (Windows .cmd → gömülü Node)
 │   ├── mcp-client.js                #   MCP stdio istemcisi (posta vb.)
 │   └── trainings.js                 #   Eğitimlerim: docx/pptx/ipynb okuma
 ├── ipc/                             # Arayüzün çağırdığı IPC kanalları

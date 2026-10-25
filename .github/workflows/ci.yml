@@ -1,9 +1,9 @@
 name: CI
 
-# Her push ve PR'da arayüzü derle + smoke test çalıştır (bozuk kod erken yakalansın).
+# Her push ve PR'da arayüzü derle + smoke + entegrasyon testi (macOS ve Windows).
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -30,6 +30,8 @@ jobs:
           set -o pipefail
           env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/smoke.js 2>/dev/null | tee smoke.log
           grep -q "geçti" smoke.log && ! grep -q "BAŞARISIZ" smoke.log
+      - name: Entegrasyon testi (gerçek git, PTY, LSP, prettier)
+        run: npm run test:integration
 
   smoke-windows:
     runs-on: windows-latest
@@ -48,3 +50,5 @@ jobs:
           set -o pipefail
           env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/smoke.js 2>/dev/null | tee smoke.log
           grep -q "geçti" smoke.log && ! grep -q "BAŞARISIZ" smoke.log
+      - name: Entegrasyon testi (gerçek git, PTY, LSP, .cmd araçları)
+        run: npm run test:integration

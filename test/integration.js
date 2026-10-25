@@ -11,6 +11,7 @@ const { spawn, execFile } = require('child_process');
 const { createRequire } = require('module');
 
 const ROOT = path.join(__dirname, '..');
+const cli = require(path.join(ROOT, 'lib', 'cli'));
 const repoRequire = createRequire(path.join(ROOT, 'main.js'));
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'gx-it-'));
 const PROJ = path.join(TMP, 'proj');
@@ -21,7 +22,7 @@ async function ensureTools() {
   const need = ['typescript', 'prettier'].filter(m => !fs.existsSync(path.join(PROJ, 'node_modules', m, 'package.json')));
   if (!need.length) return true;
   const r = await new Promise(res => {
-    execFile('npm', ['install', '--no-save', '--no-audit', '--no-fund', '--loglevel=error', 'typescript@5', 'prettier@3'], { cwd: PROJ, timeout: 180000 }, (err, out, errOut) => res({ ok: !err, err: String(errOut || (err && err.message) || '') }));
+    cli.cliExecFile('npm', ['install', '--no-save', '--no-audit', '--no-fund', '--loglevel=error', 'typescript@5', 'prettier@3'], { cwd: PROJ, timeout: 180000 }, (err, out, errOut) => res({ ok: !err, err: String(errOut || (err && err.message) || '') }));
   });
   if (!r.ok) console.log('· fikstür araçları kurulamadı (ağ?): ' + r.err.slice(0, 160));
   return r.ok;
@@ -45,6 +46,7 @@ const g = {
   loadData: () => JSON.parse(JSON.stringify(dbStore)),
   saveData: d => { dbStore = d; },
   fs, path, spawn, execFile,
+  cliSpawn: cli.cliSpawn, cliExecFile: cli.cliExecFile,
   knownPaths: known,
   ENV: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', HOME: os.homedir() },
   DATA_DIR: path.join(TMP, 'data'),
@@ -92,6 +94,26 @@ const git = args => execGitP(PROJ, args);
   } else {
     console.log('· LSP/Format bölümleri atlandı (fikstür araçları yok)');
   }
+
+  // ---------- Terminal: gerçek kabuk (macOS/Linux python tty, Windows pipe satır disiplini) ----------
+  sent = [];
+  r = await H('galaxy:ptyStart')(evt, { id: 'it-pty', cwd: PROJ, cols: 80, rows: 24 });
+  check('PTY: kabuk açıldı', r.ok, r.error || '');
+  if (r.ok) {
+    await new Promise(res => setTimeout(res, 1500));
+    for (const ch of 'echo gx-pty-ok\r') await H('galaxy:ptyWrite')(evt, { id: 'it-pty', data: ch });
+    let out = '';
+    for (let i = 0; i < 40 && !/gx-pty-ok[\s\S]*gx-pty-ok/.test(out); i++) {
+      await new Promise(res => setTimeout(res, 150));
+      out = sent.filter(([ch]) => ch === 'pty:out').map(([, m]) => m.data).join('');
+    }
+    check('PTY: komut çalıştı + yankı', /gx-pty-ok[\s\S]*gx-pty-ok/.test(out), JSON.stringify(out.slice(-120)));
+    await H('galaxy:ptyStop')(evt, 'it-pty');
+  }
+
+  // ---------- CLI: platformdan bağımsız çağrı (Windows'ta npm.cmd) ----------
+  r = await new Promise(res => cli.cliExecFile('npm', ['--version'], { timeout: 30000 }, (err, out) => res({ ok: !err, out: String(out || '').trim(), err })));
+  check('CLI: npm --version', r.ok && /^\d+\./.test(r.out), r.out || String(r.err && r.err.message));
 
   // ---------- package.json scriptleri ----------
   r = await H('galaxy:pkgScripts')(evt, { root: PROJ });

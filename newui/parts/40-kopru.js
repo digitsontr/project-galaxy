@@ -211,9 +211,9 @@
       this._closeUniModal(); this.toast('✓ evren güncellendi'); await this._loadReal();
     }catch(e){ this.toast('✕ kaydedilemedi','err'); } }
   async pickLocalUni(mode){ try{ if(window.galaxy&&window.galaxy.pickFolder){ const r=await window.galaxy.pickFolder(); if(r&&r.path){
-    if(mode!=='add' && this.state.editUniId){ this._uniEditBookmark=r.bookmark||null; const name=String(this.state.uniName||'').trim()||(r.path.split('/').filter(Boolean).pop()||'Evren');
+    if(mode!=='add' && this.state.editUniId){ this._uniEditBookmark=r.bookmark||null; const name=String(this.state.uniName||'').trim()||(r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren');
       this.setState({uniEditRoot:r.path, uniName:name}); return; }
-    const name=r.path.split('/').filter(Boolean).pop()||'Evren'; await window.galaxy.universeAdd({name,root:r.path,bookmark:r.bookmark||null}); this._closeUniModal(); this._loadReal(); } } }catch(e){ this.toast('✕ evren eklenemedi','err'); } }
+    const name=r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren'; await window.galaxy.universeAdd({name,root:r.path,bookmark:r.bookmark||null}); this._closeUniModal(); this._loadReal(); } } }catch(e){ this.toast('✕ evren eklenemedi','err'); } }
   // Modalın SSH dalı: seçili sunucuya uzak klasör ekle → o klasör evren olur
   async addRemoteRoot(){ const id=this.state._uniSrvSel; const p=String(this.state.uniRemotePath||'').trim(); if(!id||!p) return;
     const srv=(this.state._servers||[]).find(s=>s.id===id); if(!srv||!window.galaxy||!window.galaxy.sshSave) return;

@@ -1323,7 +1323,7 @@
       split2Name: (st._preview2||{}).name||'', split2Text: (st._preview2||{}).content||'', hasSplit2: !!st._preview2,
       splitOpenWith:(rel)=>this.openSplitWith(rel),
       // Proje evi (dosya seçiliyken de kimlik her zaman üstte)
-      projPath: sel._path||'', projPathShort: sel._path?String(sel._path).replace(/^\/Users\/[^/]+/,'~'):'',
+      projPath: sel._path||'', projPathShort: sel._path?String(sel._path).replace(/^(?:\/Users\/[^/]+|\/home\/[^/]+|[A-Za-z]:\\Users\\[^\\]+)/,'~'):'',
       projInitial: String(sel.name||'?').slice(0,1).toUpperCase(),
       projBadgeStyle: `width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;color:#06121f;background:linear-gradient(135deg,${sc.c},#a596e8);box-shadow:0 8px 18px -8px ${sc.c}`,
       homeDirtyFiles: gitFilesDef.slice(0,6).map(([name,badge,c])=>({ name, badge,

@@ -15,13 +15,14 @@ npm run dist:win
 
 ## Smoke (CI / yerelde)
 
-Statik + Electron smoke macOS CI’da (`ci.yml`) koşar. Windows’ta aynı kontroller:
+Smoke + entegrasyon testi CI’da (`ci.yml`) macOS ve Windows’ta koşar. Yerelde:
 
 ```bash
 npm run build:ui
 # PowerShell / cmd:
 set ELECTRON_RUN_AS_NODE=
 node_modules\.bin\electron test\smoke.js
+npm run test:integration
 ```
 
 Paket yapılandırması smoke içinde doğrulanır: `package.json` → `build.win.target=nsis`, `nsis.shortcutName`.
@@ -31,12 +32,15 @@ Paket yapılandırması smoke içinde doğrulanır: `package.json` → `build.wi
 | Özellik | Windows |
 |---------|---------|
 | Harita, gezegen, git, pano, DB | Var |
-| Gömülü bash | Git-Bash gerekir |
+| Gömülü bash (⌁/▮ konsol) | Git-Bash gerekir |
+| `>_ TERMİNAL` sekmesi | Git-Bash, yoksa PowerShell. Gerçek tty yok (ConPTY yerel modül ister): satır satır komut çalışır, `vim`/`top` gibi tam ekran programlar çalışmaz — ⇗ ile Windows Terminal'de aç |
+| Pencere düğmeleri | Sistem küçült/büyüt/kapat üst barın sağında (overlay); varsayılan büyütülmüş pencere, tam ekran isteğe bağlı |
+| npm araçları (claude, tsc, eslint, prettier, npx) | `.cmd` sarmalayıcısının JS'i gömülü Node ile koşar (`lib/cli.js`) — ayrı Node kurulumu gerekmez |
 | Native STT (`galaxy-stt.swift`) | Yok (macOS) |
 | Keychain DB parolası | Windows Credential Manager / düz ayar yolu (sürüme göre) |
 | Tray otomatik güncelleme | GitHub Releases `.exe` — macOS zip updater’dan ayrı |
 
 ## CI
 
-- `ci.yml` → macos smoke + (isteğe bağlı) windows-smoke job: `newui/build.js` + `smoke.js`
+- `ci.yml` → her push'ta macOS + Windows: `newui/build.js` + `smoke.js` + `npm run test:integration` (gerçek git, PTY, LSP, `.cmd` araçları)
 - `release.yml` → `build-windows` NSIS üretir ve Release’e ekler

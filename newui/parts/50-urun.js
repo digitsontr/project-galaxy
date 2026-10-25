@@ -120,7 +120,7 @@
     const list=Array.isArray(r)?r:(r?[r]:[]);
     return list.map(f=>{
       const path=typeof f==='string'?f:(f&&(f.path||f.file||''))||'';
-      const name=String((f&&f.name)||path).split('/').pop()||'dosya';
+      const name=String((f&&f.name)||path).split(/[\\/]/).pop()||'dosya';
       const img=/\.(png|jpe?g|gif|webp|heic|svg|bmp)$/i.test(name);
       return { path, name, icon: img?'🖼':'📄' };
     }).filter(a=>a.path||a.name);

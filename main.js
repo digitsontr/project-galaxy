@@ -105,6 +105,11 @@ function bindMainWindow(win) {
 }
 // newui/index.html git'te tutulmaz (newui/build.js üretir). `electron .` ile doğrudan açılan
 // temiz bir klonda boş pencere çıkmasın diye eksikse açılışta derlenir.
+// macOS'ta varsayılan tam ekran; Windows/Linux'ta tam ekran pencere düğmelerini gizlediği için
+// yalnız kullanıcı açıkça seçtiyse.
+function wantFullscreen(st) {
+  return process.platform === 'darwin' ? st.fullscreen !== false : st.fullscreen === true;
+}
 function ensureUiBuilt() {
   const uiIndex = path.join(APP_DIR, 'newui', 'index.html');
   const uiBuild = path.join(APP_DIR, 'newui', 'build.js');
@@ -115,7 +120,7 @@ function ensureUiBuilt() {
 function createWindow() {
   const wa = (() => { try { return screen.getPrimaryDisplay().workAreaSize; } catch (e) { return { width: 1440, height: 900 }; } })();
   const st = loadWinState();
-  const wantFs = st.fullscreen !== false;
+  const wantFs = wantFullscreen(st);
   const opts = {
     width: Math.max(1024, st.width || Math.min(1440, wa.width)),
     height: Math.max(640, st.height || Math.min(900, wa.height)),
@@ -125,8 +130,7 @@ function createWindow() {
     show: false,
     fullscreenable: true,
     fullscreen: wantFs,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
+    ...g.windowChrome(),
     webPreferences: {
       preload: path.join(APP_DIR, 'preload.js'),
       contextIsolation: true
@@ -139,7 +143,7 @@ function createWindow() {
   win.once('ready-to-show', () => {
     win.show();
     if (wantFs && !win.isFullScreen()) win.setFullScreen(true);
-    else if (!wantFs && st.maximized) win.maximize();
+    else if (!wantFs && (st.maximized || (process.platform !== 'darwin' && st.width == null))) win.maximize();
   });
 }
 ipcMain.handle('galaxy:toggleFullscreen', e => {
@@ -259,13 +263,13 @@ function createTray() {
           const w = wins[0];
           if (w.isMinimized()) w.restore();
           w.show(); w.focus();
-          if (loadWinState().fullscreen !== false && !w.isFullScreen()) w.setFullScreen(true);
+          if (wantFullscreen(loadWinState()) && !w.isFullScreen()) w.setFullScreen(true);
         } else createWindow();
       } },
       { type: 'separator' },
       { label: 'Ayarlar…', click: openSettingsWindow },
       { label: 'Güncellemeleri Denetle', click: manualUpdateCheck },
-      { label: 'Kaynaklardan yenile…', click: () => {
+      ...(process.platform === 'darwin' ? [{ label: 'Kaynaklardan yenile…', click: () => {
         try {
           const { spawn } = require('child_process');
           const script = path.join(APP_DIR, 'scripts', 'refresh-app.sh');
@@ -276,9 +280,9 @@ function createTray() {
             dialog.showMessageBox({ type: 'info', title: 'Yenile', message: 'Kaynak klasörde scripts/refresh-app.sh yok.', detail: 'Geliştirme için ProjectGalaxy klasöründeki Yenile.app.command dosyasına çift tıkla.' });
             return;
           }
-          spawn('bash', [src], { detached: true, stdio: 'ignore' }).unref();
+          const ch = spawn('bash', [src], { detached: true, stdio: 'ignore' }); ch.on('error', () => {}); ch.unref();
         } catch (e) {}
-      } },
+      } }] : []),
       { type: 'separator' },
       { label: 'Çıkış', click: () => app.quit() }
     ]));
@@ -315,7 +319,7 @@ app.on('second-instance', () => {
     const w = wins[0];
     if (w.isMinimized()) w.restore();
     w.show(); w.focus();
-    if (loadWinState().fullscreen !== false && !w.isFullScreen()) w.setFullScreen(true);
+    if (wantFullscreen(loadWinState()) && !w.isFullScreen()) w.setFullScreen(true);
   }
   else if (needsOnboarding()) createOnboardingWindow(); else createWindow();
 });

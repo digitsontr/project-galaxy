@@ -607,14 +607,13 @@ ipcMain.handle('galaxy:gitLog', async (e, projectId) => {
   if (!proj || !proj.path) return { ok: false, error: 'Git deposu yok' };
   if (isRemotePath(proj.path)) return remoteGitLog(proj.path);
   if (!fs.existsSync(path.join(proj.path, '.git'))) return { ok: false, error: 'Git deposu yok' };
-  const { exec } = require('child_process');
-  const run = cmd => new Promise(res => exec(cmd, { cwd: proj.path, env: ENV, timeout: 10000 }, (err, out) => res(err ? '' : out.trim())));
+  const run = args => new Promise(res => execFile('git', args, { cwd: proj.path, env: ENV, timeout: 10000 }, (err, out) => res(err ? '' : String(out).trim())));
   const [logOut, branch, statusOut, branches, aheadBehind] = await Promise.all([
-    run('git log --pretty=format:"%h§%an§%ad§%s" --date=format:"%Y-%m-%d %H:%M" -40'),
-    run('git branch --show-current'),
-    run('git status --porcelain'),
-    run('git branch --format="%(refname:short)"'),
-    run('git rev-list --left-right --count @{u}...HEAD')   // "behind<TAB>ahead" (upstream yoksa boş)
+    run(['log', '--pretty=format:%h§%an§%ad§%s', '--date=format:%Y-%m-%d %H:%M', '-40']),
+    run(['branch', '--show-current']),
+    run(['status', '--porcelain']),
+    run(['branch', '--format=%(refname:short)']),
+    run(['rev-list', '--left-right', '--count', '@{u}...HEAD'])   // "behind<TAB>ahead" (upstream yoksa boş)
   ]);
   let behind = 0, ahead = 0;
   { const m = String(aheadBehind || '').trim().split(/\s+/); if (m.length === 2) { behind = +m[0] || 0; ahead = +m[1] || 0; } }

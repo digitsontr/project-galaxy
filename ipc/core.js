@@ -303,7 +303,7 @@ ipcMain.handle('galaxy:openInEditor', async (e, { path: projectPath, app: editor
       : (win ? ['cursor.cmd', 'cursor', 'code.cmd', 'code'] : ['cursor', 'code']);
   for (const bin of bins) {
     const ok = await new Promise(res => {
-      execFile(bin, [p], { timeout: 8000 }, err => res(!err));
+      try { cliExecFile(bin, [p], { timeout: 8000, env: ENV }, err => res(!err)); } catch (err) { res(false); }
     });
     if (ok) return { ok: true, app: bin.replace(/\.cmd$/, '') };
   }
@@ -388,7 +388,7 @@ ipcMain.handle('galaxy:file', async (e, { root, rel }) => {
   let st;
   try { st = fs.statSync(full); } catch (err) { return null; }
   const ext = path.extname(full).slice(1).toLowerCase();
-  const url = 'file://' + full.split('/').map(encodeURIComponent).join('/');
+  const url = require('url').pathToFileURL(full).href;
   const base = { name: path.basename(full), size: st.size, ext, path: full };
 
   if (IMAGE_EXT.has(ext)) return { ...base, kind: 'image', url };
@@ -517,7 +517,7 @@ function createOnboardingWindow() {
   onboardWin = new BrowserWindow({
     width: 860, height: 800, resizable: false, fullscreenable: false,
     backgroundColor: '#04060c',
-    titleBarStyle: 'hiddenInset',
+    ...windowChrome(),
     webPreferences: { preload: path.join(APP_DIR, 'preload.js'), contextIsolation: true }
   });
   onboardWin.loadFile(path.join(APP_DIR, 'onboarding.html'));
@@ -602,7 +602,7 @@ function openSettingsWindow(pane) {
   settingsWin = new BrowserWindow({
     width: 960, height: 680, resizable: true, minWidth: 800, minHeight: 560, fullscreenable: false,
     backgroundColor: '#04060c',
-    titleBarStyle: 'hiddenInset',
+    ...windowChrome(),
     webPreferences: { preload: path.join(APP_DIR, 'preload.js'), contextIsolation: true }
   });
   settingsWin.loadFile(path.join(APP_DIR, 'onboarding.html'), { query: q });

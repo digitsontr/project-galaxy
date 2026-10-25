@@ -19,13 +19,34 @@ module.exports = function register(g) {
     }
     return 'python3';
   };
-  const spawnPtyChild = (cwd, cols, rows, shellBin) => {
-    const env = { ...ENV, TERM: 'xterm-256color', COLUMNS: String(cols || 100), LINES: String(rows || 30) };
-    if (process.platform === 'win32') return spawn(shellBin, [], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
-    if (fs.existsSync(ptyHost)) {
-      return spawn(pickPython(), ['-u', ptyHost, cwd, shellBin, String(cols || 100), String(rows || 30)], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+  // Windows'ta gerçek tty yok (ConPTY yerel modül ister): Git Bash, yoksa PowerShell pipe'ta koşar.
+  const pickShell = () => {
+    if (process.platform === 'win32') {
+      const bash = typeof g.localShellFile === 'function' ? g.localShellFile() : null;
+      return bash ? { bin: bash, args: ['-i'] } : { bin: 'powershell.exe', args: ['-NoLogo'] };
     }
-    return spawn(shellBin, ['-i'], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    return { bin: process.env.SHELL || '/bin/zsh', args: ['-i'] };
+  };
+  // { child, piped } — piped: tty yok, satır disiplinini (yankı, silme, Enter) biz yaparız.
+  const spawnPtyChild = (cwd, cols, rows) => {
+    const env = { ...ENV, TERM: 'xterm-256color', COLUMNS: String(cols || 100), LINES: String(rows || 30) };
+    const sh = pickShell();
+    const opts = { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true };
+    if (process.platform !== 'win32' && fs.existsSync(ptyHost)) {
+      return { child: spawn(pickPython(), ['-u', ptyHost, cwd, sh.bin, String(cols || 100), String(rows || 30)], opts), piped: false };
+    }
+    return { child: spawn(sh.bin, sh.args, opts), piped: true };
+  };
+  const pipedInput = (rec, data) => {
+    if (String(data).startsWith('\x1b')) return; // ok/F tuşları: tty'siz kabuk satır düzenlemez
+    let echo = '';
+    for (const ch of String(data)) {
+      if (ch === '\r' || ch === '\n') { rec.child.stdin.write(rec.line + '\n'); rec.line = ''; echo += '\r\n'; }
+      else if (ch === '\x7f' || ch === '\b') { if (rec.line) { rec.line = rec.line.slice(0, -1); echo += '\b \b'; } }
+      else if (ch === '\x03') { rec.line = ''; echo += '^C\r\n'; }
+      else if (ch >= ' ' || ch === '\t') { rec.line += ch; echo += ch; }
+    }
+    if (echo) sendTo(rec.wc, 'pty:out', { id: rec.id, data: echo });
   };
   g.ipcMain.handle('galaxy:ptyStart', (e, { id, cwd, cols, rows } = {}) => {
     if (g.IS_MAS) return { ok: false, error: 'Terminal App Store sürümünde devre dışı.' };
@@ -33,23 +54,29 @@ module.exports = function register(g) {
     if (g.isRemotePath && g.isRemotePath(cwd)) return { ok: false, error: 'Uzak projede SSH sekmesini kullan' };
     const ex = ptys.get(id);
     if (ex && ex.child && !ex.child.killed && ex.child.exitCode === null) return { ok: true, reused: true };
-    const shellBin = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/zsh');
-    let child;
-    try { child = spawnPtyChild(cwd, cols, rows, shellBin); }
+    let child, piped;
+    try { ({ child, piped } = spawnPtyChild(cwd, cols, rows)); }
     catch (err) { return { ok: false, error: err.message }; }
     const wc = e.sender;
-    const onData = chunk => sendTo(wc, 'pty:out', { id, data: chunk.toString('utf8') });
+    const onData = chunk => {
+      const s = chunk.toString('utf8');
+      sendTo(wc, 'pty:out', { id, data: piped ? s.replace(/\r?\n/g, '\r\n') : s });
+    };
     if (child.stdout) child.stdout.on('data', onData);
     if (child.stderr) child.stderr.on('data', onData);
     child.on('error', err => sendTo(wc, 'pty:out', { id, data: '\r\n[terminal başlatılamadı: ' + (err.message || err) + ']\r\n' }));
     child.on('close', code => { sendTo(wc, 'pty:out', { id, data: '\r\n[terminal kapandı · kod ' + code + ']\r\n', exit: true }); ptys.delete(id); });
-    ptys.set(id, { child, wc });
+    ptys.set(id, { child, wc, id, piped, line: '' });
     return { ok: true };
   });
   g.ipcMain.handle('galaxy:ptyWrite', (e, { id, data } = {}) => {
     const rec = ptys.get(id);
     if (!rec || !rec.child || !rec.child.stdin) return { ok: false };
-    try { rec.child.stdin.write(String(data == null ? '' : data)); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; }
+    try {
+      if (rec.piped) pipedInput(rec, data == null ? '' : data);
+      else rec.child.stdin.write(String(data == null ? '' : data));
+      return { ok: true };
+    } catch (err) { return { ok: false, error: err.message }; }
   });
   g.ipcMain.handle('galaxy:ptyResize', (e, { id, cols, rows } = {}) => {
     // script-PTY boyutu süreç başlangıcında sabitlenir; çalışan oturumda nazikçe yoksay.
@@ -130,7 +157,7 @@ module.exports = function register(g) {
     if (g.isRemotePath && g.isRemotePath(root)) return { ok: false, problems: [], error: 'Uzakta tanılama yok' };
     const problems = [];
     const run = (bin, args, timeout) => new Promise(res => {
-      execFile(bin, args, { cwd: root, env: ENV, timeout: timeout || 90000, maxBuffer: 16 * 1024 * 1024 }, (err, out, errOut) => res(String(out || '') + String(errOut || '')));
+      g.cliExecFile(bin, args, { cwd: root, env: ENV, timeout: timeout || 90000, maxBuffer: 16 * 1024 * 1024 }, (err, out, errOut) => res(String(out || '') + String(errOut || '')));
     });
     const hasPkg = fs.existsSync(path.join(root, 'package.json'));
     let pkg = null;
@@ -142,7 +169,7 @@ module.exports = function register(g) {
     if (fs.existsSync(localBin('tsc'))) {
       const out = await run(localBin('tsc'), ['--noEmit', '--pretty', 'false'], 120000);
       ran.push('tsc');
-      for (const line of out.split('\n')) {
+      for (const line of out.split(/\r?\n/)) {
         const m = line.match(/^(.+?)\((\d+),(\d+)\):\s*(error|warning)\s*TS\d+:\s*(.*)$/);
         if (m) problems.push({ file: m[1], line: +m[2], col: +m[3], severity: m[4], text: m[5].slice(0, 200), source: 'tsc' });
       }
@@ -150,9 +177,9 @@ module.exports = function register(g) {
     if (fs.existsSync(localBin('eslint'))) {
       const out = await run(localBin('eslint'), ['.', '-f', 'unix'], 120000);
       ran.push('eslint');
-      for (const line of out.split('\n')) {
+      for (const line of out.split(/\r?\n/)) {
         const m = line.match(/^\/?.*?:\s*(.+?):(\d+):(\d+):\s*(.+?)\s*\[(Error|Warning)\//) || line.match(/^(.+?):(\d+):(\d+):\s*(.+?)\s*\[(Error|Warning)\//);
-        if (m) problems.push({ file: path.relative(root, m[1].startsWith('/') ? m[1] : path.join(root, m[1])), line: +m[2], col: +m[3], severity: m[5].toLowerCase(), text: m[4].slice(0, 200), source: 'eslint' });
+        if (m) problems.push({ file: path.relative(root, path.isAbsolute(m[1]) ? m[1] : path.join(root, m[1])).split(path.sep).join('/'), line: +m[2], col: +m[3], severity: m[5].toLowerCase(), text: m[4].slice(0, 200), source: 'eslint' });
       }
     }
     if (scripts.test && !/no test specified/.test(String(scripts.test))) ran.push('test-script-var');
@@ -458,7 +485,7 @@ module.exports = function register(g) {
   // ---------- Faz 3 / 3) Kaydette formatla + lint düzelt ----------
   const execOut = (bin, args, opts, input) => new Promise(res => {
     try {
-      const child = execFile(bin, args, { cwd: opts.cwd, env: opts.env || ENV, timeout: opts.timeout || 25000, maxBuffer: 8 * 1024 * 1024 }, (err, out, errOut) => res({ ok: !err, out: String(out || ''), errOut: String(errOut || ''), code: err ? (err.code || 1) : 0 }));
+      const child = g.cliExecFile(bin, args, { cwd: opts.cwd, env: opts.env || ENV, timeout: opts.timeout || 25000, maxBuffer: 8 * 1024 * 1024 }, (err, out, errOut) => res({ ok: !err, out: String(out || ''), errOut: String(errOut || ''), code: err ? (err.code || 1) : 0 }));
       if (input != null) { try { child.stdin.end(input); } catch (e) {} }
     } catch (e) { res({ ok: false, out: '', errOut: e.message, code: -1 }); }
   });
@@ -480,7 +507,7 @@ module.exports = function register(g) {
         try { const arr = JSON.parse(r.out || '[]'); if (arr[0] && typeof arr[0].output === 'string') { text = arr[0].output; tools.push('eslint --fix'); } } catch (err) {}
       }
     } else if (ext === '.py') {
-      if (has(bin('ruff')) || has('/usr/bin/which')) {
+      {
         const r = await execOut('ruff', ['format', '--stdin-filename', full, '-'], { cwd: root }, text);
         if (r.ok && r.out) { text = r.out; tools.push('ruff'); }
       }
