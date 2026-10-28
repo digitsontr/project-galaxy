@@ -202,7 +202,7 @@
     else if(m.kind==='err'){ if(!this._cliNoise(m.text)) ag.msgs.push(['a','⚠ '+m.text]); if(this._loopRunId&&m.runId===this._loopRunId){ this._loopOut=(this._loopOut||'')+'\n⚠ '+m.text; this.setState({loopBody:this._loopOut}); } }
     else if(m.kind==='done'){ ag.lastRunAt=Date.now(); if(this.state.agentId!==aid) ag.badge=(ag.badge||0)+1; this.setState({_agentBusy:false}); this._agentRunId=null; delete this._runAgents[m.runId]; if(this._loopRunId&&m.runId===this._loopRunId) this._loopWorkDone(); }
     this.setState({_agv:(this.state._agv||0)+1});
-    this._scrollBottom('#ghud-agent-scroll');
+    this._scrollBottom('#gx-ws-feed');
   }
   _scrollBottom(sel){ try{ setTimeout(()=>{ const el=document.querySelector(sel); if(el) el.scrollTop=el.scrollHeight; },40); }catch(e){} }
   _focusConsole(){ this._scrollBottom('#ghud-console-scroll'); try{ setTimeout(()=>{ const i=document.querySelector('#ghud-console-input'); if(i) i.focus(); },70); }catch(e){} }
@@ -289,7 +289,7 @@
   }
   onConsoleResize(e){ this._startBarResize('term', e); }
   onHudResize(e){ this._startBarResize('hud', e); }
-  _setLeftTab(id){ this.setState({leftTab:id}); try{ localStorage.setItem('gxLeftTab',id); }catch(e){} if(id==='git'){ this.gitExtLoad(); this.ghLoad(); } if(id==='dev'){ this.langCheck(); this.gxLoad(); this.agentCfgLoad(); } }
+  _setLeftTab(id){ this.setState({leftTab:id}); try{ localStorage.setItem('gxLeftTab',id); }catch(e){} if(id==='git'||id==='dev') this._rememberSurface(id); if(id==='git'){ this.gitExtLoad(); this.ghLoad(); } if(id==='dev'){ this.langCheck(); this.gxLoad(); this.agentCfgLoad(); } }
   toggleReadme(){ const on=!this.state.readmeOpen; this.setState({readmeOpen:on}); try{ localStorage.setItem('gxReadmeOpen',on?'1':'0'); }catch(e){} }
   setOrbitView(on){ this.setState({orbitView:!!on}); try{ localStorage.setItem('gxOrbitView',on?'1':'0'); }catch(e){} }
   dismissSplash(){ clearTimeout(this._splashT); this.setState({splashOpen:false}); try{ localStorage.setItem('gxSplash','1'); }catch(e){} }
@@ -524,12 +524,13 @@
   async sendAgent(){
     const text=String(this.state.agentInput||'').trim(); if(!text) return;
     const ag=this.AGENTS.find(a=>a.id===this.state.agentId); if(!ag) return;
+    if(ag.paused){ this.toast(ag.name+' duraklatıldı — önce devam ettir','err'); return; }
     ag.msgs.push(['u',text]); ag.msgs.push(['a','']);
     const runId='r'+(this._rc=(this._rc||0)+1)+'-'+ag.id;
     this._runAgents=this._runAgents||{}; this._runAgents[runId]=ag.id;
     this._agentSess=this._agentSess||{}; const cont=!!this._agentSess[ag.id]; this._agentSess[ag.id]=true;
     this._agentRunId=runId;
-    this.setState({agentInput:'',_agentBusy:true}); this._scrollBottom('#ghud-agent-scroll');
+    this.setState({agentInput:'',_agentBusy:true}); this._scrollBottom('#gx-ws-feed');
     const ctxProjectId=(this._inPlanet()&&this.sel&&this.sel.id)?this.sel.id:null;
     try{
       if(!(window.galaxy&&window.galaxy.agentRun)){ ag.msgs[ag.msgs.length-1][1]='(ajan çalıştırma bu ortamda yok)'; this.setState({_agentBusy:false}); }

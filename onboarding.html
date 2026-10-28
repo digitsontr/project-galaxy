@@ -497,7 +497,7 @@ const STR = {
     s2: 'Evrenini kur: bir veya birkaç çalışma klasörü seç. Evrenler boş başlar; projelerini uygulamada yolunu girerek tek tek ya da toplu eklersin.',
     s2none: 'Henüz klasör seçilmedi.',
     s2name: 'Evren adı',
-    s3: 'Mürettebatın: 5 yapay zekâ ajanın. Adlarını ve rollerini istersen şimdi değiştir — sonra ⚙ ile her zaman düzenleyebilirsin.',
+    s3: 'Ekibini seç: her ajan bir işi uçtan uca yapar. İstemediğinin işaretini kaldır — sonra Ajanlar → Toplantı Salonu’ndan geri ekleyebilirsin.',
     s4: 'Galaxy senin anahtarlarını saklamaz (DB parolası hariç, o Mac anahtarlığında şifreli). Bunlar opsiyonel — şimdi atla, içeride ilgili yerden bağla.',
     s5: 'Hazırız. Özet aşağıda — KALKIŞ ile evrenine geç. Bağlantıları sonra sol alt Ayarlar’dan veya ilgili sekmeden tamamlarsın.',
     kName: 'Kaptan', kLang: 'Dil', kUni: 'Evrenler', kAgents: 'Ajanlar', kSkip: 'hepsi sonra',
@@ -525,7 +525,7 @@ const STR = {
     s2: 'Build your universe: pick one or more workspace folders. Universes start empty; you add your projects in the app by path, one by one or in bulk.',
     s2none: 'No folder selected yet.',
     s2name: 'Universe name',
-    s3: 'Your crew: 5 AI agents. Rename them or tweak their roles now — you can always edit later via ⚙.',
+    s3: 'Pick your team: each agent owns one job end to end. Untick the ones you don’t want — you can add them back later in Agents → Meeting Room.',
     s4: 'Galaxy does not keep your API keys (DB passwords are encrypted in the Mac keychain). All optional — skip now, wire them inside.',
     s5: 'Ready. Summary below — hit LAUNCH. Finish connections later from bottom-left Settings or the matching tab.',
     kName: 'Captain', kLang: 'Language', kUni: 'Universes', kAgents: 'Agents', kSkip: 'all later',
@@ -987,7 +987,7 @@ function render() {
       <div class="sumLine"><div class="k mono">${t.kName}</div><div>${esc(state.name) || t.anon}</div></div>
       <div class="sumLine"><div class="k mono">${t.kLang}</div><div>${state.lang === 'en' ? 'English' : 'Türkçe'}</div></div>
       <div class="sumLine"><div class="k mono">${t.kUni}</div><div>${state.universes.map(u => esc(u.name)).join(' · ') || '—'}</div></div>
-      <div class="sumLine"><div class="k mono">${t.kAgents}</div><div>${state.agents.map(a => esc(a.name)).join(' · ')}</div></div>
+      <div class="sumLine"><div class="k mono">${t.kAgents}</div><div>${state.agents.filter(a => a.on !== false).map(a => esc(a.name)).join(' · ')}</div></div>
       <div class="sumLine" style="border:none"><div class="k mono">${state.lang==='en'?'Later':'Sonra'}</div><div>${state.lang==='en'?'Settings → Tools / Mail · DB tab · More → SSH · Terminal: gh auth login':'Ayarlar → Araçlar / Posta · DB sekmesi · Daha → SSH · Terminal: gh auth login'}</div></div>
     </div>`;
   }
@@ -1031,17 +1031,19 @@ function renderUniverses() {
 
 function renderAgents() {
   const el = $('agentList');
-  const CREW = ['cto', 'pm', 'doc', 'forge', 'mentor'];
   el.innerHTML = state.agents.map((a, i) => `
-    <div class="agentRow">
-      ${CREW.indexOf(a.id) >= 0
-        ? `<img class="av" src="${AST}avatar-${esc(a.id)}.jpg" alt="">`
-        : `<div class="agentDot" style="background:${esc(a.color || '#61dcff')}"></div>`}
-      <input type="text" class="nm mono" data-i="${i}" data-f="name" value="${esc(a.name)}" maxlength="30">
-      <input type="text" class="grow" data-i="${i}" data-f="role" value="${esc(a.role)}" maxlength="40">
-    </div>`).join('');
-  el.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
-    state.agents[+inp.dataset.i][inp.dataset.f] = inp.value;
+    <label class="agentRow" style="align-items:flex-start;gap:12px;cursor:pointer;opacity:${a.on === false ? '.5' : '1'}">
+      <input type="checkbox" data-i="${i}" ${a.on === false ? '' : 'checked'} style="margin-top:4px;accent-color:${esc(a.color || '#61dcff')}">
+      <div class="agentDot" style="background:${esc(a.color || '#61dcff')};margin-top:6px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600">${esc(a.name)} <span style="font-weight:400;opacity:.65;font-size:12px">· ${esc(a.role)}</span></div>
+        ${(a.abilities || []).length ? `<ul style="margin:4px 0 0;padding-left:16px;font-size:12px;opacity:.75;line-height:1.5">${a.abilities.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      </div>
+    </label>`).join('');
+  el.querySelectorAll('input[type=checkbox]').forEach(inp => inp.addEventListener('change', () => {
+    state.agents[+inp.dataset.i].on = inp.checked;
+    if (!state.agents.some(a => a.on !== false)) { state.agents[+inp.dataset.i].on = true; inp.checked = true; }
+    renderAgents();
   }));
 }
 
@@ -1085,7 +1087,7 @@ async function finish() {
     const r = await window.galaxy.onboardComplete({
       name: state.name, lang: state.lang,
       universes: state.universes,
-      agents: state.agents.map(a => ({ id: a.id, name: a.name, role: a.role }))
+      agents: state.agents.map(a => ({ id: a.id, name: a.name, role: a.role, on: a.on !== false }))
     });
     if (!r || !r.ok) { $('err').textContent = (r && r.error) || t.errFolder; $('nextBtn').disabled = false; }
     // ok ise ana süreç bu pencereyi kapatır

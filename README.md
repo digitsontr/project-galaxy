@@ -137,7 +137,7 @@ Soldan sağa:
 
 - **KAPTAN** markası + **durum noktası** (hazır / çalışıyor / hata) · gezegen modundayken **‹** (uzaya dön) düğmesi.
 - **Konum breadcrumb'ı** — **🌌 Evren › 🪐 Gezegen ▾**. Tıkla → hızlı geçiş: üstte tüm **evrenler**, altta o evrenin **gezegenleri**. Tek tıkla başka evrene/projeye geç.
-- **Segmentli sekme çubuğu** — **Özet / Evren / DB / Docker** + **Daha ▾** (Pano, Zaman, SSH, Döngü, Posta, Eğitim).
+- **Ana menü** — **Ana Sayfa · Görevler · Ajanlar · Otomasyonlar · Servisler**. Gruplu bölümlerin altında alt sekmeler var: Ana Sayfa → Bugün, Projeler · Otomasyonlar → Zamanlanmış işler, Proje taraması, E-posta · Servisler → Veritabanları, Konteynerler, SSH sunucuları. Her bölüm son açtığın alt sekmeyi hatırlar.
 - **Kaptan** — dijital ikiz (asistan) her zaman üst barda.
 - **◷ Saat** — tıkla → **İstasyon Araçları**. **⌘K** — komut paleti. **⚙ Ayarlar**.
 
@@ -245,7 +245,7 @@ Postgres / MySQL / SQLite sunucularını ekle (parolalar macOS `safeStorage` ile
 
 ### ⏱ ZAMANLAYICI
 
-"Her sabah 09:00'da ATLAS durum raporu hazırlasın" gibi görevler tanımla (haftalık/günlük, ajan seç). Görev çalışınca **çıktısı ekranda görünür**, rapor arşivine (`reports/`) düşer ve hangi sekmede olursan ol bildirim (toast) çıkar. ▸ ÇALIŞTIR ile elle de tetiklenir.
+"Her sabah 09:00'da Kod Kalitesi ajanı rapor hazırlasın" gibi görevler tanımla (haftalık/günlük, ajan seç). Görev çalışınca **çıktısı ekranda görünür**, rapor arşivine (`reports/`) düşer ve hangi sekmede olursan ol bildirim (toast) çıkar. ▸ ÇALIŞTIR ile elle de tetiklenir.
 
 ### 🖧 SUNUCULAR — Uzak / SSH
 
@@ -271,17 +271,19 @@ Varsayılan kök `~/Desktop/FY/software-practice` (yoksa `~/Desktop/yazılım`).
 
 <p align="center"><img src="assets/guide/ajan-akisi.jpg" alt="Ajan akışı" width="900"></p>
 
-Günlük kapı **Asistan** (üst bar) — dijital ikiz. Beş uzman (ATLAS…) sağ İSTASYON rayında; ray varsayılan kapalı, kenardan açılır. **Uzaydayken tüm evrene, gezegen modundayken sadece o projeye** bakarlar. Mağaza sürümünde uzmanlar / CLI kapalıdır (sideload veya sonra BYOK).
+**Kaptan** (üst bar) senin dijital ikizin: seni birebir temsil eder, beş uzmanın tüm yeteneklerine hâkimdir, küçük işi kendisi yapar, büyük işi uzmana devreder (`[[ACT open_agent|…]]`) ya da toplantı açar. Kalıcı hafızası `DATA_DIR/twin/facts.json`'dadır; tercihlerini ve kararlarını öğrendikçe kaydeder. Sesli konuşmada kısa, yazılı konuşmada gerektiği kadar derin cevap verir.
 
-| Ajan | Rolü | Ona ne dersin |
-|------|------|----------------|
-| 🔵 **ATLAS** | CTO | "İş evreninin durum raporunu ver", "Risk analizi yap" |
-| 🟡 **NAVIGATOR** | PM | "Standup", "İhmal ettiklerim neler?" — rozetinde uyarı sayısı birikir |
-| 🟢 **DOCUMENTOR** | Dokümantasyon | "Bu projeye README yaz" — dosya yazabilen tek ajan |
-| 🩷 **FORGE** | Kod kalitesi | "Teknik borcu tara" — okur ama asla değiştirmez |
-| 🟣 **MENTOR** | Kişisel koç | "Bu hafta için çalışma planı öner" |
+Yerleşik ekip (ilk kurulumda "Ekibini seç" adımında listelenir, sonra **Ajanlar → Toplantı Salonu**'ndan duraklatılır, silinir ya da geri eklenir):
 
-⚙ ile adlarını, renklerini, görev tanımlarını, hazır komut düğmelerini düzenle; yeni ajan ekle. Ajanlar `claude -p --output-format stream-json` alt süreci olarak akar.
+| Ajan | Ne yapar | Yetki |
+|------|----------|-------|
+| **Git Yöneticisi** | Yerel + uzak dallar, commit, stash, PR/MR; dal grafiğini çizer, adım adım anlatır | `git`, `gh`, `glab`; geri alınamaz işlemden önce onay ister |
+| **Kod Kalitesi** | Dili/framework'ü tanır, code review + SonarQube kategorileriyle `dosya:satır` bulgular, kalite kapısı kararı | Sadece okur |
+| **Dokümantasyon** | md, pdf, xlsx/csv, görsel/SVG dokümanları bulur, üretir, iyileştirir | Dosya yazar; üzerine yazmadan sorar |
+| **Akış Analisti** | Her akışı aşamalarıyla çıkarır; sorunları ve git geçmişinden nasıl çözüldüklerini gösterir | Sadece okur |
+| **Planlayıcı** | Fikri sorgular, MVP ve riskleri çıkarır, 3-4 alternatif plan + uzun proje promptu yazar | Sadece okur |
+
+**Toplantı Salonu** (Ajanlar sekmesi): ekip kartları; **Konuş** ile ajan tam ekran çalışma alanında açılır (solda yetenekler ve hızlı işler, ortada sohbet). **Toplantı masası**na bir konu yazıp katılımcıları seçersen ajanlar sırayla, birbirini görerek konuşur; sonunda Kaptan kararları ve yapılacakları özetler. Geçmiş toplantılar saklanır. Ajanlar uzaydayken tüm projelere, bir projeye girdiğinde yalnız o projeye bakar. Eski ATLAS/NAVIGATOR/… ekibi ilk açılışta `backups/agents-v1.json`'a yedeklenir; kendi oluşturduğun ajanlar korunur.
 
 ### Günlük iş akışın (Otonom README döngüsü)
 
@@ -462,7 +464,6 @@ Hedef: kişisel evren OS’undan, bir geliştiricinin **her sabah** Finder + Ter
 
 ### Faz E — ajanları evcilleştir
 
-- [ ] Uzmanlar (ATLAS…) ikizin içinde rol olsun; ayrı ray olmasın
 - [ ] Mağaza sürümünde ajan UI kapalı + dürüst boş durum
 - [ ] Sideload’da Jarvis (ikiz) tek sohbet kapısı
 

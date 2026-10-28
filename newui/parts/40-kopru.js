@@ -45,10 +45,11 @@
     return ['Durum ver','Ne birikti?','Sıradaki iş'];
   }
   _mapAgent(a){ const c=a.color||'#61dcff'; const av=(window.__resources&&window.__resources['av'+(a.id||'')])||this._avatar(a.name,c);
-    let presets=(a.presets||[]).map(p=>typeof p==='string'?{label:p,ask:p}:{label:p.label||p.ask||'',ask:p.ask||p.label||''}).filter(p=>p.ask).slice(0,3);
+    let presets=(a.presets||[]).map(p=>typeof p==='string'?{label:p,ask:p}:{label:p.label||p.ask||'',ask:p.ask||p.label||''}).filter(p=>p.ask).slice(0,4);
     if(!presets.length) presets=this._agentPresetDefaults(a).map(x=>({label:x,ask:x}));
     const sys=this._asText(a.sys||a.prompt);
-    return { id:a.id, name:a.name, role:a.role||'', color:c, avatar:av, prompt:(presets[0]&&presets[0].ask)||'Durum ver', presets, sys, write:!!a.write, badge:0, msgs:[] }; }
+    return { id:a.id, name:a.name, role:a.role||'', color:c, avatar:av, prompt:(presets[0]&&presets[0].ask)||'Durum ver', presets, sys, write:!!a.write, badge:0, msgs:[],
+      kind:a.kind||'', builtin:!!a.builtin, paused:!!a.paused, abilities:Array.isArray(a.abilities)?a.abilities.slice(0,6):[] }; }
   sendPreset(ask){ if(!ask) return; this._asstOpen(); this.setState({asstInput:ask, asstOpen:true}); setTimeout(()=>this.sendAsst(),30); }
   _hue(s){ let h=0; s=String(s||''); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))%360; return h; }
   _layout(list){

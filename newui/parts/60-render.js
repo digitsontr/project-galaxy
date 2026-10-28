@@ -152,8 +152,8 @@
       return { id:a.id, name:a.name, cmd, hasBadge:a.badge>0, badge:a.badge, busy,
       pulseTitle:a.name+(busy?' · çalışıyor':(ranAgo?' · son koşu '+ranAgo:' · henüz çalışmadı')),
       cardStyle:`border:1px solid ${on?a.color:this.rgba(a.color,.35)};box-shadow:${on?'0 0 14px '+this.rgba(a.color,.35):'none'}`,
-      btnStyle:`position:relative;display:block;width:36px;height:36px;border-radius:50%;padding:0;background:url('${a.avatar}') center/cover,#0a0e1a;border:2px solid ${on?a.color:this.rgba(a.color,.4)};box-shadow:0 0 ${on?14:8}px ${this.rgba(a.color,on?.55:.22)}`,
-      onClick:()=>this._openAsstVoice(a.id) }; });
+      btnStyle:`position:relative;display:block;width:36px;height:36px;border-radius:50%;padding:0;background:url('${a.avatar||this._avatar(a.name,a.color)}') center/cover,#0a0e1a;border:2px solid ${on?a.color:this.rgba(a.color,.4)};box-shadow:0 0 ${on?14:8}px ${this.rgba(a.color,on?.55:.22)}`,
+      onClick:()=>this._agentWsOpen(a.id) }; });
     const activeRaw=this.AGENTS.find(a=>a.id===st.agentId)||null;
     const activePresets=((activeRaw&&activeRaw.presets)||[]).map(p=>({label:p.label,onClick:()=>this.sendPreset(p.ask),style:`text-align:left;width:100%;padding:8px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;border:1px solid rgba(190,205,255,.16);color:#9aa3c2;background:rgba(13,18,36,.5);border-radius:14px`}));
     const activeDesc=activeRaw?(activeRaw.role||''):''; const hasActivePresets=activePresets.length>0;
@@ -555,7 +555,8 @@
       isPixelTerm: false,
       isPtyTerm: st.consoleTab==='pty',
       notPixelTerm: st.consoleTab!=='pty',
-      ...this._pxRenderVals(),
+      ...this._salonVals(),
+      ...this._agentWsVals(),
       loopNodes: this._loopNodes(),
       loopStepTitle: this._loopTitles()[this._loopFocusId()]||'Proje taraması',
       loopStepDesc: this._loopDesc(this._loopFocusId()||''),
@@ -913,8 +914,8 @@
       closeConsole:()=>{ this.setState({consoleCollapsed:true}); try{ localStorage.setItem('gxConsoleCollapsed','1'); }catch(e){} },
       actItems:(()=>{ const cur=st.tab==='pixel'?'pixel':(st.gitCenter?'git':(st.palette?'search':(!st.leftCollapsed?'explorer':'')));
         const mk=(id,ico,label,onClick,title)=>({ id, icoCls:'gx-act-ico gx-ico-'+ico, label, title:title||label, on:cur===id, cls:cur===id?'on':'', onClick });
-        const pxCount=this._px?this._px.agents.filter(a=>!a.subOf).length:0;
-        const pxBusy=this._px?this._px.agents.some(a=>!a.subOf&&!a.paused&&a.state!=='idle'):false;
+        const pxCount=(this.AGENTS||[]).length;
+        const pxBusy=Object.keys(this._runAgents||{}).length>0||!!(this._salon&&this._salon.running);
         return [
           mk('explorer','folder','Klasör',()=>this._actExplorer()),
           mk('search','search','Ara',()=>this._openSearch()),
@@ -935,6 +936,15 @@
       showPlanetIdent: !(st._preview && (st.mode==='planet'||st.holdPlanet)),
       hideCtxChips: !st.rightCollapsed || !!st._rightPeek,
       ctxLastLabel: this._surfaceLabel(st._lastSurface||st.tab),
+      grOpen:!!st.grOpen, grOpenStr:st.grOpen?'true':'false',
+      toggleFindReplace:()=>{ const on=!st.grOpen; this.setState(on?{grOpen:true, grQuery:st.grQuery||st.treeFilter||''}:{grOpen:false}); },
+      ...(()=>{ const last=st._lastSurface||''; const inProj=st.mode==='planet'||st.holdPlanet; const p=this.sel;
+        const planetSurf={git:'git',dev:'dev',agac:'agac',dosya:'agac'}[last];
+        const here=planetSurf?(st.mode==='planet'&&st.leftTab===planetSurf):(st.mode!=='planet'&&st.tab===last);
+        const go=()=>{ if(planetSurf){ if(!inProj) this.enter(); this._setLeftTab(planetSurf); } else if(last) this._openTab(last); };
+        return { ctxHasProj:!!(p&&p.name), ctxProjName:(p&&p.name)||'', ctxBranch:(st._git&&st._git.branch)||(p&&p.branch)||'',
+          ctxHasResume:!!last&&!here, ctxResumeLabel:'Son açtığın: '+this._surfaceLabel(last), ctxResume:go,
+          ctxEnterProj:()=>{ if(!inProj) this.enter(); }, ctxProjTitle:inProj?'Şu an bu projedesin':'Projeye gir' }; })(),
       asstBtnStyle:(()=>{ const live=this._asstSessionLive(); const on=!!st.asstOpen;
         const col=this._asstLiveListen()?'var(--gx-ok)':(live?'var(--gx-accent)':'var(--gx-dim)');
         const bd=on||live?col:'var(--gx-line)';

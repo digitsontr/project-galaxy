@@ -156,31 +156,58 @@ ipcMain.handle('galaxy:claudeRun', (e, { runId, cwd, prompt, continueSession, at
 // ---------- Galaxy Asistanı (dijital ikiz — sohbet + proje yardımı) ----------
 // claudeRun'dan farkı: KİŞİLİK sistem promptu ekler, projede olmak ŞART DEĞİL (genel sohbet de yapar),
 // ve nötr bir dizinde çalışabilir. Böylece "bu kodlama sorusu değil" gibi robotik cevaplar vermez.
+// ---------- Dijital ikiz hafızası (kullanıcının tercihleri, kararları, kendisi hakkındaki gerçekler) ----------
+function twinFile() { return path.join(DATA_DIR, 'twin', 'facts.json'); }
+function twinLoad() { try { const a = JSON.parse(fs.readFileSync(twinFile(), 'utf8')); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function twinSave(arr) { try { fs.mkdirSync(path.dirname(twinFile()), { recursive: true }); fs.writeFileSync(twinFile(), JSON.stringify(arr.slice(-300), null, 2), 'utf8'); } catch (e) {} }
+ipcMain.handle('galaxy:twinMemGet', () => ({ ok: true, facts: twinLoad() }));
+ipcMain.handle('galaxy:twinMemAdd', (e, text) => {
+  const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  if (!t) return { ok: false, error: 'boş' };
+  const arr = twinLoad();
+  const fold = s => s.toLocaleLowerCase('tr');
+  if (arr.some(f => fold(f.text) === fold(t))) return { ok: true, dup: true };
+  arr.push({ id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), text: t, ts: new Date().toISOString() });
+  twinSave(arr);
+  return { ok: true };
+});
+ipcMain.handle('galaxy:twinMemDelete', (e, id) => { twinSave(twinLoad().filter(f => f.id !== id)); return { ok: true }; });
+
 function assistantPersona(ctx) {
-  let name = '', bio = '';
-  try { const d = loadData(); name = (d.profile && d.profile.name) || ''; bio = getSettings(d).assistantBio || ''; } catch (e) {}
+  let name = '', bio = '', team = [];
+  try {
+    const d = loadData(); name = (d.profile && d.profile.name) || ''; bio = getSettings(d).assistantBio || '';
+    team = (d.agents || []).filter(a => !a.paused).map(a => `${a.id} = ${a.name} (${a.role}${(a.abilities || []).length ? ': ' + a.abilities.slice(0, 3).join('; ') : ''})`);
+  } catch (e) {}
   ctx = ctx || {};
   if (ctx.captainName) name = String(ctx.captainName);
   if (ctx.captainAbout) bio = (bio ? bio + ' · ' : '') + String(ctx.captainAbout);
   const who = name ? `${name}'in` : 'kullanıcının';
   const lang = (ctx.lang === 'en') ? 'en' : 'tr';
+  const voice = !!ctx.voice;
   const speakRule = lang === 'en' ? 'Speak English. Do not switch to Turkish unless the user writes Turkish.' : 'DAIMA Türkçe konuş. Kullanıcı veya ses tanıma İngilizce yazsa bile CEVABI Türkçe ver. İngilizceye çevirme, İngilizce yanıt yazma.';
   const unis = (ctx.unis || []).slice(0, 30).join(', ');
   const projs = (ctx.projects || []).slice(0, 60).join(', ');
+  const facts = twinLoad().slice(-60).map(f => '- ' + f.text).join('\n');
   const lines = [
-    `Sen ${who} dijital ikizisin. Project Galaxy masaüstü uygulamasının içindesin. Konum: ${ctx.location || 'uzay'}. ${speakRule} Emoji yok. En fazla 2 kısa cümle.`,
-    `Kullanıcı SESLE konuşuyor; yazı bozuk veya yanlış duyulmuş olabilir. Aşağıdaki evren/proje/sekme listesinden EN YAKIN adı seç ve HEMEN [[ACT ad|arg]] bas. "Hangisini kastediyorsun?" SORMA. Eşleşme yoksa tek kısa cümleyle söyle.`,
-    `"X tarafına/gezegenine/evrenine gir/aç/git" = evren ise [[ACT open_universe|ad]], proje ise [[ACT open_project|ad]]. Sekme isteği = [[ACT open_tab|id]].`,
+    `Sen ${who} dijital ikizisin; adın Kaptan. Proje yardımcısı DEĞİLSİN: kullanıcıyı birebir temsil edersin — onun gibi düşünür, onun önceliklerini, alışkanlıklarını ve kararlarını bilir, onun yerine iş yürütürsün. KAPTAN masaüstü uygulamasının içindesin. Konum: ${ctx.location || 'uzay'}. ${speakRule} Emoji yok.`,
+    voice
+      ? 'Şu an SESLİ konuşuyorsunuz: en fazla 2 kısa cümle. Yazı yanlış duyulmuş olabilir; listeden EN YAKIN adı seç ve HEMEN [[ACT ad|arg]] bas. "Hangisini kastediyorsun?" SORMA.'
+      : 'Şu an YAZILI konuşuyorsunuz: gerektiği kadar derin cevap ver. Önce net sonuç, sonra gerekirse Markdown ile maddeler, tablo, kod bloğu. Basit soruya kısa cevap.',
+    `Ekibin (her biri bir işin uzmanı): ${team.join(' · ') || 'yok'}. Senin de tüm bu yeteneklerin var: git yönetimi, kod kalitesi incelemesi, doküman üretimi, akış analizi, proje planlama. Küçük işi kendin yap. Uzun, tam ekran görsel çalışma gerektiren işi uzmana devret: [[ACT open_agent|ajan_id|ajana gidecek görev]]. Birden çok uzmanın görüşü gerekiyorsa toplantı aç: [[ACT meeting|konu]].`,
+    `Kullanıcı hakkında yeni ve kalıcı bir şey öğrenirsen (tercih, karar, alışkanlık, çalıştığı iş, sevmediği şey) cevabına [[MEM tek cümlelik gerçek]] ekle. Geçici şeyleri kaydetme. Bu etiket görünmez.`,
     `Uygulama işi varsa cevabında MUTLAKA [[ACT ad|arg]] olmalı. Tarif etme. "yapamam / sen tıkla" deme. Komut görünmez; yanında doğal bir cümle yaz.`,
-    `Komutlar: [[ACT open_universe|ad]] · [[ACT open_project|ad]] · [[ACT open_tab|id]] (genel, evren, pano, db, docker, zaman, dongu, servers) · [[ACT open_git]] · [[ACT back]] · [[ACT git_push]] · [[ACT git_pull]] · [[ACT git_commit|mesaj]] · [[ACT git_pr]] · [[ACT run|komut]] · [[ACT open_folder]] · [[ACT open_terminal]] · [[ACT open_settings]] · [[ACT hud]] · [[ACT mail_brief]] · [[ACT tools]] · [[ACT open_db]] · [[ACT compose_up]] · [[ACT compose_down]] · [[ACT open_port|port]] · [[ACT run_script|ad]] · [[ACT bind_db]]`,
-    `Örnek: "papilon tarafına gir" → "[[ACT open_universe|Papilon]] Papilon'a geçiyorum."  "docker aç" → "[[ACT open_tab|docker]] Docker'ı açıyorum."`,
+    `"X tarafına/gezegenine/evrenine gir/aç/git" = evren ise [[ACT open_universe|ad]], proje ise [[ACT open_project|ad]]. Sekme isteği = [[ACT open_tab|id]].`,
+    `Komutlar: [[ACT open_universe|ad]] · [[ACT open_project|ad]] · [[ACT open_tab|id]] (genel=Ana Sayfa, evren=Projeler, pano=Görevler, pixel=Ajanlar/Toplantı Salonu, zaman=Zamanlanmış işler, dongu=Proje taraması, posta=E-posta, db=Veritabanları, docker=Konteynerler, servers=SSH sunucuları) · [[ACT open_agent|id|görev]] · [[ACT meeting|konu]] · [[ACT open_git]] · [[ACT back]] · [[ACT git_push]] · [[ACT git_pull]] · [[ACT git_commit|mesaj]] · [[ACT git_pr]] · [[ACT run|komut]] · [[ACT open_folder]] · [[ACT open_terminal]] · [[ACT open_settings]] · [[ACT mail_brief]] · [[ACT open_db]] · [[ACT compose_up]] · [[ACT compose_down]] · [[ACT open_port|port]] · [[ACT run_script|ad]] · [[ACT bind_db]]`,
+    `Örnek: "papilon tarafına gir" → "[[ACT open_universe|Papilon]] Papilon'a geçiyorum."  "dallarımı göster" → "[[ACT open_agent|git|Dal grafiğini çiz ve açıkla]] Git Yöneticisi'ni açıyorum."`,
     `Kodlama aracı değilsin: hava, sohbet, tavsiye — her konuda cevap ver. Web arama ve getirme açık; güncel bilgiyi ara. "iznim yok / erişemiyorum" deme.`,
     unis ? `Evrenler: ${unis}.` : '',
     projs ? `Projeler: ${projs}.` : '',
     ctx.agentName ? `Şu an ${ctx.agentName} kişiliğiyle konuşuyorsun (${ctx.agentRole || 'ajan'}). ${ctx.agentSys || ''}` : '',
     ctx.planetWork ? `Bu gezegen işi: ${ctx.planetWork}.` : '',
-    name ? `Kullanıcı adı ${name}. İsmiyle hitap et. Her gün kim olduğunu hatırla; katı kural koyma.` : 'Kullanıcıyı her gün tanı; katı kural koyma.',
-    bio ? `\nKULLANICI: ${bio}` : ''
+    name ? `Kullanıcının adı ${name}. İsmiyle hitap et.` : '',
+    bio ? `\nKULLANICI HAKKINDA: ${bio}` : '',
+    facts ? `\nKULLANICIYI TANIDIKLARIN (hafızan — buna göre davran, tekrar sorma):\n${facts}` : ''
   ];
   return lines.filter(Boolean).join('\n');
 }
@@ -272,6 +299,7 @@ ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attac
   const data = loadData();
   const agent = (data.agents || []).find(a => a.id === agentId);
   if (!agent) return { ok: false, error: 'Ajan bulunamadı' };
+  if (agent.paused) return { ok: false, error: agent.name + ' duraklatıldı — önce devam ettir' };
 
   let full, cwd;
   const scan = scanProjects();
@@ -311,6 +339,8 @@ ipcMain.handle('galaxy:agentRun', (e, { runId, agentId, prompt, projectId, attac
     if (path.isAbsolute(u.root)) args.push('--add-dir', u.root);
   }
   if (agent.write) args.push('--permission-mode', 'acceptEdits');
+  const tools = (Array.isArray(agent.tools) ? agent.tools : []).map(t => String(t)).filter(t => /^[A-Za-z]+(\([^()]*\))?$/.test(t));
+  if (tools.length) args.push('--allowedTools', tools.join(','));
   return streamClaude({ win: BrowserWindow.fromWebContents(e.sender), channel: 'agent:out', runId, cwd, args: head.concat(['-p', full], args), sessionKey: key, continued: !!continueSession });
 });
 
@@ -739,7 +769,7 @@ ipcMain.handle('galaxy:scheduleSave', (e, s) => {
   data.schedules = data.schedules || [];
   if (!s.id) s.id = slugify(s.name) + '-' + String(Date.now()).slice(-4);
   const clean = {
-    id: s.id, name: s.name, agentId: s.agentId || 'cto', prompt: s.prompt,
+    id: s.id, name: s.name, agentId: s.agentId || ((data.agents || [])[0] || {}).id || 'quality', prompt: s.prompt,
     type: s.type === 'weekly' ? 'weekly' : 'daily',
     hour: Math.min(23, Math.max(0, +s.hour || 9)),
     minute: Math.min(59, Math.max(0, +s.minute || 0)),

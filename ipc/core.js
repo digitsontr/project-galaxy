@@ -606,14 +606,42 @@ ipcMain.handle('galaxy:agentSave', (e, agent) => {
     while (data.agents.find(a => a.id === agent.id)) agent.id += '2';
   }
   const idx = data.agents.findIndex(a => a.id === agent.id);
+  const prev = idx >= 0 ? data.agents[idx] : {};
   const clean = {
     id: agent.id, name: agent.name, role: agent.role || 'AJAN', color: agent.color || '#61dcff',
-    prompt: agent.prompt || '', write: !!agent.write,
-    presets: Array.isArray(agent.presets) ? agent.presets.filter(p => p && p.label && p.ask).slice(0, 8) : []
+    prompt: agent.prompt != null ? agent.prompt : (prev.prompt || ''), write: agent.write != null ? !!agent.write : !!prev.write,
+    presets: Array.isArray(agent.presets) ? agent.presets.filter(p => p && p.label && p.ask).slice(0, 8) : (prev.presets || []),
+    paused: agent.paused != null ? !!agent.paused : !!prev.paused
   };
+  if (prev.builtin) Object.assign(clean, { builtin: true, kind: prev.kind, tools: prev.tools || [], abilities: prev.abilities || [] });
   if (idx >= 0) data.agents[idx] = clean; else data.agents.push(clean);
   saveData(data);
   return { ok: true, id: agent.id };
+});
+
+ipcMain.handle('galaxy:agentPause', (e, { id, paused } = {}) => {
+  const data = loadData();
+  const a = (data.agents || []).find(x => x.id === id);
+  if (!a) return { ok: false, error: 'Ajan bulunamadı' };
+  a.paused = !!paused;
+  saveData(data);
+  return { ok: true, paused: a.paused };
+});
+
+ipcMain.handle('galaxy:agentRestore', (e, id) => {
+  const data = loadData();
+  const def = defaultAgents((data.profile && data.profile.lang) || 'tr').find(a => a.id === id);
+  if (!def) return { ok: false, error: 'Yerleşik ajan bulunamadı' };
+  data.agents = data.agents || [];
+  if (!data.agents.some(a => a.id === id)) data.agents.push(def);
+  saveData(data);
+  return { ok: true };
+});
+
+ipcMain.handle('galaxy:agentCatalog', () => {
+  const data = loadData();
+  const have = new Set((data.agents || []).map(a => a.id));
+  return defaultAgents((data.profile && data.profile.lang) || 'tr').map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color, abilities: a.abilities, added: have.has(a.id) }));
 });
 
 ipcMain.handle('galaxy:agentDelete', (e, id) => {
@@ -651,7 +679,7 @@ ipcMain.handle('galaxy:onboardStatus', () => {
     needed: !(d.profile && d.profile.onboarded),
     profile: { name: (d.profile && d.profile.name) || '', lang },
     universes: (d.universes || []).map(u => ({ id: u.id, name: u.name, root: resolveRoot(u.root) })),
-    agents: (d.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff' })),
+    agents: (d.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff', builtin: !!a.builtin, abilities: Array.isArray(a.abilities) ? a.abilities : [] })),
     isMas: IS_MAS
   };
 });
@@ -693,6 +721,9 @@ ipcMain.handle('galaxy:onboardComplete', (e, payload) => {
         if (a.role) ex.role = String(a.role).slice(0, 40);
       }
     }
+    const off = new Set(p.agents.filter(a => a && a.on === false).map(a => a.id));
+    const kept = (data.agents || []).filter(a => !off.has(a.id));
+    if (kept.length) data.agents = kept;
   }
   if (!data.universes.length) return { ok: false, error: data.profile.lang === 'en' ? 'Pick at least one folder' : 'En az bir klasör seç' };
   saveData(data);

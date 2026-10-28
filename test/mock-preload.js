@@ -43,10 +43,15 @@ const mockMap = () => {
 };
 let lastTerminal = '';
 let mockTodoSkip = new Set();
+const mockAgents = [
+  { id: 'git', kind: 'git', builtin: true, name: 'Git Yöneticisi', role: 'Dallar · commit · MR · stash', color: '#f78166', abilities: ['Yerel ve uzak dallar, commitler, stash’ler', 'Açık PR / MR listesi'], presets: [{ label: 'Dal grafiğini çiz', ask: 'Dal grafiğini çiz' }] },
+  { id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] },
+  { id: 'planner', kind: 'planner', builtin: true, name: 'Planlayıcı', role: 'Fikir → plan → prompt', color: '#ffa657', abilities: ['Fikrini sorgular'], presets: [{ label: 'Bir fikrim var', ask: 'Bir fikrim var' }], gone: true }
+];
 let claudeCb = null, shellCb = null, agentCb = null, agentEvCb = null;
 
 contextBridge.exposeInMainWorld('galaxy', {
-  load: async () => ({ universes, projects, agents: [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], alerts: [], settings: { lang: 'tr' }, ignored: [] }),
+  load: async () => ({ universes, projects, agents: mockAgents.filter(a => !a.gone), alerts: [], settings: { lang: 'tr' }, ignored: [] }),
   profileGet: async () => ({ lang: 'tr', name: 'Furkan', about: 'geliştirici, Galaxy kaptanı' }),
   settingsGet: async () => ({ settings: { lang: 'tr', focusMin: 25, uiTheme: 'apex' } }),
   gitLog: async () => ({ ok: true, branch: 'main', ahead: 1, behind: 0, commits: [{ h: 'a1b2c3d', an: 'Furkan', ad: '2s', s: 'fix' }], files: [{ path: 'src/index.js', label: 'Değişti', staged: false, unstaged: true }, { path: 'README.md', label: 'Değişti', staged: false, unstaged: true }], dirty: 2, dirtyFiles: [' M src/index.js', ' M README.md'], staged: 0, branches: ['main', 'dev'] }),
@@ -227,7 +232,12 @@ contextBridge.exposeInMainWorld('galaxy', {
   onPty: (cb) => { ptyCb = cb; }, onFsChange: () => {},
   onAgent: (cb) => { agentCb = cb; }, onScheduleDone: () => {}, onDockerLog: () => {},
   openSettings: () => {}, onSettingsPane: () => {}, onEsc: () => {}, onFullscreen: () => {}, toggleFullscreen: async () => ({ ok: true }), openClaude: () => {},
-  pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], agentSave: async () => ({ ok: true, id: 'a1' }), backupList: async () => [],
+  pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => mockAgents.filter(a => !a.gone), agentSave: async () => ({ ok: true, id: 'a1' }),
+  agentDelete: async (id) => { const a = mockAgents.find(x => x.id === id); if (a) a.gone = true; return { ok: true }; },
+  agentPause: async ({ id, paused }) => { const a = mockAgents.find(x => x.id === id); if (a) a.paused = !!paused; return { ok: true }; },
+  agentRestore: async (id) => { const a = mockAgents.find(x => x.id === id); if (a) a.gone = false; return { ok: true }; },
+  agentCatalog: async () => mockAgents.filter(a => a.builtin).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color, abilities: a.abilities, added: !a.gone })),
+  twinMemGet: async () => ({ ok: true, facts: [] }), twinMemAdd: async () => ({ ok: true }), twinMemDelete: async () => ({ ok: true }), backupList: async () => [],
   findRepos: async () => ({ ok: true, root: '/x', repos: mockRepos() }),
   pickFolders: async () => [],
   projectsAdd: async ({ universeId, items } = {}) => {
