@@ -71,7 +71,7 @@ class Component extends DCLogic {
   ];
 
   _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
-  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.addProj||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s._history||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
+  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.addProj||s.flowOpen||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s._history||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
   _rememberSurface(id){
     const key=String(id||''); if(!key) return;
     this._lastSurface=key;
@@ -140,6 +140,7 @@ class Component extends DCLogic {
     if(s.moreOpen){ this.setState({moreOpen:false}); return true; }
     if(this._px && (this._px.seatMode || (this._px.sideOpen && this._px.pane==='editor'))){ this._px.seatMode=false; if(this._px.pane==='editor') this._px.pane='tasks'; this.setState({_pxTick:(this.state._pxTick||0)+1}); return true; }
     if(s._guideOpen){ this.setState({_guideOpen:false}); return true; }
+    if(s.flowOpen){ if(s.flowQuery) this.setState({flowQuery:''}); else if(s.flowSel) this.setState({flowSel:null}); else if(s.flowFocus) this._flowSetFocus(null); else this.closeFlow(); return true; }
     if(s._srvTerm){ this.closeSrvTerm(); return true; }
     if(s._gitDiff){ this.closeGitDiff(); return true; }
     if(s._reportView){ this.closeReport(); return true; }

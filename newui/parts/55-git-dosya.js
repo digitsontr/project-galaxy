@@ -83,6 +83,7 @@
   }
   async _loadPlanetWork(){
     const p=this._ctxPlanet();
+    this._loadProjMap();
     if(!p||!p.id||!(window.galaxy&&window.galaxy.planetContext)){ this.setState({_pw:null,_prs:[],_issues:[],_ci:[]}); return; }
     try{
       const r=await window.galaxy.planetContext(p.id);

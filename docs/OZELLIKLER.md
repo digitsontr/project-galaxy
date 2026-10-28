@@ -752,6 +752,21 @@ Eskiden evren kökünün altındaki her `.git` klasörü kendiliğinden gezegen 
 - **Taşıma:** `members` alanı olmayan eski evren ilk taramada bir kez eski algoritmayla doldurulur (gizlenenler hariç), `expandDirs` kalkar. Kullanıcı güncellemeden sonra aynı projeleri görür.
 - **IPC:** `galaxy:projectsAdd`, `galaxy:findRepos`, `galaxy:pickFolders`. Test: `test/universe-members.js` (`npm run test:integration` içinde, macOS + Windows CI) + smoke `addproj-*`.
 
+## 36. Proje hakimiyeti — veri katmanı + tam ekran akış şeması (2026-10-29)
+
+Gezegene inen kullanıcı projenin neye bağlı olduğunu ve içinde işin nasıl aktığını tek bakışta görür.
+
+- **Analiz (`lib/project-map.js`, worker'da):** kod çalıştırılmaz, okunur. Git deposunda `git ls-files` ile `.gitignore`'a saygılı liste kullanılır (build çıktısı, `node_modules` girmez); en çok 1500 kaynak dosya okunur. Testler grafiğe girmez, sayılır. Sonuç 20 sn önbellekte; ↻ ile zorla yenilenir.
+  - **Giriş:** `package.json` `main`/`bin`, `start`/`dev`/`serve` script'leri (build adımı atlanır; `electron .`, `next`, `vite`, `nest`, `uvicorn` tanınır), Python `__main__`, Go `func main`, `.listen(PORT)`, HTML `<script src>`.
+  - **Modül:** klasör grupları (`src/routes` gibi iki seviye, çok kalabalıksa tek). Kenarlar: JS/TS import/require (`tsconfig` `paths`, `@/` takma adı, `require(path.join(...))`), Python import, Go paket importu.
+  - **Çapraz kenar:** Electron `ipcRenderer.invoke` → `ipcMain.handle` sahibi, `window.X` → `contextBridge.exposeInMainWorld('X')` sahibi, ön yüz `fetch/axios('/api/…')` → eşleşen rota (önekle monte edilmiş router dahil).
+  - **Rota:** Express/Koa/Fastify/Hono, NestJS dekoratörleri, FastAPI/Flask, Django `urls.py`, Next.js `pages/api`, `app/**/route`, sayfalar.
+  - **Veri:** `.env` (`DATABASE_URL`, `DB_*`; şifre dışarı verilmez), compose imajları (postgres/mysql/mongo/redis/mssql), Prisma (`provider` + modeller ve alanlar), sürücü/ORM paketleri, `*.sqlite` dosyaları, migration `CREATE TABLE`. Koddan tablo: SQL (`FROM/JOIN/INTO/UPDATE`), `prisma.x.findMany`, knex, mongoose, SQLAlchemy `__tablename__`, Django modelleri. ORM'ler birincil motora bağlanır.
+  - **Dış servis:** SDK paketleri (Stripe, OpenAI, Anthropic, AWS, Firebase, Supabase, GitHub, Slack, Sentry, SMTP…) ve `fetch('https://host')` ile çağrılan hostlar.
+- **Gezegen ana ekranı:** **Veri katmanı** kartı (motor, durum: `● bağlı · N tablo` / `.env’de tanımlı · bağlı değil` / `koddan tespit`, bağlantı adresi, compose servisi, erişen dosya sayısı, tablo çipleri → DB sekmesinde tabloyu açar; **Bağla**, **Akışta göster**). Bağlı DB'nin canlı tabloları `dbTables` ile okunur. **Proje haritası** kartı: özet + Giriş/Modül/Veri/Dış servis sayıları + giriş noktaları + tam ekran düğmesi. Ayrıca kimlik şeridinde ve sağ bağlamda **⤢ Akış şeması**.
+- **Tam ekran şema:** katmanlı yerleşim (döngüler DFS ile kırılır, sütun içi barycenter); sütunlar GİRİŞ · KATMAN n · VERİ · DIŞ SERVİS. Renk = rol (arayüz, API/IPC, mantık, veri, yapılandırma), çizgi = tür (import düz, IPC kesikli mor, HTTP kesikli mavi, DB sarı, dış servis noktalı pembe), kalınlık = bağlantı sayısı. Tek tık seçer ve komşuları vurgular; çift tık modülün içine iner (dosya düzeyi şema + komşu modüller) ya da dosyayı açar. Sağ panel: dosyalar, rotalar (dosya:satır'a gider), IPC kanalları, tablolar, bağımlı olduğu / onu kullananlar, DB için bağlantı + canlı tablolar + Prisma modelleri. Arama (Enter: düğüm ya da dosya bulur), ⌘/pinch yakınlaştırma, sürükleyerek kaydırma, Sığdır, Esc katman katman çıkar.
+- **IPC:** `galaxy:projectMap` (uzak gezegende henüz yok). Test: `test/project-map.js` (Express + Prisma + React + Python worker fixture'ı, worker yolu dahil; `npm run test:integration` içinde) + smoke `flow-*`, `planet-db-card`. `GX_SHOTS=klasör npm test` ekran görüntüsü kaydeder.
+
 ---
 
 *Kaynak: çalışan uygulama kodu (v2.3.13). README’deki eski Kadet/Komutan, “Pano Daha’da” ve HUD dişlisi bu belgede yok — ürün onları bıraktı.*

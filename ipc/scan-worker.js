@@ -82,7 +82,9 @@ function testDiscover({ root }) {
 
 try {
   const d = workerData || {};
-  const out = d.kind === 'testDiscover' ? testDiscover(d) : grepPreview(d);
+  const out = d.kind === 'testDiscover' ? testDiscover(d)
+    : d.kind === 'projectMap' ? require('../lib/project-map').analyzeProject(d.root)
+    : grepPreview(d);
   parentPort.postMessage(out);
 } catch (err) {
   parentPort.postMessage({ ok: false, error: String((err && err.message) || err) });

@@ -165,6 +165,15 @@ Ekran 3 kolondur: sol (ağaç / git), orta (iş), sağ **bağlam** (nerede kald�
 <p align="center"><img src="docs/gezegen-modu.png" alt="Gezegen modu — gerçek ekran" width="900"></p>
 
 - **Orta — atölye:** varsayılan **Dosya** görünümü; soldaki ağaçtan tıklanan dosya burada açılır (kod, markdown, resim, PDF, video). **Yörünge** anahtarı eski uydu haritasını geri getirir (klasör = halkalı uydu, dosya = türe göre renk).
+- **Gezegene inince (dosya açık değilken):**
+  - **Veri katmanı** kartı projenin veritabanlarını gösterir. Kaynaklar: `.env`, compose, Prisma şeması, sürücü paketleri, koddaki SQL/ORM kullanımı.
+  - Bağlı bir bağlantı varsa canlı durumu ve tablolarını da gösterir; tabloya tıklayınca DB sekmesinde açılır. Bağlı değilse **Bağla** ile `.env`'den kurulur.
+  - **Proje haritası** kartı dosya, satır, modül, rota ve IPC özetini verir.
+- **⤢ Akış şeması (tam ekran):** proje kodu çalıştırılmadan okunur ve soldan sağa akan bir şema çizilir. Sıra: giriş noktaları (`npm` script'leri, `main`, `__main__`, HTML `<script>`), klasör modülleri, veritabanları ve dış servisler (Stripe, OpenAI, fetch edilen hostlar…).
+  - **Oklar:** import, Electron IPC / `contextBridge`, ön yüzden API rotasına giden HTTP çağrısı, DB erişimi.
+  - **Düğüme tıklayınca:** dosyalar, rotalar (dosya:satır), IPC kanalları, dokunduğu tablolar, bağımlı olduğu ve onu kullanan modüller görünür.
+  - **Çift tık:** modülün içine iner (dosya düzeyinde şema) ya da dosyayı açar.
+  - Arama, yakınlaştırma ve kaydırma var; **Esc** bir üst seviyeye çıkar.
 - **Sol panel, üç sekme (varsayılan Ağaç):**
   - **Ağaç** — tam dosya ağacı + projede ara (grep).
   - **Kayıt** — durum, ilerleme, plan checklist'i (**tek tıkla** tamam/beklemede), notlar, **odak kronometresi** (süresi Ayarlar'dan), onaylı proje kaldırma, klasörü aç.
@@ -376,6 +385,7 @@ ProjectGalaxy/                       (kod)
 │   ├── data.js                      #   galaxy-data.json, yedek + otomatik commit, ayarlar, Claude keşfi
 │   ├── projects.js                  #   evren tarama → gezegenler, knownPaths (izinli yollar)
 │   ├── planet-work.js               #   proje bağlamı: .env anahtarları, compose, script, migrate
+│   ├── project-map.js               #   proje haritası: giriş → modül → rota/IPC → veri → dış servis (akış şeması)
 │   ├── cli.js                       #   platformdan bağımsız CLI çağrısı (Windows .cmd → gömülü Node)
 │   ├── mcp-client.js                #   MCP stdio istemcisi (posta vb.)
 │   └── trainings.js                 #   Eğitimlerim: docx/pptx/ipynb okuma
@@ -388,7 +398,7 @@ ProjectGalaxy/                       (kod)
 │   ├── devtools.js                  #   gerçek PTY terminal, dosya izleme, tanılama, LSP, debug, işler
 │   ├── agent-engine.js              #   yerleşik ajan motoru (CLI ya da API anahtarı)
 │   ├── pty-host.py                  #   PTY köprüsü (python pty.spawn) — terminal sekmesi
-│   ├── lang-worker.js, scan-worker.js  # worker thread'ler: TypeScript dil servisi, toplu arama
+│   ├── lang-worker.js, scan-worker.js  # worker thread'ler: TypeScript dil servisi, toplu arama, proje haritası
 ├── newui/                           # Uygulamanın yüklediği arayüz
 │   ├── preview-sample.html          #   şablon (dc template sözdizimi) + stiller
 │   ├── parts/00-…80-*.js            #   tek `class Component`'in sıralı dilimleri (tek başına geçerli JS değil)

@@ -92,6 +92,7 @@ app.whenReady().then(async () => {
   } catch (e) { check('boot', false, e.message); return finish(); }
 
   const js = c => win.webContents.executeJavaScript(c);
+  const shot = async name => { const dir = process.env.GX_SHOTS; if (!dir) return; try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, name + '.png'), (await win.webContents.capturePage()).toPNG()); } catch (e) {} };
   try {
     check('boot', true);
     check('no-console-errors', consoleErr === 0, consoleErr + ' hata');
@@ -374,6 +375,40 @@ app.whenReady().then(async () => {
     await wait(700);
     const ajCard = await js(`(function(){ var t=document.body.innerText||''; return /YERLEŞİK AJAN/.test(t.toLocaleUpperCase('tr-TR')) && /anahtar kayıtlı/.test(t); })()`);
     check('faz4-agent-card', ajCard, 'BYOK kartı + anahtar durumu');
+    // Akış şeması: tam ekran, katmanlı mimari + seçim paneli + modüle in + DB canlı tablolar
+    await js(`(function(){ var b=document.getElementById('gx-flow-open')||document.getElementById('gx-pmap-open')||[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Akış şeması/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await wait(700);
+    const flowOk = await js(`(function(){ var c=document.getElementById('gx-flow-canvas'); if(!c) return 'kanvas yok'; var n=c.querySelectorAll('[data-nid]').length; var t=c.textContent||''; return n>=7 && /PostgreSQL/.test(t) && /GİRİŞ/.test(t) && /Stripe/.test(t) ? true : ('düğüm '+n); })()`);
+    await shot('flow-mimari');
+    check('flow-open', flowOk === true, flowOk === true ? 'giriş → modül → veri/dış servis' : String(flowOk));
+    const nodeClick = (id, type) => js(`(function(){ var g=document.querySelector('#gx-flow-canvas [data-nid="${id}"]'); if(g) g.dispatchEvent(new MouseEvent('${type}',{bubbles:true})); return !!g; })()`);
+    await nodeClick('mod:src/routes', 'click');
+    await wait(350);
+    const flowSel = await js(`(function(){ var t=(document.getElementById('gx-flow-side')||{}).textContent||''; return /Rotalar · 3/.test(t) && /POST \\/orders\\/:id\\/pay/.test(t) && /Onu kullananlar/.test(t); })()`);
+    check('flow-inspect', flowSel, flowSel ? 'rotalar + kim kullanıyor' : await js(`((document.getElementById('gx-flow-side')||{}).innerText||'yok').slice(0,300).replace(/\\s+/g,' ')`));
+    await nodeClick('mod:src/routes', 'dblclick');
+    await wait(450);
+    const flowDrill = await js(`(function(){ var c=document.getElementById('gx-flow-canvas'); return !!c.querySelector('[data-nid="file:src/routes/orders.ts"]') && !!c.querySelector('[data-nid="mod:src/services"]') && /src\\/routes\\//.test(document.getElementById('gx-flow').innerText||''); })()`);
+    await shot('flow-modul');
+    check('flow-drill', flowDrill, 'modül içi dosya grafiği');
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`);
+    await wait(350);
+    await nodeClick('db:postgres', 'click');
+    await wait(400);
+    const flowDb = await js(`(function(){ var t=(document.getElementById('gx-flow-side')||{}).textContent||''; return /Canlı tablolar · 2/.test(t) && /Prisma modelleri/.test(t) && /DB sekmesinde aç/.test(t); })()`);
+    await shot('flow-db');
+    check('flow-db', flowDb, 'bağlı DB canlı tablolar + modeller');
+    for (let i = 0; i < 4; i++) { await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`); await wait(200); }
+    const flowClosed = await js(`!document.getElementById('gx-flow')`);
+    check('flow-esc', flowClosed, 'Esc katman katman çıkar');
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Dosya'; }); if(b) b.click(); })(); true`);
+    await wait(300);
+    for (let i = 0; i < 2 && await js(`!document.getElementById('gx-pdb')`); i++) { await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`); await wait(300); }
+    const pdbOk = await js(`(function(){ var c=document.getElementById('gx-pdb'); var t=c?(c.innerText||''):''; return /PostgreSQL/.test(t) && /bağlı · 2 tablo/.test(t) && /orders/.test(t) ? true : (c?t.slice(0,160).replace(/\\s+/g,' '):'kart yok'); })()`);
+    await js(`(function(){ var c=document.getElementById('gx-pdb'); if(c) c.scrollIntoView(); })(); true`);
+    await wait(200);
+    await shot('gezegen-veri');
+    check('planet-db-card', pdbOk === true, pdbOk === true ? 'gezegende bağlı DB + tablolar' : String(pdbOk));
     // Evrene proje ekleme: kendiliğinden keşif yok; modal → depoları bul → işaretle → ekle
     for (let i = 0; i < 2; i++) {
       await js(`(function(){ var b=document.querySelector('button[aria-label="Geri dön"]'); if(b) b.click(); })(); true`);

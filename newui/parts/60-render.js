@@ -529,6 +529,7 @@
           toggleAllProjRepos:()=>this._toggleAllProjRepos(), projAllLabel:(free.length&&free.every(x=>x.on))?'Hiçbirini seçme':'Tümünü seç', hasFreeRepos:free.length>0,
           projErr:st.projErr||'', hasProjErr:!!st.projErr, projBusy:!!st.projBusy,
           submitAddProj:()=>this.submitAddProj(), projSubmitLabel:st.projBusy?'…':(selN?('Ekle ('+selN+')'):'Ekle'), closeAddProj:()=>this._closeAddProj() }; })(),
+      ...this._flowBindings(st),
       addUniTitle: st.editUniId?'EVREN DÜZENLE':'EVREN EKLE',
       addUniSub: st.editUniId?'adı ve yolu güncelle':'herhangi bir klasörü evren yap',
       uniName: st.uniName||'', onUniName:(e)=>this.setState({uniName:(e&&e.target&&e.target.value)||''}),
@@ -949,6 +950,7 @@
         {label:'DB', on: st.tab==='db', onClick:()=>this._openTab('db')},
         {label:'Docker', on: st.tab==='docker', onClick:()=>this._openTab('docker')},
         {label:'Geliştir', on: st.leftTab==='dev', onClick:()=>{ if(!(st.mode==='planet'||st.holdPlanet)) this.enter(); this._setLeftTab('dev'); this._rememberSurface('dev'); }},
+        {label:'⤢ Akış şeması', on: !!st.flowOpen, onClick:()=>this.openFlow()},
       ].map(x=>({...x, style:`padding:5px 8px;border:1px solid ${x.on?'var(--gx-accent)':'var(--gx-line)'};border-radius:7px;background:${x.on?'rgba(106,167,255,.12)':'transparent'};color:${x.on?'var(--gx-accent)':'var(--gx-dim)'};cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;width:100%;text-align:left`})),
       asstBtnStyle:(()=>{ const live=this._asstSessionLive(); const on=!!st.asstOpen;
         const col=this._asstLiveListen()?'var(--gx-ok)':(live?'var(--gx-accent)':'var(--gx-dim)');

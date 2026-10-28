@@ -13,7 +13,7 @@
     "build:ui": "node newui/build.js",
     "start": "node newui/build.js --quiet && electron .",
     "test": "node newui/build.js && electron test/smoke.js",
-    "test:integration": "node test/universe-members.js && node test/integration.js",
+    "test:integration": "node test/universe-members.js && node test/project-map.js && node test/integration.js",
     "smoke": "electron test/smoke.js",
     "make-app": "bash scripts/package-mac.sh",
     "dist": "node newui/build.js && electron-builder --mac",

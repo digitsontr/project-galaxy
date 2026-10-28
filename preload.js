@@ -210,6 +210,7 @@ contextBridge.exposeInMainWorld('galaxy', {
   openLocalPort: (port) => ipcRenderer.invoke('galaxy:openLocalPort', port),
   planetContext: (projectId) => ipcRenderer.invoke('galaxy:planetContext', projectId),
   planetBindDb: (opts) => ipcRenderer.invoke('galaxy:planetBindDb', opts),
+  projectMap: (opts) => ipcRenderer.invoke('galaxy:projectMap', opts),
   planetCompose: (opts) => ipcRenderer.invoke('galaxy:planetCompose', opts),
   planetPrs: (opts) => ipcRenderer.invoke('galaxy:planetPrs', opts),
   planetPrCreate: (opts) => ipcRenderer.invoke('galaxy:planetPrCreate', opts),

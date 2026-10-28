@@ -2939,6 +2939,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
               <button sc-camel-on-click="{{ setStageOrbit }}" style="{{ stageOrbitStyle }}">Yörünge</button>
             </div>
             <button type="button" sc-camel-on-click="{{ toggleReadme }}" title="README panelini aç/kapat (⌘\)" style="padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-dim);cursor:pointer">README</button>
+            <button type="button" id="gx-flow-open" sc-camel-on-click="{{ openFlow }}" title="Projenin akış şemasını tam ekran aç" style="padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid color-mix(in srgb, var(--gx-accent) 45%, transparent);border-radius:7px;background:color-mix(in srgb, var(--gx-accent) 8%, transparent);color:var(--gx-accent);cursor:pointer">⤢ Akış şeması</button>
           </div>
           </sc-if>
           <sc-if value="{{ hasAgentReview }}" hint-placeholder-val="{{ false }}">
@@ -3102,6 +3103,35 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
                     <div data-noi18n style="font-size:13.5px;color:var(--gx-dim);line-height:1.55;margin-bottom:14px">{{ selDesc }}</div>
                     <sc-if value="{{ hasHomeLast }}" hint-placeholder-val="{{ false }}"><button type="button" data-noi18n sc-camel-on-click="{{ openHomeLast }}" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;border-radius:8px;border:1px solid var(--gx-line);background:transparent;color:var(--gx-accent);cursor:pointer;margin-bottom:12px">↺ Kaldığın dosya: {{ homeLastName }}</button></sc-if>
                     <div style="font-size:13px;color:var(--gx-dim);line-height:1.5">Bir dosya seç — soldaki <b style="color:var(--gx-ink)">Ağaç</b>’tan tıkla veya aşağıdan hızlıca başla. ⌘S kaydeder, ⌘E düzenler.</div>
+                  </div>
+                  <div id="gx-pdb" style="border:1px solid rgba(229,180,93,.28);background:linear-gradient(160deg,rgba(40,32,18,.42),rgba(14,18,28,.92));border-radius:14px;padding:16px 18px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:#e5b45d;text-transform:uppercase">Veri katmanı</span><span style="flex:1"></span><sc-if value="{{ pmapBusy }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--gx-dim)">analiz ediliyor…</span></sc-if></div>
+                    <sc-for list="{{ pdbRows }}" as="dr" hint-placeholder-count="1">
+                      <div class="gx-pdb-row" style="border:1px solid var(--gx-line-soft);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:rgba(8,10,16,.45)">
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                          <span style="font-size:15px;color:#e5b45d">◉</span>
+                          <span data-noi18n style="font-size:14px;font-weight:650;color:var(--gx-ink)">{{ dr.label }}</span>
+                          <span style="{{ dr.statusStyle }}">{{ dr.status }}</span>
+                          <span style="flex:1"></span>
+                          <sc-for list="{{ dr.acts }}" as="da" hint-placeholder-count="2"><button type="button" sc-camel-on-click="{{ da.onClick }}" style="padding:4px 10px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-accent);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px">{{ da.label }}</button></sc-for>
+                        </div>
+                        <div data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);margin-top:5px">{{ dr.where }}</div>
+                        <sc-if value="{{ dr.hasErr }}" hint-placeholder-val="{{ false }}"><div data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--gx-err);margin-top:4px">{{ dr.err }}</div></sc-if>
+                        <sc-if value="{{ dr.hasChips }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px"><sc-for list="{{ dr.chips }}" as="dc" hint-placeholder-count="3"><button type="button" data-noi18n title="{{ dc.title }}" sc-camel-on-click="{{ dc.onClick }}" style="padding:3px 8px;border:1px solid rgba(229,180,93,.3);border-radius:999px;background:rgba(229,180,93,.07);color:var(--gx-ink);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px">▦ {{ dc.label }}</button></sc-for><sc-if value="{{ dr.hasMore }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--gx-faint);align-self:center">{{ dr.more }}</span></sc-if></div></sc-if>
+                        <div data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-faint);margin-top:6px">kaynak: {{ dr.sources }}</div>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ pdbNone }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--gx-dim);line-height:1.5"><span style="flex:1">Bu projede veritabanı izi yok — .env, compose, Prisma şeması ya da sürücü paketi bulunamadı.</span><button type="button" sc-camel-on-click="{{ pdbAdd }}" style="padding:5px 10px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-accent);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;white-space:nowrap">+ Bağlantı ekle</button></div></sc-if>
+                    <sc-if value="{{ pmapErr }}" hint-placeholder-val="{{ false }}"><div data-noi18n style="font-size:12px;color:var(--gx-dim)">{{ pmapErrText }}</div></sc-if>
+                  </div>
+                  <div id="gx-pmap" style="border:1px solid color-mix(in srgb, var(--gx-accent) 28%, transparent);background:linear-gradient(160deg,rgba(18,28,52,.55),rgba(12,16,28,.92));border-radius:14px;padding:16px 18px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--gx-accent);text-transform:uppercase">Proje haritası</span><span style="flex:1"></span><button type="button" sc-camel-on-click="{{ reloadMap }}" title="Yeniden analiz et" style="padding:3px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-size:11px">↻</button></div>
+                    <sc-if value="{{ pmapOk }}" hint-placeholder-val="{{ false }}">
+                      <div data-noi18n style="font-size:13px;color:var(--gx-ink);margin-bottom:12px">{{ pmapSummary }}</div>
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px"><sc-for list="{{ pmapLayers }}" as="pl" hint-placeholder-count="4"><div style="{{ pl.style }}"><span style="font-size:18px;font-weight:700;color:var(--gx-ink)">{{ pl.n }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-dim)">{{ pl.label }}</span></div></sc-for></div>
+                      <sc-if value="{{ hasPmapEntries }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px"><sc-for list="{{ pmapEntries }}" as="pe" hint-placeholder-count="2"><button type="button" data-noi18n sc-camel-on-click="{{ pe.onClick }}" style="text-align:left;padding:4px 0;border:none;background:none;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px"><span style="color:#53c98b">▶</span> {{ pe.label }}</button></sc-for></div></sc-if>
+                    </sc-if>
+                    <button type="button" id="gx-pmap-open" sc-camel-on-click="{{ openFlow }}" style="width:100%;padding:10px 14px;border:1px solid var(--gx-accent);border-radius:9px;background:color-mix(in srgb, var(--gx-accent) 12%, transparent);color:var(--gx-accent);cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:600">⤢ Akış şemasını tam ekran aç</button>
                   </div>
                   <sc-if value="{{ hasQuickFiles }}" hint-placeholder-val="{{ true }}">
                     <div style="border:1px solid var(--gx-line);background:var(--gx-panel);border-radius:14px;padding:16px 18px">
@@ -3857,6 +3887,55 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 
           <div style="border-top:1px solid var(--gx-line);padding-top:14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-dim);line-height:1.6">Çalışma alanı boş başlar; projelerini sonra yolunu girerek tek tek ya da toplu eklersin. 🔒 Parola Anahtar Zinciri'yle şifreli.</div>
         </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ flowOpen }}" hint-placeholder-val="{{ false }}">
+    <div id="gx-flow" style="position:fixed;inset:0;z-index:44;display:flex;flex-direction:column;background:radial-gradient(1200px 600px at 30% -10%,rgba(106,167,255,.08),transparent 60%),#05080f;animation:popIn .18s ease both">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--gx-line);flex-shrink:0">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--gx-accent);text-transform:uppercase">Akış şeması</span>
+        <span data-noi18n style="font-size:16px;font-weight:650;color:var(--gx-ink)">{{ flowTitle }}</span>
+        <span style="display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px"><sc-for list="{{ flowCrumbs }}" as="fc" hint-placeholder-count="1"><span style="color:var(--gx-faint)">›</span><span data-noi18n sc-camel-on-click="{{ fc.onClick }}" style="{{ fc.style }}">{{ fc.label }}</span></sc-for></span>
+        <span data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--gx-faint)">{{ flowStats }}</span>
+        <span style="flex:1"></span>
+        <input id="gx-flow-q" data-noi18n value="{{ flowQuery }}" placeholder="düğüm / dosya ara (Enter)" sc-camel-on-input="{{ onFlowQuery }}" sc-camel-on-key-down="{{ onFlowKey }}" style="width:220px;background:var(--gx-panel-2);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:11.5px;padding:6px 10px;border-radius:7px;outline:none" />
+        <sc-if value="{{ flowInFocus }}" hint-placeholder-val="{{ false }}"><button type="button" sc-camel-on-click="{{ flowUp }}" title="Mimariye dön" style="padding:6px 10px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-accent);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">⤴ Mimari</button></sc-if>
+        <button type="button" sc-camel-on-click="{{ flowZoomOut }}" title="Uzaklaş" style="width:30px;height:30px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-dim);cursor:pointer">−</button>
+        <button type="button" sc-camel-on-click="{{ flowZoomIn }}" title="Yakınlaş" style="width:30px;height:30px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-dim);cursor:pointer">+</button>
+        <button type="button" sc-camel-on-click="{{ flowFit }}" title="Ekrana sığdır" style="padding:6px 10px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">Sığdır</button>
+        <button type="button" sc-camel-on-click="{{ flowReload }}" title="Yeniden analiz et" style="padding:6px 10px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">↻ Analiz</button>
+        <button type="button" id="gx-flow-close" sc-camel-on-click="{{ closeFlow }}" title="Kapat (Esc)" aria-label="Akış şemasını kapat" style="width:30px;height:30px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-dim);cursor:pointer">✕</button>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="flex:1;position:relative;min-width:0">
+          <div id="gx-flow-canvas" style="position:absolute;inset:0;overflow:hidden;cursor:grab"></div>
+          <sc-if value="{{ flowBusy }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:18px;top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);background:rgba(8,12,22,.8);border:1px solid var(--gx-line);border-radius:7px;padding:6px 10px">proje analiz ediliyor…</div></sc-if>
+          <sc-if value="{{ flowErr }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div data-noi18n style="font-size:13px;color:var(--gx-dim);border:1px dashed var(--gx-line);border-radius:10px;padding:16px 20px">{{ flowErrText }}</div></div></sc-if>
+          <div style="position:absolute;left:16px;bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;pointer-events:none;background:rgba(6,9,18,.78);border:1px solid var(--gx-line-soft);border-radius:8px;padding:6px 10px">
+            <sc-for list="{{ flowLegend }}" as="lg" hint-placeholder-count="6"><span style="{{ lg.style }}"><span style="{{ lg.dot }}"></span>{{ lg.label }}</span></sc-for>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-faint)">{{ flowEdgeLegend }}</span>
+          </div>
+        </div>
+        <aside id="gx-flow-side" style="width:340px;flex-shrink:0;border-left:1px solid var(--gx-line);overflow-y:auto;padding:16px 16px 24px;background:rgba(8,11,20,.7)">
+          <sc-if value="{{ flowHasSel }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ flowSelKindStyle }}">{{ flowSelKind }}</div>
+            <div data-noi18n style="font-size:17px;font-weight:650;color:var(--gx-ink);margin:4px 0 4px;word-break:break-all">{{ flowSelTitle }}</div>
+            <div data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--gx-dim);margin-bottom:12px;word-break:break-all">{{ flowSelSub }}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><sc-for list="{{ flowSelActs }}" as="fa" hint-placeholder-count="1"><button type="button" sc-camel-on-click="{{ fa.onClick }}" style="padding:6px 11px;border:1px solid var(--gx-accent);border-radius:7px;background:color-mix(in srgb, var(--gx-accent) 10%, transparent);color:var(--gx-accent);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">{{ fa.label }}</button></sc-for></div>
+            <sc-for list="{{ flowSelSections }}" as="fs" hint-placeholder-count="2">
+              <div style="margin-bottom:12px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gx-faint);text-transform:uppercase;margin-bottom:4px">{{ fs.title }}</div>
+                <sc-for list="{{ fs.items }}" as="fi" hint-placeholder-count="3"><button type="button" sc-camel-on-click="{{ fi.onClick }}" style="{{ fi.style }}"><span data-noi18n style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fi.label }}</span><span data-noi18n style="font-size:10px;color:var(--gx-faint);white-space:nowrap">{{ fi.meta }}</span></button></sc-for>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ flowNoSel }}" hint-placeholder-val="{{ true }}">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--gx-faint);text-transform:uppercase;margin-bottom:8px">Nasıl okunur</div>
+            <div style="font-size:12.5px;color:var(--gx-dim);line-height:1.6;margin-bottom:12px">Soldan sağa akar: <b style="color:#53c98b">giriş</b> noktaları projeyi başlatır, oklar kimin kimi çağırdığını gösterir, en sağda <b style="color:#e5b45d">veritabanı</b> ve <b style="color:#ef8bc0">dış servisler</b> durur. Çizgi kalınlığı bağlantı sayısıdır.</div>
+            <sc-for list="{{ flowTips }}" as="ft" hint-placeholder-count="4"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);padding:4px 0;border-bottom:1px solid var(--gx-line-soft)">{{ ft }}</div></sc-for>
+          </sc-if>
+        </aside>
       </div>
     </div>
   </sc-if>
