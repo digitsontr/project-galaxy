@@ -374,6 +374,29 @@ app.whenReady().then(async () => {
     await wait(700);
     const ajCard = await js(`(function(){ var t=document.body.innerText||''; return /YERLEŞİK AJAN/.test(t.toLocaleUpperCase('tr-TR')) && /anahtar kayıtlı/.test(t); })()`);
     check('faz4-agent-card', ajCard, 'BYOK kartı + anahtar durumu');
+    // Evrene proje ekleme: kendiliğinden keşif yok; modal → depoları bul → işaretle → ekle
+    for (let i = 0; i < 2; i++) {
+      await js(`(function(){ var b=document.querySelector('button[aria-label="Geri dön"]'); if(b) b.click(); })(); true`);
+      await wait(400);
+    }
+    await js(`(function(){ var n=document.querySelector('nav.gx-tabs'); var b=n?[].slice.call(n.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Projeler'; }):null; if(b) b.click(); })(); true`);
+    await wait(600);
+    await js(`(function(){ var b=document.querySelector('button[aria-label="Proje ekle"]'); if(b) b.click(); })(); true`);
+    await wait(400);
+    const apOpen = await js(`!!document.getElementById('gx-addproj') && !!document.getElementById('gx-addproj-paths')`);
+    check('addproj-modal', apOpen, apOpen ? 'yol kutusu + depo bul' : await js(`document.querySelectorAll('button[aria-label="Proje ekle"]').length+' btn | '+(document.body.innerText||'').slice(0,300).replace(/\\s+/g,' ')`));
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('#gx-addproj button')).find(function(x){ return /Depoları bul/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await wait(500);
+    const apRows = await js(`(function(){ var r=document.querySelectorAll('#gx-addproj .gx-addproj-row'); var t=document.getElementById('gx-addproj').innerText||''; return r.length===3 && /epsilon/.test(t) && /lab\\/zeta/.test(t); })()`);
+    check('addproj-find', apRows, '3 depo, ekli olan işaretli');
+    await js(`(function(){ var r=[].slice.call(document.querySelectorAll('#gx-addproj .gx-addproj-row')).find(function(x){ return /epsilon/.test(x.innerText||''); }); if(r) r.click(); })(); true`);
+    await wait(200);
+    await js(`(function(){ var t=document.getElementById('gx-addproj-paths'); if(t){ t.value='/x/lab/zeta'; t.dispatchEvent(new Event('input',{bubbles:true})); } })(); true`);
+    await wait(200);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('#gx-addproj button')).find(function(x){ return /^Ekle/.test((x.innerText||'').trim()); }); if(b) b.click(); })(); true`);
+    await wait(900);
+    const apDone = await js(`!document.getElementById('gx-addproj') && /epsilon/i.test(document.body.innerText||'') && /zeta/i.test(document.body.innerText||'')`);
+    check('addproj-submit', apDone, 'işaretli + yazılan yol eklendi');
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

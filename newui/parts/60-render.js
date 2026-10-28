@@ -388,6 +388,7 @@
       accent:c, hasId:!!u.id,
       onClick:(e)=>{ const t=e&&e.target; const el=(t&&t.nodeType===3)?t.parentElement:t; if(el&&el.closest&&el.closest('.gx-univ-acts')) return; if(u.id) this.selectUni(u.id); else this.setState({tab:'evren'}); },
       onEdit:(e)=>this._uniAct(e, ()=>this.openEditUni(u)),
+      onAddProj:(e)=>this._uniAct(e, ()=>this.openAddProj(u.id)),
       onDelete:(e)=>this._uniAct(e, ()=>{ if(u.id) this.askConfirm('"'+(u.name||'evren')+'" evrenini kaldır? (klasörler diskte kalır)',()=>this._universeDelete(u.id), {title:'Evreni kaldır', detail:'Klasörler diskte kalır. Yalnız galaksiden çıkarılır.', okLabel:'Kaldır', kind:'warn'}); }) }; });
     const uniN=universes.length||1;
     const uniOrbits=[];
@@ -434,17 +435,18 @@
       const deskNextCta=dirtyAll.length?{label:'Değişiklikleri incele', onClick:async()=>{ const p=dirtyAll[0]; if(!p) return; this._gotoProject(p.id); this._setLeftTab('git'); await this._loadGit(); this.setState({gitMsg:this._suggestCommitMsg()}); }}
       :(resumeP?{label:'Kaldığın yerden devam', onClick:()=>this.resumeSession()}
       :(staleAll.length?{label:'İhmale bak', onClick:()=>this._gotoProject(staleAll[0].id)}
-      :((!(this._unis&&this._unis.length))?{label:'Çalışma alanı bağla', onClick:()=>this.setState({addUni:true})}:null)));
+      :((!(this._unis&&this._unis.length))?{label:'Çalışma alanı oluştur', onClick:()=>this.setState({addUni:true})}:null)));
     const first60=!realMode?false:(!(this._unis&&this._unis.length) || (!(this._allProjects||this.PROJECTS||[]).length));
     const onOverview=!!(space&&st.tab==='genel');
     const welcome=!!(onOverview&&first60);
     const setupMiss=st.loaded!==false && !this._setupHidden() && (st._claudeOk===false || st._githubOk===false || !this._mcpOn);
     const showSetupNow=!welcome && !!(this._setupForce || setupMiss);
     const showTourNow=!welcome && !showSetupNow && this._tourShow();
+    const hasUnis=!!(this._unis&&this._unis.length);
     const first60Steps=[
-      {n:'1', t:'Çalışma alanı bağla', d:'Projelerini içeren ana klasörü seç.'},
-      {n:'2', t:'İlk projeyi aç', d:'Sol listede projeye bir kez tıkla.'},
-      {n:'3', t:'Durumu gör', d:'Özet, Git, DB ve çalışan servisler proje bağlamında hazır olur.'}
+      {n:'1', t:'Çalışma alanı oluştur', d:'Bir klasör seç; alan boş başlar, hiçbir proje kendiliğinden eklenmez.'},
+      {n:'2', t:'Projelerini ekle', d:'Yolunu yaz, klasörleri seç ya da bir klasördeki depoları bulup işaretle.'},
+      {n:'3', t:'İlk projeyi aç', d:'Sol listede projeye tıkla; Git, DB ve servisler proje bağlamında hazır olur.'}
     ];
     if(st.tab==='dongu'){ clearTimeout(this._loopPaintT); this._loopPaintT=setTimeout(()=>this._loopPaint(),0); }
     const bag = {
@@ -479,7 +481,8 @@
       first60Open:!!(space&&st.tab==='genel'&&first60),
       first60Steps: first60Steps.map(s=>({n:s.n,t:s.t,d:s.d})),
       first60Chips:[],
-      first60Cta:()=>this.setState({addUni:true}),
+      first60Cta:()=>hasUnis?this.openAddProj(st.uniId||(this._unis[0]&&this._unis[0].id)):this.setState({addUni:true}),
+      first60CtaLabel: hasUnis?'Proje ekle':'Çalışma alanı oluştur',
       scopeContextLabel:(this._scopePlanetOn()&&this._ctxPlanet())?('Proje · '+((this._ctxPlanet()&&this._ctxPlanet().name)||'Seçili proje')):'Tüm projeler',
       ...(()=>{ const now=new Date(); const h=now.getHours();
         const days=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
@@ -513,6 +516,19 @@
         {n:'4', t:'Kaptan de', d:'Wake açıkken «Kaptan, docker’ı aç».'},
       ],
       addUniOpen: st.addUni, uniEditOpen:!!st.editUniId, uniAddMode:!st.editUniId,
+      ...(()=>{ const pu=(this._unis||[]).find(x=>x.id===st.addProj)||{}; const repos=st.projRepos||[]; const typed=this._projPathList();
+        const selN=repos.filter(x=>x.on&&!x.already).length+typed.length; const free=repos.filter(x=>!x.already);
+        return { addProjOpen:!!st.addProj, addProjUni:pu.name||'', addProjLocal:!pu.remote, addProjRemote:!!pu.remote,
+          projPaths:st.projPaths||'', onProjPaths:(e)=>this.setState({projPaths:e.target.value, projErr:''}),
+          pickProjFolders:()=>this.pickProjFolders(), projFindRoot:st.projFindRoot||'', onProjFindRoot:(e)=>this.setState({projFindRoot:e.target.value}),
+          onProjFindKey:(e)=>{ if(e.key==='Enter'){ e.preventDefault(); this.findProjRepos(); } },
+          findProjRepos:()=>this.findProjRepos(), hasProjRepos:repos.length>0, projFindEmpty:!!st.projRepos&&!repos.length, projFindInfo:st.projRepos?(st.projFindInfo||''):'',
+          projRepoRows:repos.map((x,i)=>({ name:x.name, rel:x.rel, mark:x.already?'✓':(x.on?'■':'□'), tag:x.already?'zaten ekli':'',
+            onToggle:()=>this._toggleProjRepo(i),
+            style:'display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 10px;border:none;border-bottom:1px solid var(--gx-line-soft);background:'+(x.on?'color-mix(in srgb, var(--gx-accent) 10%, transparent)':'transparent')+';color:'+(x.already?'var(--gx-faint)':'var(--gx-ink)')+';cursor:'+(x.already?'default':'pointer')+';font-size:13px' })),
+          toggleAllProjRepos:()=>this._toggleAllProjRepos(), projAllLabel:(free.length&&free.every(x=>x.on))?'Hiçbirini seçme':'Tümünü seç', hasFreeRepos:free.length>0,
+          projErr:st.projErr||'', hasProjErr:!!st.projErr, projBusy:!!st.projBusy,
+          submitAddProj:()=>this.submitAddProj(), projSubmitLabel:st.projBusy?'…':(selN?('Ekle ('+selN+')'):'Ekle'), closeAddProj:()=>this._closeAddProj() }; })(),
       addUniTitle: st.editUniId?'EVREN DÜZENLE':'EVREN EKLE',
       addUniSub: st.editUniId?'adı ve yolu güncelle':'herhangi bir klasörü evren yap',
       uniName: st.uniName||'', onUniName:(e)=>this.setState({uniName:(e&&e.target&&e.target.value)||''}),
@@ -947,7 +963,7 @@
       tabs, railItems, planets, files, leftTabs, consoleTabs, agents,
       kadetBtnStyle:modeBtn(kadet), komutanBtnStyle:modeBtn(!kadet),
       setKadet:()=>this._setUiMode('kadet'), setKomutan:()=>this._setUiMode('komutan'),
-      projCount:'· '+((this.PROJECTS&&this.PROJECTS.length)||0), noProjects:!(this.PROJECTS&&this.PROJECTS.length),
+      projCount:'· '+((this.PROJECTS&&this.PROJECTS.length)||0), noProjects:!(this.PROJECTS&&this.PROJECTS.length), canAddProj:!!(st.uniId&&(this._unis||[]).some(u=>u.id===st.uniId)), openAddProj:()=>this.openAddProj(st.uniId),
       isClaude: st.consoleTab==='claude', isBash: st.consoleTab==='bash', isAgentTab: st.consoleTab==='ajan',
       agentBusy: !!st._agentBusy,
       agentFeed: (st._agentFeed||[]).map((x,i)=>({

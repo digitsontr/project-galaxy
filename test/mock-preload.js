@@ -9,7 +9,9 @@ const P = (id, name, branch, stale) => ({
   hasReadme: true, path: '/x/' + id, tech: ['node']
 });
 const projects = [P('alpha', 'AlphaAPI', 'main', 1), P('beta', 'BetaWeb', 'dev', 3), P('gamma', 'GammaBot', 'main', 40), P('delta', 'DeltaData', 'main', 9)];
-const universes = [{ id: 'u', name: 'Şirket', subtitle: '~/work', count: 4 }, { id: 'u2', name: 'Papilon', subtitle: '~/pap', count: 2 }];
+const universes = [{ id: 'u', name: 'Şirket', subtitle: '~/work', root: '/x', count: 4 }, { id: 'u2', name: 'Papilon', subtitle: '~/pap', root: '/pap', count: 2 }];
+const mockRepos = () => [{ path: '/x/alpha', name: 'alpha', rel: 'alpha', isGit: true }, { path: '/x/epsilon', name: 'epsilon', rel: 'epsilon', isGit: true }, { path: '/x/lab/zeta', name: 'zeta', rel: 'lab/zeta', isGit: true }]
+  .map(r => ({ ...r, already: projects.some(p => p.path === r.path) }));
 let lastTerminal = '';
 let mockTodoSkip = new Set();
 let claudeCb = null, shellCb = null, agentCb = null, agentEvCb = null;
@@ -196,6 +198,19 @@ contextBridge.exposeInMainWorld('galaxy', {
   onAgent: (cb) => { agentCb = cb; }, onScheduleDone: () => {}, onDockerLog: () => {},
   openSettings: () => {}, onSettingsPane: () => {}, onEsc: () => {}, onFullscreen: () => {}, toggleFullscreen: async () => ({ ok: true }), openClaude: () => {},
   pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], agentSave: async () => ({ ok: true, id: 'a1' }), backupList: async () => [],
+  findRepos: async () => ({ ok: true, root: '/x', repos: mockRepos() }),
+  pickFolders: async () => [],
+  projectsAdd: async ({ universeId, items } = {}) => {
+    const added = [], skipped = [];
+    for (const it of items || []) {
+      const p = typeof it === 'string' ? it : it.path;
+      if (projects.some(x => x.path === p)) { skipped.push({ path: p, reason: 'zaten bu alanda' }); continue; }
+      const id = p.split('/').pop();
+      projects.push({ ...P(id, id), universe: universeId || 'u', path: p });
+      added.push({ id, path: p, name: id });
+    }
+    return { ok: true, added, skipped };
+  },
   universeDelete: async (id) => { const i = universes.findIndex(u => u.id === id); if (universes.length <= 1) return { ok: false, error: 'Son evren silinemez' }; if (i < 0) return { ok: false, error: 'Evren bulunamadı' }; universes.splice(i, 1); return { ok: true }; },
   universeUpdate: async (opts) => { const u = universes.find(x => x.id === (opts && opts.id)); if (!u) return { ok: false, error: 'Evren bulunamadı' }; if (opts && opts.name) u.name = opts.name; if (opts && opts.root) u.subtitle = opts.root; return { ok: true }; }
 });

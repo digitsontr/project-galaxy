@@ -71,7 +71,7 @@ class Component extends DCLogic {
   ];
 
   _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
-  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s._history||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
+  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.addProj||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s._history||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
   _rememberSurface(id){
     const key=String(id||''); if(!key) return;
     this._lastSurface=key;
@@ -155,6 +155,7 @@ class Component extends DCLogic {
     if(s.mailPane==='compose'){ this.setState({mailPane:'inbox'}); return true; }
     if(s.trainingAddOpen){ this._trainingCloseAdd(); return true; }
     if(s.gitCenter){ this.setState({gitCenter:null, activityId:(s.activityId==='git'?'explorer':s.activityId)}); return true; }
+    if(s.addProj){ this._closeAddProj(); return true; }
     if(s.addUni||s.editUniId){ this._closeUniModal(); return true; }
     if(s.settings){ this.setState({settings:false}); return true; }
     if(s.dbAddOpen){ this.setState({dbAddOpen:false}); return true; }

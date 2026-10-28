@@ -1880,7 +1880,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
         </sc-if>
       </div>
       <div>
-        <div style="display:flex;align-items:baseline;gap:8px;padding:18px 16px 10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.16em;color:var(--gx-dim);text-transform:uppercase">Projeler</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-faint)">{{ projCount }}</span></div>
+        <div style="display:flex;align-items:baseline;gap:8px;padding:18px 16px 10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.16em;color:var(--gx-dim);text-transform:uppercase">Projeler</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-faint)">{{ projCount }}</span><sc-if value="{{ canAddProj }}" hint-placeholder-val="{{ true }}"><button type="button" sc-camel-on-click="{{ openAddProj }}" title="Bu çalışma alanına proje ekle" aria-label="Proje ekle" style="margin-left:auto;align-self:center;background:transparent;border:1px solid var(--gx-line);color:var(--gx-accent);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 8px;cursor:pointer">＋ Ekle</button></sc-if></div>
         <sc-for list="{{ railItems }}" as="p" hint-placeholder-count="6">
           <button type="button" class="gx-rail-row" sc-camel-on-click="{{ p.onClick }}" title="Projeyi aç" aria-current="{{ p.active }}" style="{{ p.rowStyle }}">
             <span style="{{ p.dotStyle }}"></span>
@@ -1888,7 +1888,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
             <span class="gx-rail-open" aria-hidden="true">Aç</span>
           </button>
         </sc-for>
-        <sc-if value="{{ noProjects }}" hint-placeholder-val="{{ false }}"><div style="padding:14px 18px"><div style="font-size:13px;color:var(--gx-ink);margin-bottom:6px">Bu çalışma alanında henüz proje yok.</div><div style="font-size:12px;color:var(--gx-dim);line-height:1.6;margin-bottom:12px">İçinde <b>.git</b> bulunan klasörler proje olarak görünür. Bir proje klasörü bağla veya klasörde git init çalıştır.</div><button sc-camel-on-click="{{ openAddUni }}" class="gx-primary-action">Çalışma alanı bağla</button></div></sc-if>
+        <sc-if value="{{ noProjects }}" hint-placeholder-val="{{ false }}"><div style="padding:14px 18px"><div style="font-size:13px;color:var(--gx-ink);margin-bottom:6px">Bu çalışma alanında henüz proje yok.</div><div style="font-size:12px;color:var(--gx-dim);line-height:1.6;margin-bottom:12px">Projeler kendiliğinden eklenmez. Yolunu yazarak tek tek ekle ya da bir klasördeki depoları bulup toplu seç.</div><sc-if value="{{ canAddProj }}" hint-placeholder-val="{{ true }}"><button sc-camel-on-click="{{ openAddProj }}" class="gx-primary-action">Proje ekle</button></sc-if><sc-if value="{{ noRailUnis }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ openAddUni }}" class="gx-primary-action">Çalışma alanı oluştur</button></sc-if></div></sc-if>
         <div style="margin:14px 18px;padding-top:14px;border-top:1px solid var(--gx-line-soft)">
           <sc-if value="{{ hasNoReadme }}" hint-placeholder-val="{{ true }}"><div data-noi18n sc-camel-on-click="{{ toggleNoReadme }}" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-warn);margin-bottom:8px;cursor:pointer">{{ noReadmeLabel }}</div><sc-if value="{{ noReadmeOpen }}" hint-placeholder-val="{{ false }}"><div style="margin-bottom:8px"><sc-for list="{{ noReadmeList }}" as="nr" hint-placeholder-count="3"><div data-noi18n sc-camel-on-click="{{ nr.onClick }}" style="{{ nr.style }}">{{ nr.name }}</div></sc-for></div></sc-if></sc-if>
           <sc-if value="{{ hasHidden }}" hint-placeholder-val="{{ true }}"><div data-noi18n sc-camel-on-click="{{ toggleHidden }}" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);cursor:pointer">{{ hiddenLabel }}</div><sc-if value="{{ hiddenOpen }}" hint-placeholder-val="{{ false }}"><div style="margin-top:6px"><sc-for list="{{ hiddenList }}" as="hd" hint-placeholder-count="1"><div data-noi18n sc-camel-on-click="{{ hd.onClick }}" title="Göster" style="{{ hd.style }}">{{ hd.name }}</div></sc-for></div></sc-if></sc-if>
@@ -2198,7 +2198,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
             <sc-for list="{{ first60Steps }}" as="fs" hint-placeholder-count="3">
               <div class="gx-tour-row"><span style="font-family:var(--gx-mono);font-size:11px;color:var(--gx-accent);width:18px">{{ fs.n }}</span><div><div style="font-size:13.5px;color:var(--gx-ink);font-weight:600">{{ fs.t }}</div><div style="font-size:12px;color:var(--gx-dim);margin-top:2px">{{ fs.d }}</div></div></div>
             </sc-for>
-            <button type="button" sc-camel-on-click="{{ first60Cta }}" class="gx-cta" style="margin-top:14px;padding:12px 16px;font-size:14px">Çalışma alanı bağla</button>
+            <button type="button" sc-camel-on-click="{{ first60Cta }}" class="gx-cta" style="margin-top:14px;padding:12px 16px;font-size:14px">{{ first60CtaLabel }}</button>
           </div>
         </sc-if>
         <sc-if value="{{ hasDeskBrief }}" hint-placeholder-val="{{ true }}">
@@ -2278,7 +2278,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,340px));justify-content:start;gap:18px;max-width:920px">
           <sc-for list="{{ universes }}" as="u" hint-placeholder-count="3">
             <div sc-camel-on-click="{{ u.onClick }}" class="gx-uni-card" role="button" tabindex="0" style="{{ u.cardStyle }}">
-              <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><div style="{{ u.orbStyle }}"></div><div style="min-width:0;flex:1"><div data-noi18n style="font-size:18px;font-weight:600;color:var(--gx-ink)">{{ u.name }}</div><div data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);margin-top:2px">{{ u.path }}</div></div><sc-if value="{{ u.hasId }}" hint-placeholder-val="{{ false }}"><div class="gx-univ-acts"><button type="button" class="gx-univ-edit" sc-camel-on-click="{{ u.onEdit }}" title="Çalışma alanını düzenle" aria-label="Çalışma alanını düzenle">✎</button><button type="button" class="gx-univ-del" sc-camel-on-click="{{ u.onDelete }}" title="Çalışma alanını kaldır" aria-label="Çalışma alanını kaldır">✕</button></div></sc-if></div>
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><div style="{{ u.orbStyle }}"></div><div style="min-width:0;flex:1"><div data-noi18n style="font-size:18px;font-weight:600;color:var(--gx-ink)">{{ u.name }}</div><div data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);margin-top:2px">{{ u.path }}</div></div><sc-if value="{{ u.hasId }}" hint-placeholder-val="{{ false }}"><div class="gx-univ-acts"><button type="button" class="gx-univ-add" sc-camel-on-click="{{ u.onAddProj }}" title="Proje ekle" aria-label="Proje ekle">＋</button><button type="button" class="gx-univ-edit" sc-camel-on-click="{{ u.onEdit }}" title="Çalışma alanını düzenle" aria-label="Çalışma alanını düzenle">✎</button><button type="button" class="gx-univ-del" sc-camel-on-click="{{ u.onDelete }}" title="Çalışma alanını kaldır" aria-label="Çalışma alanını kaldır">✕</button></div></sc-if></div>
               <div style="display:flex;gap:18px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim)">
                 <span><span style="color:var(--gx-ink);font-size:15px">{{ u.planets }}</span> proje</span>
                 <span><span style="color:var(--gx-ink);font-size:15px">{{ u.systems }}</span> sistem</span>
@@ -3855,7 +3855,43 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
           </sc-if>
           </sc-if>
 
-          <div style="border-top:1px solid var(--gx-line);padding-top:14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-dim);line-height:1.6">İçindeki her proje klasörü (.git olan) gezegen, çatı klasörler yıldız sistemi olur. 🔒 Parola Anahtar Zinciri'yle şifreli.</div>
+          <div style="border-top:1px solid var(--gx-line);padding-top:14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-dim);line-height:1.6">Çalışma alanı boş başlar; projelerini sonra yolunu girerek tek tek ya da toplu eklersin. 🔒 Parola Anahtar Zinciri'yle şifreli.</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ addProjOpen }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ closeAddProj }}" style="position:fixed;inset:0;z-index:45;background:rgba(4,6,12,.72);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding:7vh 20px;animation:popIn .2s ease both">
+      <div sc-camel-on-click="{{ stop }}" id="gx-addproj" style="width:640px;max-width:94vw;max-height:86vh;display:flex;flex-direction:column;border:1px solid rgba(190,205,255,.24);background:linear-gradient(172deg,rgba(13,18,36,.98),rgba(5,8,18,.99));box-shadow:0 40px 100px rgba(0,0,0,.7);border-radius:14px">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--gx-line)">
+          <span style="font-weight:600;letter-spacing:.05em;font-size:15px;color:var(--gx-ink)">PROJE EKLE</span>
+          <span data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim)">{{ addProjUni }}</span>
+          <button sc-camel-on-click="{{ closeAddProj }}" style="margin-left:auto;background:none;border:1px solid var(--gx-line);color:var(--gx-dim);width:28px;height:28px;cursor:pointer">✕</button>
+        </div>
+        <div style="padding:20px;overflow-y:auto">
+          <sc-if value="{{ addProjLocal }}" hint-placeholder-val="{{ true }}">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--gx-dim);text-transform:uppercase;margin-bottom:8px">Proje yolları · her satıra bir yol</div>
+            <textarea data-noi18n id="gx-addproj-paths" rows="4" value="{{ projPaths }}" placeholder="~/Projeler/api&#10;~/Projeler/web" sc-camel-on-input="{{ onProjPaths }}" style="width:100%;box-sizing:border-box;resize:vertical;background:rgba(10,15,32,.6);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 12px;outline:none;margin-bottom:8px"></textarea>
+            <button sc-camel-on-click="{{ pickProjFolders }}" style="width:100%;background:color-mix(in srgb, var(--gx-accent) 10%, transparent);border:1px solid var(--gx-accent);color:var(--gx-accent);padding:0 14px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;white-space:nowrap;padding:10px;margin-bottom:20px">📁 Klasörleri seç (birden çok seçilebilir)</button>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--gx-dim);text-transform:uppercase;margin-bottom:8px">Toplu ekle · bir klasördeki git depolarını bul</div>
+            <div style="display:flex;gap:8px;margin-bottom:10px"><input data-noi18n value="{{ projFindRoot }}" placeholder="ör. ~/Projeler" sc-camel-on-input="{{ onProjFindRoot }}" sc-camel-on-key-down="{{ onProjFindKey }}" style="flex:1;background:rgba(10,15,32,.6);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 12px;outline:none" /><button sc-camel-on-click="{{ findProjRepos }}" style="background:color-mix(in srgb, var(--gx-accent) 10%, transparent);border:1px solid var(--gx-accent);color:var(--gx-accent);padding:0 14px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;white-space:nowrap">⌕ Depoları bul</button></div>
+          </sc-if>
+          <sc-if value="{{ addProjRemote }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:12px;color:var(--gx-dim);line-height:1.6;margin-bottom:12px">Uzak çalışma alanında son taramanın bulduğu depolar listelenir. Eklemek istediklerini işaretle.</div>
+          </sc-if>
+          <sc-if value="{{ hasProjRepos }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim)">{{ projFindInfo }}</span><sc-if value="{{ hasFreeRepos }}" hint-placeholder-val="{{ true }}"><button sc-camel-on-click="{{ toggleAllProjRepos }}" style="margin-left:auto;background:none;border:1px solid var(--gx-line);color:var(--gx-dim);font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 8px;cursor:pointer;border-radius:6px">{{ projAllLabel }}</button></sc-if></div>
+            <div style="max-height:260px;overflow-y:auto;border:1px solid var(--gx-line);border-radius:8px;margin-bottom:12px">
+              <sc-for list="{{ projRepoRows }}" as="rp" hint-placeholder-count="3">
+                <button type="button" class="gx-addproj-row" sc-camel-on-click="{{ rp.onToggle }}" style="{{ rp.style }}"><span style="font-family:'JetBrains Mono',monospace;color:var(--gx-accent);width:14px">{{ rp.mark }}</span><span data-noi18n style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ rp.rel }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-faint)">{{ rp.tag }}</span></button>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ projFindEmpty }}" hint-placeholder-val="{{ false }}"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);margin-bottom:12px">Bu klasörde git deposu bulunamadı.</div></sc-if>
+          <sc-if value="{{ hasProjErr }}" hint-placeholder-val="{{ false }}"><div data-noi18n style="font-size:12px;color:var(--gx-warn);line-height:1.6;margin-bottom:12px">{{ projErr }}</div></sc-if>
+          <button sc-camel-on-click="{{ submitAddProj }}" style="width:100%;background:color-mix(in srgb, var(--gx-ok) 12%, transparent);border:1px solid var(--gx-ok);color:var(--gx-ok);padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer">{{ projSubmitLabel }}</button>
+          <div style="border-top:1px solid var(--gx-line);margin-top:14px;padding-top:12px;font-size:11px;color:var(--gx-dim);line-height:1.6">Git şart değil; git deposu olmayan klasörde Git sekmesi <b>git init</b> önerir. Evrenden çıkarılan projenin plan ve notları silinmez, aynı yol tekrar eklenince geri gelir.</div>
         </div>
       </div>
     </div>

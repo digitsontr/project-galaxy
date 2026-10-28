@@ -213,7 +213,42 @@
   async pickLocalUni(mode){ try{ if(window.galaxy&&window.galaxy.pickFolder){ const r=await window.galaxy.pickFolder(); if(r&&r.path){
     if(mode!=='add' && this.state.editUniId){ this._uniEditBookmark=r.bookmark||null; const name=String(this.state.uniName||'').trim()||(r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren');
       this.setState({uniEditRoot:r.path, uniName:name}); return; }
-    const name=r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren'; await window.galaxy.universeAdd({name,root:r.path,bookmark:r.bookmark||null}); this._closeUniModal(); this._loadReal(); } } }catch(e){ this.toast('✕ evren eklenemedi','err'); } }
+    const name=r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren'; const res=await window.galaxy.universeAdd({name,root:r.path,bookmark:r.bookmark||null});
+    if(res&&res.ok===false){ this.toast('✕ '+(res.error||'evren eklenemedi'),'err'); return; }
+    this._closeUniModal(); await this._loadReal(); if(res&&res.id){ this.selectUni(res.id); this.openAddProj(res.id); } } } }catch(e){ this.toast('✕ evren eklenemedi','err'); } }
+  // --- Proje ekle: evrene tek tek ya da toplu, yol girerek (otomatik keşif yok) ---
+  openAddProj(uniId){ const id=uniId||this.state.uniId; const u=(this._unis||[]).find(x=>x.id===id);
+    if(!u){ this.toast('önce bir çalışma alanı seç','err'); return; }
+    this._projBookmarks={}; this.setState({addProj:id, projPaths:'', projRepos:null, projFindRoot:u.remote?'':(u.root||''), projBusy:false, projErr:''});
+    if(u.remote) this.findProjRepos(); }
+  _closeAddProj(){ this._projBookmarks={}; this.setState({addProj:null, projPaths:'', projRepos:null, projErr:'', projBusy:false}); }
+  _projPathList(){ return String(this.state.projPaths||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean); }
+  async pickProjFolders(){ try{ if(!(window.galaxy&&window.galaxy.pickFolders)) return; const r=await window.galaxy.pickFolders(); if(!r||!r.length) return;
+    const cur=this._projPathList(); this._projBookmarks=this._projBookmarks||{};
+    for(const it of r){ if(!it||!it.path) continue; if(it.bookmark) this._projBookmarks[it.path]=it.bookmark; if(!cur.includes(it.path)) cur.push(it.path); }
+    this.setState({projPaths:cur.join('\n'), projErr:''}); }catch(e){ this.toast('✕ klasör seçilemedi','err'); } }
+  async findProjRepos(){ const id=this.state.addProj; if(!id||!(window.galaxy&&window.galaxy.findRepos)) return;
+    this.setState({projBusy:true, projErr:''});
+    try{ const r=await window.galaxy.findRepos({universeId:id, root:String(this.state.projFindRoot||'').trim()});
+      if(!r||r.ok===false){ this.setState({projBusy:false, projRepos:null, projErr:(r&&r.error)||'depo aranamadı'}); return; }
+      this.setState({projBusy:false, projRepos:(r.repos||[]).map(x=>Object.assign({},x,{on:false})), projFindInfo:(r.repos||[]).length+' depo bulundu'+(r.truncated?' (ilk 300)':'')});
+    }catch(e){ this.setState({projBusy:false, projErr:'depo aranamadı'}); } }
+  _toggleProjRepo(i){ const list=(this.state.projRepos||[]).slice(); const x=list[i]; if(!x||x.already) return; list[i]=Object.assign({},x,{on:!x.on}); this.setState({projRepos:list}); }
+  _toggleAllProjRepos(){ const list=this.state.projRepos||[]; const free=list.filter(x=>!x.already); const all=free.length&&free.every(x=>x.on);
+    this.setState({projRepos:list.map(x=>x.already?x:Object.assign({},x,{on:!all}))}); }
+  async submitAddProj(){ const id=this.state.addProj; if(!id||!(window.galaxy&&window.galaxy.projectsAdd)) return;
+    const bm=this._projBookmarks||{}; const seen=new Set(); const items=[];
+    for(const p of this._projPathList().concat((this.state.projRepos||[]).filter(x=>x.on&&!x.already).map(x=>x.path))){ if(seen.has(p)) continue; seen.add(p); items.push({path:p, bookmark:bm[p]||null}); }
+    if(!items.length){ this.setState({projErr:'Eklenecek yol yok — yol yaz, klasör seç ya da depo işaretle.'}); return; }
+    this.setState({projBusy:true, projErr:''});
+    try{ const r=await window.galaxy.projectsAdd({universeId:id, items});
+      if(!r||r.ok===false){ this.setState({projBusy:false, projErr:(r&&r.error)||'eklenemedi'}); return; }
+      const added=(r.added||[]).length, skipped=r.skipped||[];
+      if(added){ this.toast('✓ '+added+' proje eklendi'); await this._loadReal(); this.selectUni(id); }
+      if(skipped.length){ this.setState({projBusy:false, projPaths:skipped.map(s=>s.path).join('\n'), projRepos:null,
+        projErr:skipped.length+' yol eklenmedi: '+skipped.slice(0,4).map(s=>s.path.split(/[\\/]/).filter(Boolean).pop()+' ('+s.reason+')').join(', ')+(skipped.length>4?' …':'')}); return; }
+      this._closeAddProj();
+    }catch(e){ this.setState({projBusy:false, projErr:'eklenemedi'}); } }
   // Modalın SSH dalı: seçili sunucuya uzak klasör ekle → o klasör evren olur
   async addRemoteRoot(){ const id=this.state._uniSrvSel; const p=String(this.state.uniRemotePath||'').trim(); if(!id||!p) return;
     const srv=(this.state._servers||[]).find(s=>s.id===id); if(!srv||!window.galaxy||!window.galaxy.sshSave) return;

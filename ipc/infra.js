@@ -149,6 +149,13 @@ ipcMain.handle('galaxy:sshSave', (e, srv) => {
       .filter(r => r.path)
   };
   const idx = data.servers.findIndex(s => s.id === srv.id);
+  // Üyelik (hangi uzak depolar evrende) istemciden gelmez: eski kökten korunur, yeni kök boş başlar.
+  const prevRoots = idx >= 0 ? (data.servers[idx].roots || []) : [];
+  for (const r of clean.roots) {
+    const prev = prevRoots.find(p => p.path === r.path);
+    r.members = prev ? prev.members : [];
+    if (r.members === undefined) delete r.members;
+  }
   if (idx >= 0) data.servers[idx] = clean; else data.servers.push(clean);
   saveData(data);
   return { ok: true, id: srv.id };

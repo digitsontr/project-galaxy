@@ -93,7 +93,9 @@ claude   # ilk çalıştırmada hesabınla giriş yapar
 
 ### İlk açılış
 
-Uygulama seni **bir defalığına tanır**: dil (TR/EN), adın, proje klasörlerin (her biri bir evren) ve ajanların. Hepsi sonradan **⚙ Ayarlar**’dan değişir. Verin kod klasöründe değil, `~/Library/Application Support/ProjectGalaxy/` (Windows: `%APPDATA%\ProjectGalaxy\`) altında durur.
+Uygulama seni **bir defalığına tanır**: dil (TR/EN), adın, çalışma alanı klasörlerin (her biri bir evren) ve ajanların. Hepsi sonradan **⚙ Ayarlar**’dan değişir.
+
+Evren **boş başlar** — altındaki depolar kendiliğinden gezegen olmaz. Projeleri sen eklersin: sol raydaki **＋ Ekle** (ya da evren kartındaki ＋) → yolu yaz (satır başına bir yol, `~` olur), **Klasör seç…** ile çoklu seç ya da **Depoları bul** ile bir klasörün altındaki git depolarını listeleyip işaretle. Evren kökü dışındaki klasörler de eklenebilir. Verin kod klasöründe değil, `~/Library/Application Support/ProjectGalaxy/` (Windows: `%APPDATA%\ProjectGalaxy\`) altında durur.
 
 ### Geliştirirken
 
@@ -115,10 +117,10 @@ Arayüzü düzenlerken `newui/index.html`’e **dokunma** — üretilmiş dosyad
 | Kavram | Karşılığı |
 |--------|-----------|
 | **Galaksi** | Evrenin (çalışma alanının) kendisi — seçtiğin bir kök klasör. |
-| **Yıldız sistemi** | Projeleri gruplayan çatı klasör (kendi `.git`'i yok ama içinde git projeleri var). Kendisi gezegen olmaz; içindeki her proje onun gezegeni olur, adı da grup etiketi olur. |
-| **Gezegen** | **İçinde `.git` olan** asıl proje klasörü. |
+| **Yıldız sistemi** | Evren kökünün altındaki çatı klasör. Eklediğin proje bunun içindeyse (ör. `kök/mobil/app`) grup etiketi `mobil` olur. |
+| **Gezegen** | Evrene **senin eklediğin** proje klasörü. |
 
-> **Önemli:** Yalnızca **içinde `.git` olan** klasörler gezegen olarak gösterilir. Rastgele/çatı klasörler (indirmeler, geçici klasörler vb.) haritayı ve listeyi kirletmez. `.git`'i olan bir klasör her zaman **tek** gezegendir (monorepo kökü dahil); kendi `.git`'i yok ama alt klasörlerinde git deposu olan → yıldız sistemi.
+> **Önemli:** Evrene yalnızca **eklediğin** klasörler gezegen olur; kökün altında yeni bir depo açman haritayı değiştirmez. Git şart değil ama önerilir (dal, kirli dosya, PR bilgisi git'ten gelir). Bir gezegeni **evrenden çıkarmak** klasöre dokunmaz; aynı yolu tekrar eklersen notu/planı geri gelir.
 
 **Gezegen durumu (renk):** 🔵 aktif · 🟡 beklemede · 🟢 tamamlandı · ⚪ arşiv · 🟣 keşfedilmemiş.
 
@@ -241,7 +243,7 @@ Postgres / MySQL / SQLite sunucularını ekle (parolalar macOS `safeStorage` ile
 <p align="center"><img src="assets/guide/gorev-murettebati.jpg" alt="Görev mürettebatı" width="900"></p>
 
 - **Sunucu ekle/düzenle:** ad, host, kullanıcı, port, **anahtar seçici** (`~/.ssh` altındaki gerçek anahtarlar çip olarak listelenir). **Test et** bağlantıyı ve uzak kabuğu (POSIX/Windows) doğrular.
-- **Uzak klasör → evren:** sunucudaki bir yolu (ör. `/root`, `/home/kullanıcı/projeler`) yaz → o klasör **uzak evren** olur; içindeki projeler tıpkı yerel gezegenler gibi haritaya çıkar (arka planda taranır, stale-while-revalidate önbellek).
+- **Uzak klasör → evren:** sunucudaki bir yolu (ör. `/root`, `/home/kullanıcı/projeler`) yaz → o klasör **uzak evren** olur ve boş başlar; arka plandaki tarama (stale-while-revalidate önbellek) bulduğu depoları **＋ Ekle** penceresinde listeler, istediklerini işaretleyip eklersin.
 - **Uzak terminal:** sunucuda gömülü terminal — **login kabuk** (`bash -l`) kullanır; böylece uzak `PATH` senin kendi terminalindekiyle aynıdır (docker/node/nvm/brew komutları bulunur).
 - ControlMaster multiplexing, `accept-new` host-key politikası, yapılandırılabilir zaman aşımı (Ayarlar).
 
@@ -345,9 +347,9 @@ Terminal istemezsen: **Sistem Ayarları → Gizlilik ve Güvenlik** → aşağı
 
 **Ajanlar / ⌁ CLAUDE "claude bulunamadı" diyor.** Kurulum Adım 2'yi yap; `claude` yazıp giriş yaptığından emin ol. Gerekirse **Ayarlar → Claude komut yolu**'na tam yolu gir.
 
-**Yeni eklediğim klasör görünmüyor.** İçinde `.git` var mı? Yalnız git depoları gezegen olur. 60 sn bekle ya da pencereye tıkla (odaklanınca tarar).
+**Evrenin altına açtığım yeni proje görünmüyor.** Kasıtlı: projeler kendiliğinden eklenmez. Sol raydaki **＋ Ekle** ile yolunu gir ya da **Depoları bul**'dan işaretle.
 
-**Sol listede eskiden gördüğüm klasörler kayboldu.** Kasıtlı: artık yalnız `.git` içeren gerçek projeler gösteriliyor. Bir klasörü göstermek istiyorsan içinde `git init` çalıştır.
+**Güncellemeden sonra projelerim duruyor mu?** Evet. Eski bir evren ilk açılışta bir kez taşınır: o an görünen projeler üye olarak kaydedilir (gizlediklerin hariç). Bundan sonra yeni depolar otomatik gelmez.
 
 **Docker konteynerlerim listelenmiyor.** DOCKER sekmesine geç (açılışta tazelenir) ya da **⟳ Yenile**'ye bas. Gerçekten konteyner yoksa panel bunu açıkça yazar. Motor kapalıysa **▸ Başlat**.
 
