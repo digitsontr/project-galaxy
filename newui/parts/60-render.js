@@ -10,16 +10,13 @@
     const linkArr = realMode ? (sel._links||[]).map(l=>Array.isArray(l)?l:[l.name||l.label||String(l),l.desc||l.role||'',l.color||'#61dcff']) : (demoData?(this.LINKS[sel.id]||[]):[]);
 
     const kadet=false;
-    // Üst: Özet / Evren / DB / Docker / Pano. Zaman·SSH Daha menüsünde.
-    const tabDefAll=[['genel','Özet'],['evren','Projeler'],['pano','Pano'],['db','DB'],['docker','Docker'],['zaman','Zamanlayıcı'],['dongu','Döngü'],['posta','Posta'],['servers','Sunucular']];
-    const primaryIds=['genel','evren','db','docker','pano'];
-    const moreIds=['zaman','dongu','posta','servers'];
-    const tabDef=primaryIds.map(id=>tabDefAll.find(t=>t[0]===id)).filter(Boolean);
+    // Ana menü: 5 bölüm; iç sekme id'leri (genel/evren/pano/pixel/zaman/dongu/posta/db/docker/servers) değişmez.
+    const inProject=st.mode==='planet';
+    const navGroup=this._navGroupOf(st.tab);
+    const tabs=this._navGroups().map(g=>{ const on=!inProject&&navGroup&&navGroup.id===g.id;
+      return {id:g.id,label:g.label,title:g.hint,cls:on?'on':'',current:on?'page':'false',style:'',onClick:()=>this._openNavGroup(g.id)}; });
+    const subNav=(!inProject&&navGroup&&navGroup.sub)?navGroup.sub.map(([id,label])=>({id,label,cls:st.tab===id?'on':'',current:st.tab===id?'page':'false',onClick:()=>this._openTab(id)})):[];
     const tabBtn=(active)=>`font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:${active?600:500};padding:6px 12px;cursor:pointer;border-radius:7px;background:${active?'#242a34':'transparent'};border:1px solid ${active?'#343c49':'var(--gx-line)'};color:${active?'var(--gx-ink)':'var(--gx-dim)'}`;
-    const tabs=tabDef.map(([id,label])=>({id,label,cls:st.tab===id?'on':'',current:st.tab===id?'page':'false',style:'',onClick:()=>this._openTab(id)}));
-    const moreItem=(active)=>`display:flex;align-items:center;width:100%;text-align:left;padding:8px 12px;cursor:pointer;border:none;border-radius:7px;background:${active?'color-mix(in srgb, var(--gx-accent) 12%, transparent)':'transparent'};color:${active?'var(--gx-accent)':'var(--gx-ink)'};font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:.01em`;
-    const moreTabs=tabDefAll.filter(([id])=>moreIds.includes(id)).map(([id,label])=>({id,label,style:moreItem(st.tab===id),onClick:()=>this._openTab(id)}));
-    const moreActive=moreIds.includes(st.tab)||!!st.moreOpen;
     const t=this._t();
     const modeBtn=(on)=>`padding:6px 10px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.02em;border:none;background:${on?t.accA(16):'transparent'};color:${on?t.acc:t.dim};transition:background .15s`;
 
@@ -129,8 +126,8 @@
       return secs;
     })();
 
-    const leftDef=[['agac','Ağaç'],['kayit','Kayıt'],['git','Git'],['dev','Geliştir']];
-    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this._setLeftTab(id),style:`flex:1;background:${st.leftTab===id?'#242a34':'transparent'};box-shadow:none;border:none;border-radius:7px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:${st.leftTab===id?600:500};padding:6px 8px;color:${st.leftTab===id?t.ink:t.dim}`}));
+    const leftDef=[['agac','Dosyalar'],['git','Değişiklikler'],['dev','Çalıştır'],['kayit','Notlar']];
+    const leftTabs=leftDef.map(([id,label])=>({id,label,onClick:()=>this._setLeftTab(id),style:`flex:1 1 auto;min-width:0;white-space:nowrap;background:${st.leftTab===id?'#242a34':'transparent'};box-shadow:none;border:none;border-radius:7px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:${st.leftTab===id?600:500};padding:6px 5px;color:${st.leftTab===id?t.ink:t.dim}`}));
 
     // Pixel Agents üst/terminal barında DEĞİL — yalnızca sol etkinlik barında.
     const consoleTabs=[['claude','⌁ CLAUDE'],['ajan','✦ AJAN'],['bash','▮ BASH'],['pty','>_ TERMİNAL']].map(([id,label])=>({id,label,onClick:()=>{ this.setState({consoleTab:id, consoleCollapsed:false}, ()=>{ if(id==='pty') setTimeout(()=>this._ptyMount(),90); else this._focusConsole(); if(id==='ajan') this.agentCfgLoad(); }); },style:`padding:4px 10px;cursor:pointer;border-radius:6px;font-weight:600;letter-spacing:.03em;background:${st.consoleTab===id?'#242a34':'transparent'};border:1px solid ${st.consoleTab===id?'#343c49':t.line};color:${st.consoleTab===id?t.ink:t.dim};box-shadow:none`}));
@@ -169,20 +166,23 @@
     const q=trFold(st.query||'');
     const cmds=[
       {icon:'↺',ic:'#61dcff',label:'Kaldığın yerden devam',hint:'',fn:()=>this.resumeSession()},
-      {icon:'◎',ic:'#61dcff',label:'Özet',hint:'Bugün',fn:()=>{this.setState({palette:false,query:''}); this._openTab('genel');}},
+      {icon:'◎',ic:'#61dcff',label:'Ana Sayfa',hint:'bugün · özet',fn:()=>{this.setState({palette:false,query:''}); this._openTab('genel');}},
+      {icon:'◍',ic:'#61dcff',label:'Projeler',hint:'tüm projeler',fn:()=>{this.setState({palette:false,query:''}); this._openTab('evren');}},
+      {icon:'✦',ic:'#c77bff',label:'Ajanlar',hint:'',fn:()=>{this.setState({palette:false,query:''}); this._openTab('pixel');}},
       {icon:'✎',ic:'#8ae7ff',label:'Editörde aç',hint:'Cursor / VS Code',fn:()=>{this.setState({palette:false,query:''}); this.openInEditor('auto');}},
       {icon:'⚙',ic:'#c77bff',label:'Ayarlar',hint:'',fn:()=>{this.setState({palette:false,query:''}); if(window.galaxy&&window.galaxy.openSettings)try{window.galaxy.openSettings();}catch(e){}}},
-      {icon:'▤',ic:'#8aa0ff',label:'Pano',hint:'',fn:()=>{this.setState({palette:false,query:''}); this._openTab('pano');}},
-      {icon:'◷',ic:'#c77bff',label:'Zamanlayıcı',hint:'',fn:()=>{this.setState({palette:false,query:''}); this._openTab('zaman');}},
-      {icon:'🖧',ic:'#61dcff',label:'SSH / Sunucular',hint:'',fn:()=>{this.setState({palette:false,query:''}); this._openTab('servers');}},
+      {icon:'▤',ic:'#8aa0ff',label:'Görevler',hint:'pano',fn:()=>{this.setState({palette:false,query:''}); this._openTab('pano');}},
+      {icon:'◷',ic:'#c77bff',label:'Zamanlanmış işler',hint:'otomasyon · zamanlayıcı',fn:()=>{this.setState({palette:false,query:''}); this._openTab('zaman');}},
+      {icon:'🖧',ic:'#61dcff',label:'SSH sunucuları',hint:'servisler',fn:()=>{this.setState({palette:false,query:''}); this._openTab('servers');}},
+      {icon:'✉',ic:'#61dcff',label:'E-posta',hint:'otomasyon · posta',fn:()=>{this.setState({palette:false,query:''}); this._openTab('posta');}},
       {icon:'⏱',ic:'#ffc861',label:'Odak başlat/durdur',hint:'25 dk',fn:()=>{this.setState({palette:false,query:''}); this.toggleFocus();}},
       {icon:'⎇',ic:'#55e88b',label:'Git Flow Rehberi',hint:'',fn:()=>this.setState({palette:false,query:'',gitCenter:'rehber'})},
       {icon:'↺',ic:'#ffc861',label:'Yedekler',hint:'',fn:()=>this._openBackups()},
       {icon:'▤',ic:'#8aa0ff',label:'Aktivite',hint:'',fn:()=>this.openActivity()},
-      {icon:'⛁',ic:'#61dcff',label:'Veritabanı',hint:'DB',fn:()=>{this.setState({palette:false,query:''}); this._openTab('db');}},
-      {icon:'▣',ic:'#8ae7ff',label:'Docker',hint:'',fn:()=>{this.setState({palette:false,query:''}); this._openTab('docker');}},
-      {icon:'⌕',ic:'#61dcff',label:'Evreni ara',hint:'kod',fn:()=>this._openUniverseGrep(String(this.state.query||'').trim())},
-      {icon:'↺',ic:'#c77bff',label:'Döngü',hint:'tur',fn:()=>{this.setState({palette:false,query:''}); this._openTab('dongu');}},
+      {icon:'⛁',ic:'#61dcff',label:'Veritabanları',hint:'servisler · db',fn:()=>{this.setState({palette:false,query:''}); this._openTab('db');}},
+      {icon:'▣',ic:'#8ae7ff',label:'Konteynerler',hint:'servisler · docker',fn:()=>{this.setState({palette:false,query:''}); this._openTab('docker');}},
+      {icon:'⌕',ic:'#61dcff',label:'Tüm projelerde ara',hint:'kod',fn:()=>this._openUniverseGrep(String(this.state.query||'').trim())},
+      {icon:'↺',ic:'#c77bff',label:'Proje taraması',hint:'otomasyon · döngü',fn:()=>{this.setState({palette:false,query:''}); this._openTab('dongu');}},
     ];
     const searchable = realMode ? (this._allProjects||this.PROJECTS) : (demoData?this.PROJECTS:[]);
     const recentIds=this._recentIds||this._recentRead();
@@ -190,7 +190,7 @@
     const recentSet=new Set(recentPs.map(p=>p.id));
     const recentRes=recentPs.map(p=>({icon:'↺',ic:statusColor(p.status),label:p.name,hint:'son · ↵ in',fn:()=>this._gotoProject(p.id)}));
     const projRes=searchable.filter(p=>!q||trFold(p.name).includes(q)).filter(p=>q||!recentSet.has(p.id)).slice(0,8).map(p=>({icon:'●',ic:statusColor(p.status),label:p.name,hint:'↵ GİT',fn:()=>this._gotoProject(p.id)}));
-    const cmdRes=cmds.filter(c=>!q||trFold(c.label).includes(q));
+    const cmdRes=cmds.filter(c=>!q||trFold(c.label+' '+(c.hint||'')).includes(q));
     // ⌘K tek kapı: eşleşme olsun ya da olmasın, yazdığını doğrudan Galaxy'ye sorabilirsin.
     const rawQ=String(st.query||'').trim();
     const askRes=rawQ?[{icon:'🔮',ic:'#61dcff',label:`Kaptan’a sor: "${rawQ}"`,hint:'↵ Sor',fn:()=>this._paletteAskGalaxy(rawQ)}]:[];
@@ -462,11 +462,11 @@
         const rows=[
           row(clOk,'Claude CLI','Asistan ve ajanlar CLI ister. Ayarlar → Araçlar → Dene.','Araçlar',()=>this._openPrefs('araclar')),
           row(ghOk,'GitHub','`gh auth login` — üst şeritteki nokta bu oturumu okur.','Nasıl',()=>this._openPrefs('araclar')),
-          row(mailOk,'Posta (MCP)','Gelen kutu ve yazma: Daha ▾ → Posta. Bağlantı Ayarlar → Posta’da.','Posta',()=>this._openTab('posta')),
+          row(mailOk,'Posta (MCP)','Gelen kutu ve yazma: Otomasyonlar → E-posta. Bağlantı Ayarlar → Posta’da.','E-posta',()=>this._openTab('posta')),
         ];
         if(this._setupForce){
-          rows.push(row(dbOk,'Veritabanı','Üst bar DB → + Bağlantı. Parola Mac anahtarlığında şifreli.','DB aç',()=>this._openTab('db')));
-          rows.push(row(sshOk,'SSH','Parola yok. ~/.ssh anahtarı. Daha ▾ → SSH → + Sunucu.','SSH aç',()=>this._openTab('servers')));
+          rows.push(row(dbOk,'Veritabanı','Servisler → Veritabanları → + Bağlantı. Parola Mac anahtarlığında şifreli.','Veritabanları',()=>this._openTab('db')));
+          rows.push(row(sshOk,'SSH','Parola yok. ~/.ssh anahtarı. Servisler → SSH sunucuları → + Sunucu ekle.','SSH sunucuları',()=>this._openTab('servers')));
         }
         return this._setupForce?rows:rows.filter(r=>r.miss);
       })(),
@@ -557,7 +557,7 @@
       notPixelTerm: st.consoleTab!=='pty',
       ...this._pxRenderVals(),
       loopNodes: this._loopNodes(),
-      loopStepTitle: this._loopTitles()[this._loopFocusId()]||'Döngü',
+      loopStepTitle: this._loopTitles()[this._loopFocusId()]||'Proje taraması',
       loopStepDesc: this._loopDesc(this._loopFocusId()||''),
       loopBody: st.loopBody||'',
       loopBodyShow: (()=>{
@@ -568,7 +568,7 @@
       loopRemarks: st.loopRemarks||'', onLoopRemarks:(e)=>this.setState({loopRemarks:(e&&e.target&&e.target.value)||''}),
       loopSaveRemarks:()=>this._loopSaveRemarks(),
       loopRunAll:()=>this._loopRunAll(),
-      loopCtaLabel: (this._loopTour||st.loopTour||st._agentBusy)?'Durdur':'Turu başlat',
+      loopCtaLabel: (this._loopTour||st.loopTour||st._agentBusy)?'Durdur':'Taramayı başlat',
       loopAgentName: (this._loopAgent()&&this._loopAgent().name)||'—',
       loopSaveLabel: (this._loopTour||st.loopTour)&&st.loopStep==='incele'?'Kaydet ve bildir':'Kaydet',
       loopLastRun: (()=>{ const r=st.loopLastRun; if(!r||!r.ts) return 'henüz koşmadı'; try{ return new Date(r.ts).toLocaleString('tr-TR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}); }catch(e){ return 'koştu'; } })(),
@@ -836,7 +836,7 @@
         if(pw.env&&pw.env.missing&&pw.env.missing.length) chips.push(mk('env', '.env '+pw.env.missing.length+' eksik', ()=>{ this.toast('Eksik: '+pw.env.missing.slice(0,4).join(', ')); this._openTab('db'); }, 'warn'));
         return chips;
       })(),
-      hasCtxChips: !!(st.mode==='planet'||st.holdPlanet) && !!st.rightCollapsed && !st._rightPeek,
+      hasCtxChips: st.mode==='planet',
       relatedPlanets:((pw.related)||[]).map(r=>({ name:r.name, why:r.why, onClick:()=>this._gotoProject(r.id) })),
       hasRelated:!!(pw.related&&pw.related.length),
       planetScripts:(pw.scripts||[]).map(s=>({ name:s.name, kind:s.kind||'', onClick:()=>this._runPlanetScript(s) })),
@@ -848,15 +848,7 @@
       noPlanetCi:!(st._ci&&st._ci.length),
       hasPlanetPrs:!!(st._prs&&st._prs.length),
       gitPrCreate:()=>this._planetPrCreate(),
-      moreOpen: !!st.moreOpen, moreTabs,
-      toggleMore:()=>this.setState({moreOpen:!st.moreOpen, locOpen:false}),
-      closeMore:()=>this.setState({moreOpen:false}),
-      moreBtnStyle: tabBtn(moreActive), moreBtnCls: moreActive?'on':'',
-      moreTools:()=>{ this.setState({moreOpen:false}); this.toggleTools(); },
-      moreHud:()=>this.setState({hudOpen:!st.hudOpen, moreOpen:false}),
-      moreToolsStyle: moreItem(!!st.toolsOpen),
-      moreHudStyle: moreItem(!!st.hudOpen),
-      moreKadetStyle: moreItem(kadet), moreKomutanStyle: moreItem(!kadet),
+      subNav, hasSubNav: subNav.length>0,
       // Konum breadcrumb + hızlı geçiş anahtarı
       locUniName: ((this._unis||[]).find(u=>u.id===st.uniId)||{}).name || 'Çalışma alanı seç',
       locOpen: st.locOpen, toggleLoc:()=>this.setState({locOpen:!st.locOpen, moreOpen:false}), closeLoc:()=>this.setState({locOpen:false}),
@@ -888,7 +880,7 @@
           onClick:()=>{ this._gotoProject(p.id); this.setState({locOpen:false}); } };
       }),
       hasLocPlanets: (this._allProjects||[]).some(p=>p.universe===st.uniId),
-      viewGalaxy: space&&isEvren, orbInRail: !(space&&isEvren), viewPano: space&&st.tab==='pano', viewDb: space&&st.tab==='db', viewZaman: space&&st.tab==='zaman',
+      viewGalaxy: space&&isEvren, viewPano: space&&st.tab==='pano', viewDb: space&&st.tab==='db', viewZaman: space&&st.tab==='zaman',
       viewDongu: space&&st.tab==='dongu', viewPosta: space&&st.tab==='posta', viewEgitim:false,
       viewGalaxyHud: !!(space&&isEvren), notPaperMap: true,
       showOrbitDecor: true,
@@ -927,7 +919,7 @@
           mk('explorer','folder','Klasör',()=>this._actExplorer()),
           mk('search','search','Ara',()=>this._openSearch()),
           mk('git','git','Git',()=>this._actGit()),
-          mk('pixel','pixel', pxCount?('Agents · '+pxCount):'Agents', ()=>this._openTab('pixel'), 'Pixel Agents — ajan ofisi'+(pxBusy?' · çalışıyor':'')+(pxCount?' · '+pxCount+' ajan':'')),
+          mk('pixel','pixel', 'Ajanlar', ()=>this._openTab('pixel'), 'Ajanlar'+(pxBusy?' · çalışıyor':'')+(pxCount?' · '+pxCount+' ajan':'')),
         ]; })(),
       actFoot:(()=>{
         const mk=(id,ico,label,onClick)=>({ id, icoCls:'gx-act-ico gx-ico-'+ico, label, title:label, on:false, cls:'', onClick });
@@ -935,23 +927,14 @@
           mk('settings','gear','Ayarlar',()=>this._openPrefs()),
         ]; })(),
       toggleLeft:()=>this.setState({leftCollapsed:!st.leftCollapsed, _leftPeek:false}),
-      toggleRight:()=>{ const on=!st.rightCollapsed; this.setState({rightCollapsed:on, _rightPeek:false}); try{ localStorage.setItem('gxRightCollapsed',on?'1':'0'); }catch(e){} },
+      toggleRight:()=>{ const on=!st.rightCollapsed; this.setState({rightCollapsed:on, _rightPeek:false}); try{ localStorage.setItem('gxRightPanel',on?'closed':'open'); }catch(e){} },
       pinLeft:()=>this.setState({leftCollapsed:false, _leftPeek:false}),
-      pinRight:()=>{ this.setState({rightCollapsed:false, _rightPeek:false}); try{ localStorage.setItem('gxRightCollapsed','0'); }catch(e){} },
+      pinRight:()=>{ this.setState({rightCollapsed:false, _rightPeek:false}); try{ localStorage.setItem('gxRightPanel','open'); }catch(e){} },
       leftPeeking: !!(st.leftCollapsed && st._leftPeek),
       rightPeeking: !!(st.rightCollapsed && st._rightPeek),
       showPlanetIdent: !(st._preview && (st.mode==='planet'||st.holdPlanet)),
       hideCtxChips: !st.rightCollapsed || !!st._rightPeek,
       ctxLastLabel: this._surfaceLabel(st._lastSurface||st.tab),
-      ctxLastHint: (st._lastSurface||st.tab)==='db'?'Son durak: veritabanı':(st._lastSurface||st.tab)==='docker'?'Son durak: Docker':(st._lastSurface==='git'||st.leftTab==='git')?'Son durak: Git':'Son durak: '+this._surfaceLabel(st._lastSurface||st.tab),
-      ctxJumps:[
-        {label:'Dosya', on: (st.mode==='planet'||st.holdPlanet)&&st.tab==='evren'&&st.leftTab!=='git', onClick:()=>{ if(!(st.mode==='planet'||st.holdPlanet)) this.enter(); this._setLeftTab('agac'); this._rememberSurface('dosya'); }},
-        {label:'Git', on: st.leftTab==='git', onClick:()=>{ if(!(st.mode==='planet'||st.holdPlanet)) this.enter(); this._setLeftTab('git'); this._rememberSurface('git'); }},
-        {label:'DB', on: st.tab==='db', onClick:()=>this._openTab('db')},
-        {label:'Docker', on: st.tab==='docker', onClick:()=>this._openTab('docker')},
-        {label:'Geliştir', on: st.leftTab==='dev', onClick:()=>{ if(!(st.mode==='planet'||st.holdPlanet)) this.enter(); this._setLeftTab('dev'); this._rememberSurface('dev'); }},
-        {label:'⤢ Akış şeması', on: !!st.flowOpen, onClick:()=>this.openFlow()},
-      ].map(x=>({...x, style:`padding:5px 8px;border:1px solid ${x.on?'var(--gx-accent)':'var(--gx-line)'};border-radius:7px;background:${x.on?'rgba(106,167,255,.12)':'transparent'};color:${x.on?'var(--gx-accent)':'var(--gx-dim)'};cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;width:100%;text-align:left`})),
       asstBtnStyle:(()=>{ const live=this._asstSessionLive(); const on=!!st.asstOpen;
         const col=this._asstLiveListen()?'var(--gx-ok)':(live?'var(--gx-accent)':'var(--gx-dim)');
         const bd=on||live?col:'var(--gx-line)';
@@ -1286,7 +1269,7 @@
       notifOpen: !!st.notifOpen, toggleNotif:()=>this.setState({notifOpen:!st.notifOpen}),
       notifCount: String((st._notifs||[]).length||''),
       notifsList: (st._notifs||[]).slice().reverse().map(n=>({ label:n.title, meta:n.body, icon:n.kind==='err'?'✕':'✓' })),
-      hasNotifs: !!(st._notifs||[]).length,
+      hasNotifs: !!(st._notifs||[]).length, noNotifs: !(st._notifs||[]).length,
       // .galaxy profili + şablonlar
       gxHasProfile: !!((st._gxProfile||{}).exists), gxLoad:()=>this.gxLoad(), gxCreateDefault:()=>this.gxCreateDefault(), gxRunOnOpen:()=>this.gxRunOnOpen(),
       gxProfileText: (st._gxProfile&&st._gxProfile.profile)?JSON.stringify(st._gxProfile.profile, null, 2).slice(0,900):'',

@@ -296,6 +296,12 @@
   // ---------- i18n (tr↔en) — render sonrası DOM cümle değişimi ----------
   _enMapObj(){ return {
     'GENEL BAKIŞ':'OVERVIEW','EVREN':'UNIVERSE','PANO':'BOARD','DOCKER':'DOCKER','ZAMANLAYICI':'SCHEDULER','SUNUCULAR':'SERVERS','DB':'DB',
+    'Ana Sayfa':'Home','Görevler':'Tasks','Ajanlar':'Agents','Otomasyonlar':'Automations','Servisler':'Services',
+    'Zamanlanmış işler':'Scheduled jobs','Proje taraması':'Project scan','E-posta':'Email','Veritabanları':'Databases','SSH sunucuları':'SSH servers',
+    'Dosyalar':'Files','Değişiklikler':'Changes','Notlar':'Notes','Tüm projeler':'All projects','Tüm projelerde ara':'Search all projects',
+    'Taramayı başlat':'Start scan','Ajan çalışır':'Agent runs','Onayla':'Approve','Haber ver':'Notify',
+    '+ Yeni iş':'+ New job','+ Sunucu ekle':'+ Add server','Posta ayarları':'Mail settings','Bildirimler':'Notifications',
+    'Kaptan — dijital ikizin':'Kaptan — your digital twin',
     'Özet':'Overview','Evren':'Universe','Pano':'Board','Daha':'More','Kadet':'Cadet','Komutan':'Commander','İn':'In','İstasyon':'Station','HUD':'HUD','Döngü':'Loop','Posta':'Mail','Döngü tuvali':'Loop canvas',
     'Asistan':'Assistant','Anladım':'Got it','Araçlar':'Tools',
     'Klasörleri yaşayan bir evrene dönüştür.':'Turn folders into a living universe.',
@@ -344,7 +350,7 @@
     '`gh auth login` — PAT yapıştırma. Üst şeritteki nokta bu oturumu okur.':'`gh auth login` — do not paste a PAT. The top-bar dot reads this session.',
     'Ayarlar → Posta: komut, GMAIL_CLIENT_ID / SECRET ortamı, Liste ve Oku adları.':'Settings → Mail: command, GMAIL_CLIENT_ID / SECRET env, List and Read names.',
     'Üst bar DB → + Bağlantı. Parola Mac anahtarlığında şifreli.':'Top bar DB → + Connection. Password is encrypted in the Mac keychain.',
-    'Parola yok. ~/.ssh anahtarı. Daha ▾ → SSH → + Sunucu.':'No password. A ~/.ssh key. More ▾ → SSH → + Server.',
+    'Parola yok. ~/.ssh anahtarı. Servisler → SSH sunucuları → + Sunucu ekle.':'No password. A ~/.ssh key. Services → SSH servers → + Add server.',
     '✕ gizler · Durdur keser · Voice On = mic (macOS izni)':'✕ hides · Stop kills · Voice On = mic (macOS permission)',
     '+ Bağlantı → Postgres, MySQL veya SQLite seç.':'+ Connection → pick Postgres, MySQL or SQLite.',
     'Host / port / veritabanı / kullanıcı / parola yaz. SQLite ise yalnızca dosya yolu.':'Fill host / port / database / user / password. SQLite is a file path only.',

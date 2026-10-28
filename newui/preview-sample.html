@@ -1784,6 +1784,10 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 @media (prefers-reduced-motion: reduce){
   .gx-px-btn:hover,.gx-px-act:hover,.gx-stat:hover,.gx-project-tile:hover{transform:none}
 }
+.gx-subnav{display:flex;align-items:center;gap:4px;padding:10px 26px 0;border-bottom:1px solid var(--gx-line-soft);flex-shrink:0}
+.gx-subnav>button{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;padding:8px 12px 10px;margin-bottom:-1px;cursor:pointer;background:none;border:none;border-bottom:2px solid transparent;color:var(--gx-dim)}
+.gx-subnav>button:hover{color:var(--gx-ink)}
+.gx-subnav>button.on{color:var(--gx-ink);font-weight:600;border-bottom-color:var(--gx-accent)}
 </style>
 </helmet>
 <canvas id="bgGalaxy" style="position:fixed;inset:0;width:100%;height:100%;z-index:0"></canvas>
@@ -1839,27 +1843,27 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
     </div>
     <nav class="gx-tabs" aria-label="Ana bölümler" style="display:flex;gap:3px;align-items:center;position:relative;flex-shrink:0">
       <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
-        <button sc-camel-on-click="{{ t.onClick }}" class="{{ t.cls }}" aria-current="{{ t.current }}" style="{{ t.style }}">{{ t.label }}</button>
+        <button sc-camel-on-click="{{ t.onClick }}" class="{{ t.cls }}" aria-current="{{ t.current }}" title="{{ t.title }}" style="{{ t.style }}">{{ t.label }}</button>
       </sc-for>
-      <button sc-camel-on-click="{{ toggleMore }}" class="{{ moreBtnCls }}" title="Daha fazla — zaman, SSH, döngü, posta" style="{{ moreBtnStyle }}">Daha ▾</button>
-      <sc-if value="{{ moreOpen }}" hint-placeholder-val="{{ false }}">
-        <div sc-camel-on-click="{{ closeMore }}" style="position:fixed;inset:0;z-index:38"></div>
-        <div style="position:absolute;top:calc(100% + 6px);right:0;z-index:40;min-width:214px;padding:6px;border:1px solid var(--gx-line);background:var(--gx-panel);border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.45)">
-          <sc-for list="{{ moreTabs }}" as="m" hint-placeholder-count="5">
-            <button sc-camel-on-click="{{ m.onClick }}" style="{{ m.style }}">{{ m.label }}</button>
-          </sc-for>
-          <div style="height:1px;background:var(--gx-line);margin:6px 8px"></div>
-          <button sc-camel-on-click="{{ moreTools }}" title="Saat · hızlı ara" style="{{ moreToolsStyle }}"><span>İstasyon</span><sc-if value="{{ listenOpen }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gx-ok);margin-left:8px">Dinliyor</span></sc-if><span id="gx-clock" data-noi18n style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-accent)">{{ clockTop }}</span></button>
-          <button sc-camel-on-click="{{ moreHud }}" style="{{ moreHudStyle }}">HUD</button>
-        </div>
-      </sc-if>
     </nav>
     <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end">
       <div role="status" aria-label="Sistem sağlığı" style="display:flex;align-items:center;gap:10px;padding:0 4px">
         <sc-for list="{{ healthItems }}" as="h" hint-placeholder-count="4"><button type="button" title="{{ h.title }}" sc-camel-on-click="{{ h.onClick }}" aria-label="{{ h.title }}" style="{{ h.style }}"><span style="{{ h.dotStyle }}"></span></button></sc-for>
         <sc-if value="{{ healthHasMiss }}" hint-placeholder-val="{{ false }}"><span class="gx-health-miss">{{ healthMissLabel }}</span></sc-if>
       </div>
-      <button id="ga-open" sc-camel-on-click="{{ asstToggle }}" title="Kaptan — proje yardımcısı" aria-label="Kaptan" style="{{ asstBtnStyle }}">Kaptan</button>
+      <div style="position:relative">
+        <button type="button" id="gx-notif-btn" sc-camel-on-click="{{ toggleNotif }}" title="Bildirimler ve arka plan işleri" aria-label="Bildirimler" style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--gx-dim);background:transparent;border:1px solid var(--gx-line);padding:6px 9px;cursor:pointer;border-radius:8px">🔔<sc-if value="{{ hasNotifs }}" hint-placeholder-val="{{ false }}"><span style="color:var(--gx-accent);font-weight:700">{{ notifCount }}</span></sc-if></button>
+        <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+          <span style="position:absolute;right:0;top:40px;width:300px;z-index:40;display:block;border:1px solid var(--gx-line);border-radius:10px;background:var(--gx-panel);box-shadow:0 24px 60px rgba(0,0,0,.65);padding:12px 14px;text-align:left;cursor:default">
+            <span style="display:block;font-size:12px;font-weight:600;color:var(--gx-ink);margin-bottom:6px">Bildirimler</span>
+            <sc-for list="{{ notifsList }}" as="nf" hint-placeholder-count="2"><span style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--gx-line-soft);font-size:12px"><span>{{ nf.icon }}</span><span style="flex:1;min-width:0"><span data-noi18n style="display:block;color:var(--gx-ink)">{{ nf.label }}</span><span data-noi18n style="display:block;font-size:11px;color:var(--gx-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nf.meta }}</span></span></span></sc-for>
+            <sc-if value="{{ noNotifs }}" hint-placeholder-val="{{ true }}"><span style="display:block;font-size:12px;color:var(--gx-dim);padding:6px 0">Henüz bildirim yok. Testler ve arka plan işleri bitince burada görünür.</span></sc-if>
+            <span style="display:flex;gap:6px;margin-top:10px"><input data-noi18n value="{{ jobCmd }}" placeholder="Arka planda çalıştır (örn. npm test)" sc-camel-on-input="{{ onJobCmd }}" sc-camel-on-key-down="{{ jobCmdKey }}" style="flex:1;min-width:0;background:var(--gx-panel-2);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-radius:6px;outline:none" /><button type="button" sc-camel-on-click="{{ jobStartBtn }}" style="padding:6px 10px;border:1px solid var(--gx-line);border-radius:6px;background:var(--gx-panel-2);color:var(--gx-ink);cursor:pointer;font-size:12px">Çalıştır</button><button type="button" sc-camel-on-click="{{ jobsRefresh }}" title="Yenile" style="padding:6px 8px;border:1px solid var(--gx-line);border-radius:6px;background:none;color:var(--gx-dim);cursor:pointer;font-size:11px">↻</button></span>
+            <sc-for list="{{ jobsList }}" as="jb" hint-placeholder-count="2"><span style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--gx-line-soft);font-size:12px"><span data-noi18n style="flex:1;min-width:0;color:var(--gx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ jb.label }}</span><span data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-dim)">{{ jb.meta }}</span><sc-if value="{{ jb.running }}" hint-placeholder-val="{{ false }}"><button type="button" sc-camel-on-click="{{ jb.onStop }}" style="border:1px solid rgba(239,107,123,.4);background:none;color:var(--gx-err);border-radius:5px;cursor:pointer;font-size:11px;padding:2px 6px">Durdur</button></sc-if></span></sc-for>
+          </span>
+        </sc-if>
+      </div>
+      <button id="ga-open" sc-camel-on-click="{{ asstToggle }}" title="Kaptan — dijital ikizin" aria-label="Kaptan — dijital ikizin" style="{{ asstBtnStyle }}">Kaptan</button>
       <button sc-camel-on-click="{{ openPalette }}" title="Komut paleti" aria-label="Komut paleti" style="display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gx-dim);background:transparent;border:1px solid var(--gx-line);padding:6px 10px;cursor:pointer;border-radius:8px"><span style="color:var(--gx-accent)">⌕</span><span style="padding:2px 6px;border:1px solid var(--gx-line);font-size:10px;border-radius:4px">⌘K</span></button>
     </div>
   </header>
@@ -1906,6 +1910,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
             </div>
           </div>
           <div style="display:flex;gap:4px;flex-shrink:0">
+            <button type="button" id="gx-flow-open-side" sc-camel-on-click="{{ openFlow }}" title="Projenin akış şemasını tam ekran aç" style="padding:4px 8px;font-size:11px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer">Akış</button>
             <button type="button" sc-camel-on-click="{{ openProjectFolder }}" title="Klasörü Aç" style="padding:4px 8px;font-size:11px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer">Klasör</button>
             <button type="button" sc-camel-on-click="{{ openInEditor }}" title="Editörde Aç" style="padding:4px 8px;font-size:11px;border:1px solid var(--gx-accent);border-radius:6px;background:color-mix(in srgb, var(--gx-accent) 10%, transparent);color:var(--gx-accent);cursor:pointer">Editör</button>
           </div>
@@ -2176,6 +2181,11 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
         <button type="button" sc-camel-on-click="{{ errBannerDismiss }}" class="gx-help-x" style="flex-shrink:0">✕</button>
       </div>
     </sc-if>
+    <sc-if value="{{ hasSubNav }}" hint-placeholder-val="{{ false }}">
+      <nav class="gx-subnav" aria-label="Alt bölümler">
+        <sc-for list="{{ subNav }}" as="s" hint-placeholder-count="3"><button type="button" sc-camel-on-click="{{ s.onClick }}" class="{{ s.cls }}" aria-current="{{ s.current }}">{{ s.label }}</button></sc-for>
+      </nav>
+    </sc-if>
     <div style="flex:1;position:relative;min-height:0;overflow:hidden">
     <sc-if value="{{ viewOverview }}" hint-placeholder-val="{{ true }}">
       <div style="position:absolute;inset:0;padding:40px;overflow:auto;animation:fadeUp .35s ease both">
@@ -2296,7 +2306,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
         <div class="gx-project-browser">
           <div class="gx-project-browser-inner">
             <div class="gx-project-browser-head">
-              <div><div class="gx-scene">Projeler</div><h2>Tüm projeler</h2><p>Çalışmak istediğin projeyi seç. Dosyalar, Git durumu ve geliştirme araçları proje çalışma alanında açılır.</p></div>
+              <div><h2>Tüm projeler</h2><p>Çalışmak istediğin projeyi seç; dosyaları, değişiklikleri ve çalıştırma araçları projenin içinde açılır.</p></div>
               <span class="gx-scope-label">{{ sectorCount }} proje</span>
             </div>
             <div class="gx-project-grid">
@@ -2372,7 +2382,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 
     <sc-if value="{{ viewPano }}" hint-placeholder-val="{{ false }}">
       <div class="gx-workspace" style="position:absolute;inset:0;padding:26px;overflow:auto;animation:fadeUp .35s ease both">
-        <div class="gx-page-head"><div><div class="gx-scene">Pano</div><h2>Görevler</h2><p>Projelerdeki işler burada. Kartın altındaki ad görevin hangi projeye ait olduğunu gösterir.</p></div><span class="gx-scope-label">Tüm projeler</span></div>
+        <div class="gx-page-head"><div><h2>Görevler</h2><p>Tüm projelerdeki yapılacak işler. Kartın altındaki ad, işin hangi projeye ait olduğunu gösterir.</p></div><span class="gx-scope-label">Tüm projeler</span></div>
         <div style="display:flex;gap:8px;align-items:center;max-width:1100px;margin-bottom:16px"><input value="{{ todoInput }}" placeholder="Yeni görev ekle (Enter)…" sc-camel-on-input="{{ onTodoInput }}" sc-camel-on-key-down="{{ onTodoKey }}" style="flex:1;background:color-mix(in srgb, var(--gx-panel) 80%, transparent);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'Space Grotesk',sans-serif;font-size:14px;padding:10px 14px;outline:none;border-radius:10px" /><button sc-camel-on-click="{{ addTodo }}" style="border:1px solid var(--gx-accent);background:color-mix(in srgb, var(--gx-accent) 12%, transparent);color:var(--gx-accent);font-size:13px;padding:10px 16px;cursor:pointer;font-family:'Space Grotesk',sans-serif;border-radius:10px">+ Ekle</button></div>
         <div class="gx-kanban">
           <sc-for list="{{ board }}" as="col" hint-placeholder-count="3">
@@ -2393,7 +2403,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
     <sc-if value="{{ viewDb }}" hint-placeholder-val="{{ false }}">
       <div class="gx-workspace" style="position:absolute;inset:0;padding:26px;overflow:auto;animation:fadeUp .35s ease both">
         <div class="gx-page-head">
-          <div><div class="gx-scene">Veritabanı</div><h2>Bağlantılar ve şema</h2><p>Bağlantıları güvenle test et, şemayı incele ve sorgularını çalıştır.</p></div>
+          <div><h2>Veritabanları</h2><p>Bağlantılarını test et, tablolara bak ve sorgu çalıştır.</p></div>
           <div style="display:flex;align-items:center;gap:10px">
             <span class="gx-scope-label">{{ scopeContextLabel }}</span>
             <button type="button" sc-camel-on-click="{{ openDbAdd }}" class="gx-primary-action">+ Veritabanı Bağla</button>
@@ -2474,7 +2484,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 
     <sc-if value="{{ viewDocker }}" hint-placeholder-val="{{ false }}">
       <div class="gx-workspace" style="position:absolute;inset:0;padding:26px;overflow:auto;animation:fadeUp .35s ease both">
-        <div class="gx-page-head"><div><div class="gx-scene">Docker</div><h2>Konteynerler ve imajlar</h2><p>Çalışan servisleri izle, logları aç ve compose işlerini yönet.</p></div><span class="gx-scope-label">{{ scopeContextLabel }}</span></div>
+        <div class="gx-page-head"><div><h2>Konteynerler</h2><p>Docker servislerini başlat, durdur ve loglarını izle.</p></div><span class="gx-scope-label">{{ scopeContextLabel }}</span></div>
         <div class="gx-scope">
           <button type="button" sc-camel-on-click="{{ setScopePlanet }}" style="{{ scopePlanetStyle }}">Bu proje</button>
           <button type="button" sc-camel-on-click="{{ setScopeAll }}" style="{{ scopeAllStyle }}">Tümü</button>
@@ -2531,7 +2541,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 
     <sc-if value="{{ viewZaman }}" hint-placeholder-val="{{ false }}">
       <div class="gx-workspace" style="position:absolute;inset:0;padding:26px;overflow:auto;animation:fadeUp .35s ease both">
-        <div class="gx-page-head"><div><div class="gx-scene">Zamanlayıcı</div><h2>Otomatik görevler</h2><p>Seçili ajanın belirli saat veya günlerde otomatik çalıştıracağı görevleri yönet.</p></div><button sc-camel-on-click="{{ openSchAdd }}" class="gx-primary-action">+ Yeni Görev</button></div>
+        <div class="gx-page-head"><div><h2>Zamanlanmış işler</h2><p>Bir ajanın belirlediğin saatlerde senin yerine yapacağı işler.</p></div><button sc-camel-on-click="{{ openSchAdd }}" class="gx-primary-action">+ Yeni iş</button></div>
         <sc-if value="{{ schEmpty }}" hint-placeholder-val="{{ false }}">
         <div class="gx-howto">
           <div class="gx-howto-k">Nasıl çalışır</div>
@@ -2570,12 +2580,11 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
         <div class="gx-loop-wave"></div>
         <div class="gx-loop-head">
           <div>
-            <div class="gx-loop-k">EVREN TURU</div>
-            <div class="gx-loop-title">Döngü</div>
-            <div class="gx-loop-lead"><b style="color:var(--gx-ink)">Döngü nedir?</b> Seçili çalışma alanındaki projeleri tarar, bir ajanı çalıştırır, notunu alır ve rapor üretir. Beş adım: Başlat → Tara → Çalıştır → İncele → Bildir.</div>
+            <div class="gx-loop-title">Proje taraması</div>
+            <div class="gx-loop-lead">Bu çalışma alanındaki tüm projeleri tek seferde tarar; bir ajan durumu inceler, sen notunu eklersin ve rapor e-postayla gelir.</div>
           </div>
           <div class="gx-loop-head-r">
-            <div class="gx-loop-meta">Şu an: {{ loopStepTitle }} · Son tur: {{ loopLastRun }} · Ajan: {{ loopAgentName }}</div>
+            <div class="gx-loop-meta">Son tarama: {{ loopLastRun }} · Ajan: {{ loopAgentName }}</div>
             <button sc-camel-on-click="{{ loopRunAll }}" class="gx-run gx-loop-cta">{{ loopCtaLabel }}</button>
           </div>
         </div>
@@ -2613,7 +2622,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
           </sc-if>
         </div>
         <div class="gx-dock-wrap">
-          <div class="gx-dock-k">İş ajanı — turda bu koşar</div>
+          <div class="gx-dock-k">Raporu yazacak ajan</div>
           <div class="gx-dock">
             <sc-for list="{{ loopAgents }}" as="la" hint-placeholder-count="5">
               <button sc-camel-on-click="{{ la.onClick }}" style="{{ la.style }}"><div style="font-size:13px;font-weight:600">{{ la.name }}</div><div style="font-size:10px;color:var(--gx-dim);margin-top:3px;line-height:1.3">{{ la.role }}</div><sc-if value="{{ la.selected }}" hint-placeholder-val="{{ false }}"><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;color:var(--gx-accent);margin-top:6px">seçili · İş</div></sc-if></button>
@@ -2628,8 +2637,8 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
         <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div>
             <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.28em;color:var(--gx-accent);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px"><span style="{{ mailEyebrowDotStyle }}"></span><span>{{ mailEyebrowLabel }}</span></div>
-            <div style="font-size:26px;font-weight:500;letter-spacing:-.02em;color:var(--gx-ink);margin-bottom:6px">Posta</div>
-            <div style="font-size:13.5px;color:var(--gx-dim);max-width:54ch;line-height:1.55">Gelen kutuyu oku, yeni e-posta yaz. MCP Ayarlar → Posta’daki araçlarla gider.</div>
+            <div style="font-size:24px;font-weight:650;letter-spacing:-.02em;color:var(--gx-ink);margin-bottom:6px">E-posta</div>
+            <div style="font-size:13.5px;color:var(--gx-dim);max-width:54ch;line-height:1.55">Gelen kutunu oku, yeni e-posta yaz; ajan raporları da buraya gelir.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button sc-camel-on-click="{{ mailInboxTab }}" style="{{ mailInboxTabStyle }}">Gelen</button>
@@ -2690,7 +2699,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 
     <sc-if value="{{ viewServers }}" hint-placeholder-val="{{ false }}">
       <div class="gx-workspace" style="position:absolute;inset:0;padding:26px;overflow:auto;animation:fadeUp .35s ease both">
-        <div class="gx-page-head"><div><div class="gx-scene">Sunucular</div><h2>Uzak çalışma alanları</h2><p>SSH ile uzak bir sunucu bağla; klasörleri yerel çalışma alanları gibi tek yerden yönet.</p></div><button sc-camel-on-click="{{ openSrvAdd }}" class="gx-primary-action">+ Sunucu Ekle</button></div>
+        <div class="gx-page-head"><div><h2>SSH sunucuları</h2><p>Uzak bir sunucu bağla; klasörlerini yerel projeler gibi kullan.</p></div><button sc-camel-on-click="{{ openSrvAdd }}" class="gx-primary-action">+ Sunucu ekle</button></div>
         <sc-if value="{{ noServers }}" hint-placeholder-val="{{ false }}">
         <div class="gx-howto">
           <div class="gx-howto-k">SSH nasıl bağlanır</div>
@@ -3198,30 +3207,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 
   <aside class="gx-chrome gx-ctxrail" role="complementary" aria-label="Bağlam" style="grid-area:agents;border-left:1px solid var(--gx-line);display:flex;overflow:hidden">
     <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;padding:12px 10px;overflow-x:hidden;overflow-y:auto">
-      <div>
-        <div class="gx-scene" style="font-size:10px;margin-bottom:8px">Nerede kaldın</div>
-        <div data-noi18n style="font-size:14px;font-weight:650;color:var(--gx-ink);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selName }}</div>
-        <div data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-accent);margin-top:3px">⎇ {{ gitBranchName }}</div>
-        <div data-noi18n title="{{ projPath }}" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-faint);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ projPathShort }}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--gx-dim);margin-top:8px;padding:6px 8px;border:1px solid var(--gx-line-soft);border-radius:8px;background:rgba(106,167,255,.06)">{{ ctxLastHint }}</div>
-        <div style="position:relative;margin-top:8px">
-          <button type="button" sc-camel-on-click="{{ toggleNotif }}" title="Bildirimler ve arka plan işleri" style="width:100%;text-align:left;padding:6px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--gx-line);border-radius:7px;background:transparent;color:var(--gx-dim);cursor:pointer">🔔 Bildirimler<sc-if value="{{ hasNotifs }}" hint-placeholder-val="{{ false }}"><span style="color:var(--gx-accent);font-weight:700"> {{ notifCount }}</span></sc-if></button>
-          <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
-            <span style="position:absolute;right:0;top:36px;width:260px;z-index:40;display:block;border:1px solid var(--gx-line);border-radius:10px;background:linear-gradient(172deg,rgba(13,18,36,.99),rgba(5,8,18,.99));box-shadow:0 24px 60px rgba(0,0,0,.65);padding:10px 12px;text-align:left;cursor:default">
-              <span style="display:block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gx-dim);text-transform:uppercase;margin-bottom:6px">Bildirimler</span>
-              <sc-for list="{{ notifsList }}" as="nf" hint-placeholder-count="2"><span style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(190,205,255,.06);font-size:11.5px"><span>{{ nf.icon }}</span><span style="flex:1;min-width:0"><span data-noi18n style="display:block;color:var(--gx-ink)">{{ nf.label }}</span><span data-noi18n style="display:block;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nf.meta }}</span></span></span></sc-for>
-              <sc-if value="{{ hasNotifs }}" hint-placeholder-val="{{ false }}"><span style="display:block;font-size:11px;color:var(--gx-dim);padding:6px 0">Henüz bildirim yok — test ve arka plan işleri buraya düşer.</span></sc-if>
-              <span style="display:flex;gap:6px;margin-top:8px"><input data-noi18n value="{{ jobCmd }}" placeholder="arka plan komutu (örn. npm test)" sc-camel-on-input="{{ onJobCmd }}" sc-camel-on-key-down="{{ jobCmdKey }}" style="flex:1;min-width:0;background:var(--gx-panel-2);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:6px 8px;border-radius:6px;outline:none" /><button type="button" sc-camel-on-click="{{ jobStartBtn }}" style="padding:6px 9px;border:1px solid var(--gx-accent);border-radius:6px;background:rgba(106,167,255,.1);color:var(--gx-accent);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px">▶ İş</button><button type="button" sc-camel-on-click="{{ jobsRefresh }}" style="padding:6px 7px;border:1px solid var(--gx-line);border-radius:6px;background:none;color:var(--gx-dim);cursor:pointer;font-size:10.5px">↻</button></span>
-              <sc-for list="{{ jobsList }}" as="jb" hint-placeholder-count="2"><span style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid rgba(190,205,255,.06);font-size:11px"><span data-noi18n style="flex:1;min-width:0;color:var(--gx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ jb.label }}</span><span data-noi18n style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--gx-dim)">{{ jb.meta }}</span><sc-if value="{{ jb.running }}" hint-placeholder-val="{{ false }}"><button type="button" sc-camel-on-click="{{ jb.onStop }}" style="border:1px solid rgba(239,107,123,.4);background:none;color:var(--gx-err);border-radius:5px;cursor:pointer;font-size:10px;padding:2px 6px">durdur</button></sc-if></span></sc-for>
-            </span>
-          </sc-if>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:5px">
-        <sc-for list="{{ ctxJumps }}" as="cj" hint-placeholder-count="5"><button type="button" sc-camel-on-click="{{ cj.onClick }}" style="{{ cj.style }}">{{ cj.label }}</button></sc-for>
-      </div>
-      <div style="height:1px;background:var(--gx-line);margin:2px 0"></div>
-      <div class="gx-scene" style="font-size:10px">İstasyon</div>
+      <div style="font-size:12px;font-weight:600;color:var(--gx-dim)">Ajanlar</div>
       <sc-for list="{{ agents }}" as="a" hint-placeholder-count="5">
         <button sc-camel-on-click="{{ a.onClick }}" title="{{ a.pulseTitle }}" class="gx-id-card" style="{{ a.cardStyle }}">
           <span style="{{ a.btnStyle }}">
@@ -3235,9 +3221,6 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
         </button>
       </sc-for>
       <button sc-camel-on-click="{{ agentAdd }}" title="Yeni ajan ekle" style="width:44px;height:44px;border-radius:50%;cursor:pointer;background:transparent;border:1px dashed color-mix(in srgb, var(--gx-accent) 40%, transparent);color:var(--gx-accent);font-size:18px;padding:0;line-height:1">+</button>
-      <sc-if value="{{ orbInRail }}" hint-placeholder-val="{{ true }}">
-      <button type="button" id="ga-orbwrap" class="ga-orbwrap" title="Kaptan" aria-label="Kaptan" sc-camel-on-click="{{ asstToggle }}" style="border:none;background:transparent;padding:0;{{ asstOrbStyle }}"><canvas class="ga-orb-canvas" width="222" height="222"></canvas></button>
-      </sc-if>
     </div>
   </aside>
 

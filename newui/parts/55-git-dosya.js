@@ -496,7 +496,7 @@
   enter(){
     this._planAuto=null; const p=this.sel; this._recentTouch(p&&p.id);
     const cons=this._consoleCollapsedPref();
-    const ns={mode:'planet', tab:'evren', orbitView:false, holdPlanet:true, moreOpen:false, consoleCollapsed:cons, activityId:'explorer', leftTab:'agac', fileTabs:this._wsRestoreTabs(p&&p.id), rightCollapsed:false, _history:null, _blame:null, _histShow:null, histBusy:false};
+    const ns={mode:'planet', tab:'evren', orbitView:false, holdPlanet:true, moreOpen:false, consoleCollapsed:cons, activityId:'explorer', leftTab:'agac', fileTabs:this._wsRestoreTabs(p&&p.id), _history:null, _blame:null, _histShow:null, histBusy:false};
     const prev=this._sessRead();
     const patch={mode:'planet', tab:'evren', selId:p&&p.id};
     if(!(prev&&p&&prev.selId===p.id)){ patch.lastFile=null; patch.lastFileName=null; }

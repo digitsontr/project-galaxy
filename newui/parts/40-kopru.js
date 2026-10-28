@@ -298,29 +298,28 @@
   showSetup(){ try{ localStorage.removeItem('gxSetupDismiss'); }catch(e){} this._setupForce=true; this.setState({_setupTick:(this.state._setupTick||0)+1}); }
   _helpCopy(){
     const map={
-      genel:['Özet','Kaldığın işe dön, bekleyen değişiklikleri incele ve açık görevlerini gör.'],
+      genel:['Ana Sayfa','Kaldığın işe dön, bekleyen değişiklikleri incele ve açık görevlerini gör.'],
       evren:['Projeler','Bir projeyi tek tıkla aç. j/k ile listede gezebilir, Enter ile seçili projeyi açabilirsin.'],
       planet:['Proje','Üst şerit dal, değişiklik, DB, compose ve port durumunu gösterir. Uzak projeler salt okunur.'],
-      db:['Veritabanı','Varsayılan kapsam seçili projedir. Parolalar Mac Anahtar Zinciri’nde tutulur.'],
-      docker:['Docker','Varsayılan kapsam seçili projenin compose servisleridir. Başlat, durdur ve logları incele.'],
-      pano:['Pano','Kartlar projelere bağlıdır. README eşitlemesi yalnız sen açarsan devreye girer.'],
-      zaman:['Zamanlayıcı','Haftalık/günlük ajan görevi. Claude yolu Ayarlar → Araçlar’da olmalı.'],
-      dongu:['Döngü','Çalışma alanını tara, ajanı çalıştır, sonucu incele ve raporla.'],
-      servers:['Sunucular','Parola saklanmaz. ~/.ssh anahtarı veya SSH config kullanılır; uzak klasör çalışma alanına eklenir.'],
+      db:['Veritabanları','Varsayılan kapsam seçili projedir. Parolalar Mac Anahtar Zinciri’nde tutulur.'],
+      docker:['Konteynerler','Varsayılan kapsam seçili projenin compose servisleridir. Başlat, durdur ve logları incele.'],
+      pano:['Görevler','Kartlar projelere bağlıdır. README eşitlemesi yalnız sen açarsan devreye girer.'],
+      zaman:['Zamanlanmış işler','Haftalık/günlük ajan işi. Claude yolu Ayarlar → Araçlar’da olmalı.'],
+      dongu:['Proje taraması','Tüm projeleri tara, ajan raporu yazsın, sen onayla, rapor e-postayla gelsin.'],
+      servers:['SSH sunucuları','Parola saklanmaz. ~/.ssh anahtarı veya SSH config kullanılır; uzak klasör çalışma alanına eklenir.'],
     };
     return map[this._helpKey()]||null;
   }
   _guideData(){ return [
-    ['Çalışma Alanları ve Projeler',['Projeler klasörlerine göre çalışma alanlarında düzenlenir','Üst menü: Özet / Projeler / DB / Docker / Pano','Sol listede projeyi tek tıkla aç; j / k ve Enter da kullanılabilir']],
-    ['Veritabanı',['DB → Veritabanı bağla (Postgres · MySQL · SQLite)','Parola Mac Anahtar Zinciri’nde şifreli tutulur','Yazma işlemleri onay ister']],
+    ['Çalışma Alanları ve Projeler',['Projeler klasörlerine göre çalışma alanlarında düzenlenir','Üst menü: Ana Sayfa / Görevler / Ajanlar / Otomasyonlar / Servisler','Sol listede projeyi tek tıkla aç; j / k ve Enter da kullanılabilir']],
+    ['Veritabanları',['Servisler → Veritabanları → bağlantı ekle (Postgres · MySQL · SQLite)','Parola Mac Anahtar Zinciri’nde şifreli tutulur','Yazma işlemleri onay ister']],
     ['Git ve GitHub',['Önce farkı incele, dosyaları hazırla, sonra commit et','Push ve PR ayrı işlemlerdir','GitHub oturumu Terminal’de gh auth login ile açılır']],
     ['Docker',['Varsayılan kapsam seçili projenin compose servisleridir','Başlat, durdur ve log işlemleri compose.yaml üzerinden çalışır','Port dinlemiyorsa log görünümü açılır']],
     ['Posta',['Postalar Galaxy’de saklanmaz; MCP bağlantısı gerekir','Bağlantı Ayarlar → Posta bölümünden yapılandırılır']],
     ['Uzak Sunucular',['Parola saklanmaz; ~/.ssh anahtarı veya SSH config kullanılır','Uzak klasör çalışma alanı olarak eklenebilir']],
-    ['Kaptan',['Üst bardaki Kaptan düğmesinden açılır','Token Galaxy’ye yazılmaz; Claude kendi girişini kullanır','Bağlamsal komutlar tek tıkla çalıştırılabilir']],
-    ['Zamanlayıcı',['Haftalık veya günlük otomatik görev kur','Uygulama kapalıysa kaçırılan görev açılışta telafi edilir','Üretilen raporlar alt panelde görünür']],
-    ['Döngü',['Çalışma alanını tara → ajanı çalıştır → sonucu incele → raporla']],
-    ['Pano, Dosyalar ve Konsol',['Pano görevleri projelere bağlar','Dosyalar orta panelde açılır; yörünge görünümü isteğe bağlıdır','Bash ve Claude konsolları proje klasöründe çalışır']],
+    ['Kaptan — dijital ikizin',['Üst bardaki Kaptan düğmesinden açılır','Token Galaxy’ye yazılmaz; Claude kendi girişini kullanır','Bağlamsal komutlar tek tıkla çalıştırılabilir']],
+    ['Otomasyonlar',['Zamanlanmış işler: haftalık veya günlük otomatik iş kur','Uygulama kapalıysa kaçırılan iş açılışta telafi edilir','Proje taraması: tüm projeleri tara → ajan raporu yazar → sen onayla → e-postayla gelir']],
+    ['Görevler, Dosyalar ve Konsol',['Görevler projelere bağlıdır','Dosyalar orta panelde açılır; yörünge görünümü isteğe bağlıdır','Bash ve Claude konsolları proje klasöründe çalışır']],
     ['⌘ Kısayollar',['⌘K — komut paleti / arama (↑↓ seç, Enter çalıştır)','j / k — uzayda gezegen seç (Enter = in)','Kaptan düğmesi açıkken «Kaptan» de — dinler, komutu yapar','F1 — bu rehber','⌘\\ — README gizle/göster','Esc — katman katman geri','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
   ]; }
   // Global bildirim (toast) — başarı/hata; ~4sn sonra kaybolur. Kaptan açıksa kısa kanıt satırı.
@@ -350,8 +349,25 @@
   // ---------- DOCKER ----------
   // Kadet kaldırıldı — görünüm her zaman tam (eski Komutan)
   _setUiMode(){ this.setState({uiMode:'komutan', moreOpen:false}); }
+  _navGroups(){ return [
+    {id:'genel', label:'Ana Sayfa', hint:'Bugün ne bekliyor ve tüm projeler', sub:[['genel','Bugün'],['evren','Projeler']]},
+    {id:'pano', label:'Görevler', hint:'Tüm projelerin yapılacaklar panosu'},
+    {id:'pixel', label:'Ajanlar', hint:'Yapay zekâ ajanların'},
+    {id:'zaman', label:'Otomasyonlar', hint:'Zamanlanmış işler, proje taraması, e-posta', sub:[['zaman','Zamanlanmış işler'],['dongu','Proje taraması'],['posta','E-posta']]},
+    {id:'db', label:'Servisler', hint:'Veritabanları, konteynerler, SSH sunucuları', sub:[['db','Veritabanları'],['docker','Konteynerler'],['servers','SSH sunucuları']]},
+  ]; }
+  _navGroupOf(tab){ return this._navGroups().find(g=>g.id===tab||(g.sub||[]).some(s=>s[0]===tab))||null; }
+  _openNavGroup(gid){
+    const g=this._navGroups().find(x=>x.id===gid); if(!g) return;
+    const cur=this._navGroupOf(this.state.tab);
+    if(this.state.mode!=='planet'&&cur&&cur.id===gid) return;
+    let id=g.id;
+    try{ const last=localStorage.getItem('gxNavLast::'+gid); if(last&&(g.sub||[]).some(s=>s[0]===last)) id=last; }catch(e){}
+    this._openTab(id);
+  }
   // Üst sekme: sahneyi değiştir ama gezegen bağlamını (holdPlanet) silme
   _openTab(id){
+    try{ const g=this._navGroupOf(id); if(g&&g.sub) localStorage.setItem('gxNavLast::'+g.id, id); }catch(e){}
     if(id==='egitim') id='genel';
     const fromPlanet=this.state.mode==='planet';
     const ns={tab:id, agentId:null, moreOpen:false};
@@ -382,16 +398,16 @@
   }catch(e){} }
   _loopAgent(){ const st=this.state; return (this.AGENTS||[]).find(a=>a.id===st.loopAgentId)||(this.AGENTS||[])[0]||null; }
   _loopOrder(){ return ['tetik','tara','is','incele','bildir']; }
-  _loopTitles(){ return {tetik:'Tetik',tara:'Tara',is:'İş',incele:'İncele',bildir:'Bildir'}; }
+  _loopTitles(){ return {tetik:'Başlat',tara:'Tara',is:'Ajan çalışır',incele:'Onayla',bildir:'Haber ver'}; }
   _loopDesc(id){
     const ag=this._loopAgent();
     return ({
-      tetik:'Başlat. «Turu başlat» ya da Zamanlayıcı bu adımı tetikler.',
-      tara:'Bu evrendeki gezegenlere bakar: durgun gün, kirli git, açık plan.',
-      is:'Seçili ajanı ('+((ag&&ag.name)||'—')+') taramanın üstüne koşar.',
-      incele:'Tur durur. Notunu yaz, kaydet — bir sonraki tura taşınır.',
-      bildir:'Kısa toast + Kaptan posta taslağı. MCP bağlıysa gönderir.'
-    })[id]||'Döngü: bir tıkla evren taraması. Tetik → Tara → İş → İncele → Bildir.';
+      tetik:'«Taramayı başlat» düğmesi ya da bir zamanlanmış iş taramayı başlatır.',
+      tara:'Bu çalışma alanındaki projelere bakar: kaç gündür dokunulmadı, commit bekleyen değişiklik, açık plan.',
+      is:(((ag&&ag.name)||'Seçili ajan'))+' tarama sonucunu okuyup raporu yazar.',
+      incele:'Tarama burada durur. Notunu yaz ve kaydet; bir sonraki taramaya taşınır.',
+      bildir:'Kısa bir bildirim gösterir ve e-posta taslağı hazırlar. Posta bağlıysa gönderir.'
+    })[id]||'Proje taraması: Başlat → Tara → Ajan çalışır → Onayla → Haber ver.';
   }
   _loopRemember(id, text){ this._loopOutByStep=this._loopOutByStep||{}; this._loopOutByStep[id]=String(text||''); }
   _loopFocusId(){ const st=this.state||{}; return st.loopFocus||st.loopStep||null; }
@@ -425,8 +441,8 @@
     const order=this._loopOrder(); const cur=order.indexOf(st.loopStep);
     const focus=this._loopFocusId();
     const meta={
-      tetik:['Tetik','Turu başlatır'], tara:['Tara','Evreni tarar (stale / git / plan)'],
-      is:['İş','Seçili ajanı koşar · '+((ag&&ag.name)||'ajan')], incele:['İncele','Senin notun'], bildir:['Bildir','Toast + posta']
+      tetik:['Başlat','Taramayı başlatır'], tara:['Tara','Projelere bakar: sessiz, commit bekleyen, plan'],
+      is:['Ajan çalışır','Raporu '+((ag&&ag.name)||'ajan')+' yazar'], incele:['Onayla','Notunu ekle'], bildir:['Haber ver','Bildirim + e-posta']
     };
     const th=this._theme();
     const busy=!!st._agentBusy && st.loopStep==='is';
@@ -480,8 +496,8 @@
     if(id==='tetik'){
       const sch=(st._sched||[])[0];
       const body=sch
-        ? ('Tur tetiklendi.\nZamanlayıcı: '+(sch.name||sch.task||'görev')+' · '+(sch.when||sch.cron||''))
-        : 'Tur tetiklendi.\nElle «Turu başlat» — veya Zamanlayıcı’dan otomatik tur bağla.';
+        ? ('Tarama başladı.\nZamanlanmış iş: '+(sch.name||sch.task||'iş')+' · '+(sch.when||sch.cron||''))
+        : 'Tarama başladı.\nElle başlattın. Düzenli çalışsın istersen «Zamanlanmış işler»den saat ekle.';
       this._loopRemember('tetik', body);
       this.setState({loopStep:'tetik', loopFocus:'tetik', loopBody:body});
       return;

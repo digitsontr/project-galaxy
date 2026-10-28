@@ -29,7 +29,7 @@ class Component extends DCLogic {
     trainingAddOpen:false, _trainingAddCat:'', trainingAddNewCat:'', _trainingAddFiles:[], _trainingAddBusy:false, _trainingAddErr:'',
     _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     _conBusy:false, _claudeOk:null, _githubOk:null, _githubMsg:'', _hubPulse:null, planInput:'',
-    leftCollapsed:false, rightCollapsed:false, activityId:'explorer', consoleCollapsed:true, _helpTick:0, splashOpen:true, _masBlocked:false,
+    leftCollapsed:false, rightCollapsed:true, activityId:'explorer', consoleCollapsed:true, _helpTick:0, splashOpen:true, _masBlocked:false,
     _leftPeek:false, _rightPeek:false, _lastSurface:'',
     schAddOpen:false, _schResult:'', schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},
     consoleH:240, hudH:128, agentFormOpen:false, agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''},
@@ -79,7 +79,7 @@ class Component extends DCLogic {
     if(this.state._lastSurface!==key) this.setState({_lastSurface:key});
   }
   _surfaceLabel(id){
-    return ({genel:'Özet',evren:'Projeler',db:'Veritabanı',docker:'Docker',pano:'Pano',zaman:'Zaman',dongu:'Döngü',posta:'Posta',servers:'SSH',pixel:'Agents',git:'Git',dev:'Geliştir',agac:'Ağaç',dosya:'Dosya'}[id])||id||'';
+    return ({genel:'Ana Sayfa',evren:'Projeler',db:'Veritabanları',docker:'Konteynerler',pano:'Görevler',zaman:'Zamanlanmış işler',dongu:'Proje taraması',posta:'E-posta',servers:'SSH sunucuları',pixel:'Ajanlar',git:'Değişiklikler',dev:'Çalıştır',agac:'Dosyalar',dosya:'Dosya'}[id])||id||'';
   }
   _chromeMove(e){
     if(this._barDragging) return;
@@ -342,7 +342,7 @@ class Component extends DCLogic {
     if(this.state.splashOpen){ clearTimeout(this._splashT); this._splashT=setTimeout(()=>this.dismissSplash(),1600); }
     try{ if(localStorage.getItem('gxReadmeOpen')==='1') this.state.readmeOpen=true; else this.state.readmeOpen=false; }catch(e){}
     try{ const lt=localStorage.getItem('gxLeftTab'); if(lt==='kayit'||lt==='agac'||lt==='git'||lt==='dev') this.state.leftTab=lt; }catch(e){}
-    try{ const rc=localStorage.getItem('gxRightCollapsed'); if(rc==='1') this.state.rightCollapsed=true; else this.state.rightCollapsed=false; }catch(e){}
+    try{ this.state.rightCollapsed = localStorage.getItem('gxRightPanel')!=='open'; }catch(e){ this.state.rightCollapsed=true; }
     try{ const ls=JSON.parse(localStorage.getItem('gxLastSurface')||'null'); if(ls&&ls.tab) this.state._lastSurface=ls.tab; }catch(e){}
     try{ this._applyTheme(); }catch(e){ this._uiTheme='apex'; }
     this._waitThree(0);

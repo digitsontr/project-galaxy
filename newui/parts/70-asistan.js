@@ -421,8 +421,12 @@
     for(const u of us){ if(!u.id) continue; const s=this._asstNameScore(q,u.name||''); if(s>bs){ bs=s; best=u; } }
     return bs>=28?best:null; }
   _asstTabId(arg){ const a=this._asstFold(arg||''); if(!a) return '';
-    if(/(^| )(genel|ozet|özet|overview|dashboard)( |$)/.test(a)||a==='genel') return 'genel';
-    if(/(^| )(evren|galaksi|universe)( |$)/.test(a)||a==='evren') return 'evren';
+    if(/(^| )(genel|ozet|özet|overview|dashboard|ana sayfa|anasayfa|home|bugun|bugün)( |$)/.test(a)||a==='genel') return 'genel';
+    if(/(^| )(evren|galaksi|universe|projeler)( |$)/.test(a)||a==='evren') return 'evren';
+    if(/(^| )(ajan|ajanlar|agents?|toplanti|toplantı)( |$)/.test(a)) return 'pixel';
+    if(/(otomasyon|automation)/.test(a)) return 'zaman';
+    if(/(proje taramas|tarama)/.test(a)) return 'dongu';
+    if(/(servis|services)/.test(a)) return 'db';
     if(/(pano|kanban|todo|görev|gorev)/.test(a)) return 'pano';
     if(/(veritaban|(^| )db( |$)|sql)/.test(a)) return 'db';
     if(/(docker|konteyner|container)/.test(a)) return 'docker';
@@ -431,7 +435,7 @@
     if(/(posta|gmail|e-?posta|(^| )mail( |$))/.test(a)) return 'posta';
     if(/(sunucu|ssh|servers?)/.test(a)) return 'servers';
     return ''; }
-  _asstTabLabel(id){ return {genel:'Özet',evren:'Evren',pano:'Pano',db:'Veritabanı',docker:'Docker',zaman:'Zamanlayıcı',dongu:'Döngü',posta:'Posta',servers:'Sunucular'}[id]||id; }
+  _asstTabLabel(id){ return {genel:'Ana Sayfa',evren:'Projeler',pano:'Görevler',pixel:'Ajanlar',db:'Veritabanları',docker:'Konteynerler',zaman:'Zamanlanmış işler',dongu:'Proje taraması',posta:'E-posta',servers:'SSH sunucuları'}[id]||id; }
   _asstCtx(){
     const pw=this.state._pw||{};
     const bits=[];
