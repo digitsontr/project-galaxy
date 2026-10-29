@@ -301,14 +301,14 @@ app.whenReady().then(async () => {
     check('devtools-problems-strip', dtVals, 'sorun şeridi');
     // ---- FAZ 2 ----
     // Sembol haritası açılır
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.textContent||''); }); if(b) b.click(); })(); true`);
     await wait(400);
     const symOk = await js(`(document.body.innerText||'').toLocaleUpperCase('tr-TR').includes('SEMBOL HARİTASI')`);
     check('faz2-symbols', symOk, 'sembol paneli');
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.textContent||''); }); if(b) b.click(); })(); true`);
     await wait(200);
     // Geçmiş paneli (mock commit)
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Geçmiş/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Geçmiş/.test(x.textContent||''); }); if(b) b.click(); })(); true`);
     await wait(700);
     const histOk = await js(`(document.body.innerText||'').includes('health endpoint')`);
     check('faz2-history', histOk, 'zaman çizelgesi + blame');

@@ -1785,6 +1785,8 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
   .gx-px-btn:hover,.gx-px-act:hover,.gx-stat:hover,.gx-project-tile:hover{transform:none}
 }
 /* ---- Ortak düğme / rozet / boş durum ---- */
+:where(button,input,textarea,select){font-family:inherit}
+.gx-salon ::-webkit-scrollbar,.gx-ws ::-webkit-scrollbar{width:6px;height:6px}
 .gx-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:0 14px;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;background:none;color:var(--gx-ink);white-space:nowrap}
 .gx-btn.primary{background:var(--gx-accent);color:#04101c;font-weight:600}
 .gx-btn.primary:hover{filter:brightness(1.08)}
@@ -1800,10 +1802,10 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 .gx-pill.run{color:var(--gx-accent);background:color-mix(in srgb, var(--gx-accent) 14%, transparent)}
 .gx-pill.warn{color:var(--gx-warn);background:color-mix(in srgb, var(--gx-warn) 14%, transparent)}
 .gx-pill.ok{color:var(--gx-ok);background:color-mix(in srgb, var(--gx-ok) 14%, transparent)}
-.gx-av{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:38px;border-radius:10px;border:1px solid;font-weight:700;font-size:16px}
-.gx-av.sm{width:28px;height:28px;font-size:12px;border-radius:8px}
+.gx-av{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:38px;border-radius:50%;border:1px solid;font-weight:700;font-size:16px}
+.gx-av.sm{width:28px;height:28px;font-size:12px}
 .gx-av.lg{width:40px;height:40px}
-.gx-av.xl{width:64px;height:64px;font-size:26px;border-radius:16px;margin-bottom:14px}
+.gx-av.xl{width:64px;height:64px;font-size:26px;margin-bottom:14px}
 .gx-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 20px;color:var(--gx-dim)}
 .gx-empty-t{font-size:16px;font-weight:600;color:var(--gx-ink);margin-bottom:6px}
 .gx-empty-b{font-size:13px;line-height:1.55;max-width:420px}
@@ -1814,7 +1816,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 .gx-salon-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:24px 28px 18px;border-bottom:1px solid var(--gx-line-soft)}
 .gx-salon-head h1{margin:0 0 6px;font-size:22px;font-weight:600;color:var(--gx-ink)}
 .gx-salon-head p{margin:0;max-width:720px;font-size:13.5px;line-height:1.55;color:var(--gx-dim)}
-.gx-salon-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 440px}
+.gx-salon-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 440px;grid-template-rows:minmax(0,1fr)}
 .gx-salon-team{overflow:auto;padding:20px 28px 28px}
 .gx-salon h2{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--gx-dim)}
 .gx-salon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
@@ -1836,15 +1838,16 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 .gx-chip.on{color:var(--gx-ink);border-color:color-mix(in srgb, var(--gx-accent) 55%, transparent);background:color-mix(in srgb, var(--gx-accent) 10%, transparent)}
 .gx-chip.on i{opacity:1}
 .gx-salon-run{display:flex;align-items:center;gap:10px}
-.gx-salon-feed{flex:1;min-height:120px;overflow:auto;display:flex;flex-direction:column;gap:14px;padding-top:4px}
+.gx-salon-feed{flex:1;min-height:140px;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:14px;border:1px solid var(--gx-line-soft);border-radius:12px;background:color-mix(in srgb, var(--gx-bg) 55%, transparent)}
 .gx-salon-view{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--gx-dim);padding-bottom:8px;border-bottom:1px solid var(--gx-line-soft)}
 .gx-salon-turn{display:flex;gap:10px}
 .gx-salon-turn-b{flex:1;min-width:0;font-size:13px;color:var(--gx-dim);line-height:1.55}
 .gx-salon-turn-h{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px;color:var(--gx-ink)}
 .gx-salon-turn-s{font-size:12px;color:var(--gx-faint)}
 .gx-salon-sum{padding:14px 16px;border-radius:12px;border:1px solid color-mix(in srgb, var(--gx-accent) 35%, transparent);background:color-mix(in srgb, var(--gx-accent) 6%, transparent);font-size:13px;color:var(--gx-dim);line-height:1.55}
-.gx-salon-histwrap{display:flex;flex-direction:column;gap:4px;max-height:170px;overflow:auto;border-top:1px solid var(--gx-line-soft);padding-top:10px}
-.gx-salon-hist{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 10px;border-radius:8px;border:none;background:none;text-align:left;cursor:pointer}
+.gx-salon-histwrap{display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto;flex-shrink:0}
+.gx-salon-histwrap>.gx-salon-lbl{padding:0 10px 4px}
+.gx-salon-hist{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:7px 10px;border-radius:8px;border:none;background:none;text-align:left;cursor:pointer}
 .gx-salon-hist:hover,.gx-salon-hist.on{background:color-mix(in srgb, var(--gx-ink) 5%, transparent)}
 .gx-salon-hist-t{font-size:13px;color:var(--gx-ink)}
 .gx-salon-hist-m{font-size:11.5px;color:var(--gx-faint)}
@@ -1855,9 +1858,9 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 .gx-ws-id{min-width:0}
 .gx-ws-nm{font-size:16px;font-weight:600;color:var(--gx-ink)}
 .gx-ws-rl{font-size:12px;color:var(--gx-dim)}
-.gx-ws-ctx{font-size:12px;color:var(--gx-dim);padding:3px 9px;border:1px solid var(--gx-line);border-radius:6px}
+.gx-ws-ctx{font-size:12px;color:var(--gx-dim);padding:3px 10px;border:1px solid var(--gx-line);border-radius:999px}
 .gx-ws-tools-r{margin-left:auto;display:flex;align-items:center;gap:4px}
-.gx-ws-body{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr)}
+.gx-ws-body{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
 .gx-ws-side{overflow:auto;padding:20px;border-right:1px solid var(--gx-line-soft)}
 .gx-ws-side h3{margin:0 0 10px;font-size:12.5px;font-weight:600;color:var(--gx-faint)}
 .gx-ws-side ul{margin-bottom:24px}
@@ -1867,6 +1870,10 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 .gx-ws-main{display:flex;flex-direction:column;min-height:0}
 .gx-ws-feed{flex:1;min-height:0;overflow:auto;padding:24px max(24px, calc((100% - 900px) / 2));display:flex;flex-direction:column;gap:18px}
 .gx-ws-msg.u{display:flex;justify-content:flex-end}
+.gx-ws-msg.a{display:flex;gap:12px}
+.gx-ws-msg.a>.gx-av{margin-top:1px}
+.gx-ws-msg-b{flex:1;min-width:0}
+.gx-ws-msg-h{font-size:13px;font-weight:600;color:var(--gx-ink);margin-bottom:6px}
 .gx-ws-bubble{max-width:75%;white-space:pre-wrap;font-size:14px;line-height:1.55;padding:10px 14px;border-radius:14px 14px 4px 14px;background:color-mix(in srgb, var(--gx-accent) 14%, transparent);color:var(--gx-ink)}
 .gx-ws-doc{font-size:14px!important;padding:0!important;max-width:none!important}
 .gx-ws-think{font-size:13px;color:var(--gx-faint)}
@@ -1874,7 +1881,7 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 .gx-ws-steps summary{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gx-ws-steps div{padding:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gx-ws-compose{display:flex;align-items:flex-end;gap:10px;padding:14px max(24px, calc((100% - 900px) / 2)) 18px;border-top:1px solid var(--gx-line-soft)}
-.gx-ws-compose .gx-input{resize:none;min-height:46px;max-height:200px}
+.gx-ws-compose .gx-input{resize:none;height:46px;min-height:46px;max-height:200px;field-sizing:content;line-height:1.45;padding-top:12px;padding-bottom:12px}
 .gx-ws-compose .gx-btn{min-height:46px}
 .gx-resume{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--gx-line-soft)}
 .gx-resume-k{font-size:12px;font-weight:600;color:var(--gx-dim)}
@@ -1884,6 +1891,18 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
 .gx-resume-br{font-family:var(--gx-mono);font-size:11px;color:var(--gx-dim)}
 .gx-resume-go{padding:7px 10px;border-radius:8px;border:none;background:color-mix(in srgb, var(--gx-accent) 12%, transparent);color:var(--gx-accent);font-size:12.5px;text-align:left;cursor:pointer}
 .gx-resume-go:hover{background:color-mix(in srgb, var(--gx-accent) 20%, transparent)}
+.gx-menu{position:relative;flex-shrink:0}
+.gx-menu>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:26px;border:1px solid var(--gx-line);border-radius:7px;color:var(--gx-dim);cursor:pointer;font-size:14px;line-height:1}
+.gx-menu>summary::-webkit-details-marker{display:none}
+.gx-menu[open]>summary,.gx-menu>summary:hover{color:var(--gx-ink);border-color:color-mix(in srgb, var(--gx-accent) 45%, var(--gx-line))}
+.gx-menu-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:40;display:flex;flex-direction:column;gap:2px;min-width:210px;padding:6px;border:1px solid var(--gx-line);border-radius:10px;background:var(--gx-panel-2, #121722);box-shadow:0 18px 40px rgba(0,0,0,.55)}
+.gx-menu-pop>button,.gx-menu-pop sc-if>button{display:block;width:100%;text-align:left;padding:7px 10px;border:none;border-radius:6px;background:none;color:var(--gx-ink);font-size:12.5px;cursor:pointer}
+.gx-menu-pop button:hover{background:color-mix(in srgb, var(--gx-ink) 7%, transparent)}
+.gx-menu-row{display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:12.5px;color:var(--gx-dim)}
+.gx-menu-row>span:first-child{flex:1}
+.gx-menu-row>button{padding:3px 8px;border:1px solid var(--gx-line);border-radius:6px;background:none;color:var(--gx-ink);cursor:pointer;font-size:12px}
+.gx-menu-row>span:last-of-type{font-family:var(--gx-mono);font-size:11px;color:var(--gx-faint)}
+.gx-menu-sep{height:1px;margin:4px 6px;background:var(--gx-line-soft)}
 .gx-subnav{display:flex;align-items:center;gap:4px;padding:10px 26px 0;border-bottom:1px solid var(--gx-line-soft);flex-shrink:0}
 .gx-subnav>button{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;padding:8px 12px 10px;margin-bottom:-1px;cursor:pointer;background:none;border:none;border-bottom:2px solid transparent;color:var(--gx-dim)}
 .gx-subnav>button:hover{color:var(--gx-ink)}
@@ -2961,24 +2980,26 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
               <span style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-wrap:wrap">
                 <input data-noi18n value="{{ pvFind }}" placeholder="dosyada bul…" sc-camel-on-input="{{ onPvFindInput }}" sc-camel-on-key-down="{{ onPvFindKey }}" style="width:118px;background:var(--gx-panel-2);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 8px;border-radius:6px;outline:none" />
                 <sc-if value="{{ hasPvFindCount }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-dim)">{{ pvFindCount }}</span></sc-if>
-                <button type="button" sc-camel-on-click="{{ togglePvWrap }}" style="{{ pvWrapBtnStyle }}" title="Satır kaydır">Kaydır</button>
-                <button type="button" sc-camel-on-click="{{ pvFontDec }}" title="Yazıyı küçült" style="padding:4px 7px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">A−</button>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gx-faint)">{{ pvFontLabel }}</span>
-                <button type="button" sc-camel-on-click="{{ pvFontInc }}" title="Yazıyı büyüt" style="padding:4px 7px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">A+</button>
-                <button type="button" sc-camel-on-click="{{ reloadPreview }}" title="Dosyayı diskten yeniden yükle" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">↻ Yenile</button>
-                <button type="button" sc-camel-on-click="{{ openSym }}" title="Sembol haritası (⌘⇧O) — fonksiyon/sınıf listesi" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">§ Semboller</button>
-                <button type="button" sc-camel-on-click="{{ loadHistory }}" title="Dosya geçmişi + blame" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">◷ Geçmiş</button>
-                <button type="button" sc-camel-on-click="{{ toggleSplitEditor }}" title="Bölünmüş editör (yan panel)" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">◧ Böl</button>
                 <button type="button" sc-camel-on-click="{{ aiReviewDiff }}" title="Değişiklikleri Claude'a incelet" style="padding:4px 8px;border:1px solid rgba(165,150,232,.45);border-radius:6px;background:rgba(165,150,232,.08);color:#a596e8;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">🤖 Diff incele</button>
+                <details class="gx-menu"><summary title="Diğer araçlar">⋯</summary><div class="gx-menu-pop">
+                  <button type="button" data-keep sc-camel-on-click="{{ togglePvWrap }}" title="Satır kaydır">{{ pvWrapLabel }}</button>
+                  <div class="gx-menu-row"><span>Yazı</span><button type="button" data-keep sc-camel-on-click="{{ pvFontDec }}" title="Yazıyı küçült">A−</button><span>{{ pvFontLabel }}</span><button type="button" data-keep sc-camel-on-click="{{ pvFontInc }}" title="Yazıyı büyüt">A+</button></div>
+                  <button type="button" sc-camel-on-click="{{ reloadPreview }}" title="Dosyayı diskten yeniden yükle">↻ Yenile</button>
+                  <button type="button" sc-camel-on-click="{{ openSym }}" title="Sembol haritası (⌘⇧O) — fonksiyon/sınıf listesi">§ Semboller</button>
+                  <button type="button" sc-camel-on-click="{{ loadHistory }}" title="Dosya geçmişi + blame">◷ Geçmiş</button>
+                  <button type="button" sc-camel-on-click="{{ toggleSplitEditor }}" title="Bölünmüş editör (yan panel)">◧ Böl</button>
+                  <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><div class="gx-menu-sep"></div>
+                    <button type="button" sc-camel-on-click="{{ togglePvAutosave }}" title="Yazarken otomatik kaydet (1,4 sn gecikmeli)">{{ pvAutosaveLabel }}</button>
+                    <button type="button" sc-camel-on-click="{{ toggleFmtOnSave }}" title="prettier / eslint --fix / ruff / gofmt">{{ fmtLabel }}</button>
+                    <button type="button" sc-camel-on-click="{{ debugCurrentFile }}" title="Node Inspector ile başlat (breakpoint: Chrome DevTools)">Hata ayıkla (Node)</button>
+                    <button type="button" sc-camel-on-click="{{ aiExplain }}" title="Seçili kodu Claude'a açıkla">Claude: seçimi açıkla</button>
+                    <button type="button" sc-camel-on-click="{{ aiFix }}" title="Seçili kodu incelet">Claude: seçimi düzelt</button>
+                    <button type="button" sc-camel-on-click="{{ aiTest }}" title="Bu dosya için test yazdır">Claude: test yaz</button>
+                  </sc-if>
+                </div></details>
                 <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
                   <input data-noi18n value="{{ pvReplace }}" placeholder="değiştir…" sc-camel-on-input="{{ onPvReplaceInput }}" style="width:96px;background:var(--gx-panel-2);border:1px solid var(--gx-line);color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 8px;border-radius:6px;outline:none" />
                   <button type="button" sc-camel-on-click="{{ pvReplaceAll }}" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">Tümünü değiştir</button>
-                  <button type="button" sc-camel-on-click="{{ togglePvAutosave }}" style="{{ pvAutosaveBtnStyle }}" title="Yazarken otomatik kaydet (1,4 sn gecikmeli)">oto-kaydet</button>
-                  <button type="button" sc-camel-on-click="{{ toggleFmtOnSave }}" style="{{ fmtBtnStyle }}" title="Kaydederken biçimlendir (prettier / eslint --fix / ruff / gofmt)">fmt</button>
-                  <button type="button" sc-camel-on-click="{{ debugCurrentFile }}" title="Bu JS dosyasını Node Inspector ile başlat (breakpoint: Chrome DevTools)" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">🐛</button>
-                  <button type="button" sc-camel-on-click="{{ aiExplain }}" title="Seçili kodu Claude'a açıkla" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">Açıkla</button>
-                  <button type="button" sc-camel-on-click="{{ aiFix }}" title="Seçili kodu incelet" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">Düzelt</button>
-                  <button type="button" sc-camel-on-click="{{ aiTest }}" title="Bu dosya için test yazdır" style="padding:4px 8px;border:1px solid var(--gx-line);border-radius:6px;background:transparent;color:var(--gx-dim);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px">Test yaz</button>
                   <button sc-camel-on-click="{{ saveEdit }}" style="{{ saveBtnStyle }}">{{ editSaveLabel }} ⌘S</button>
                   <button sc-camel-on-click="{{ cancelEdit }}" style="background:none;border:1px solid var(--gx-line);color:var(--gx-dim);font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;cursor:pointer;border-radius:7px">İptal</button>
                 </sc-if>
@@ -3213,12 +3234,12 @@ li.CodeMirror-hint-active{background:rgba(106,167,255,.18);color:#fff}
             </sc-if>
             <sc-for list="{{ wsMsgs }}" as="m" hint-placeholder-count="0">
               <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}"><div class="gx-ws-msg u"><div class="gx-ws-bubble" data-noi18n>{{ m.text }}</div></div></sc-if>
-              <sc-if value="{{ m.isAgent }}" hint-placeholder-val="{{ false }}"><div class="gx-ws-msg a"><sc-if value="{{ m.pending }}" hint-placeholder-val="{{ false }}"><div class="gx-ws-think">Düşünüyor…</div></sc-if><div class="gx-md-doc gx-ws-doc"><sc-for list="{{ m.lines }}" as="ln" hint-placeholder-count="3"><div style="{{ ln.lineStyle }}"><span data-noi18n style="color:var(--gx-dim)">{{ ln.bullet }}</span><sc-for list="{{ ln.segs }}" as="sg" hint-placeholder-count="1"><span data-noi18n style="{{ sg.style }}">{{ sg.t }}</span></sc-for></div></sc-for></div></div></sc-if>
+              <sc-if value="{{ m.isAgent }}" hint-placeholder-val="{{ false }}"><div class="gx-ws-msg a"><span class="gx-av sm" style="{{ wsAvatarStyle }}">{{ wsInitial }}</span><div class="gx-ws-msg-b"><div class="gx-ws-msg-h" data-noi18n>{{ wsName }}</div><sc-if value="{{ m.pending }}" hint-placeholder-val="{{ false }}"><div class="gx-ws-think">Düşünüyor…</div></sc-if><div class="gx-md-doc gx-ws-doc"><sc-for list="{{ m.lines }}" as="ln" hint-placeholder-count="3"><div style="{{ ln.lineStyle }}"><span data-noi18n style="color:var(--gx-dim)">{{ ln.bullet }}</span><sc-for list="{{ ln.segs }}" as="sg" hint-placeholder-count="1"><span data-noi18n style="{{ sg.style }}">{{ sg.t }}</span></sc-for></div></sc-for></div></div></div></sc-if>
               <sc-if value="{{ m.isTools }}" hint-placeholder-val="{{ false }}"><details class="gx-ws-steps"><summary data-noi18n>{{ m.toolSummary }}</summary><sc-for list="{{ m.toolItems }}" as="ti" hint-placeholder-count="2"><div data-noi18n>{{ ti.t }}</div></sc-for></details></sc-if>
             </sc-for>
           </div>
           <div class="gx-ws-compose">
-            <textarea id="gx-ws-input" class="gx-input" rows="2" value="{{ agentInput }}" sc-camel-on-input="{{ onAgentInput }}" sc-camel-on-key-down="{{ onAgentKey }}" placeholder="{{ wsPlaceholder }}"></textarea>
+            <textarea id="gx-ws-input" class="gx-input" rows="1" value="{{ agentInput }}" sc-camel-on-input="{{ onAgentInput }}" sc-camel-on-key-down="{{ onAgentKey }}" placeholder="{{ wsPlaceholder }}"></textarea>
             <sc-if value="{{ wsBusy }}" hint-placeholder-val="{{ false }}"><button type="button" class="gx-btn danger" sc-camel-on-click="{{ wsStop }}">Durdur</button></sc-if>
             <sc-if value="{{ wsIdle }}" hint-placeholder-val="{{ true }}"><button type="button" id="gx-ws-send" class="gx-btn primary" sc-camel-on-click="{{ sendAgent }}">Gönder</button></sc-if>
           </div>

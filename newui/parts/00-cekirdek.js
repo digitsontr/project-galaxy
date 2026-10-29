@@ -326,6 +326,14 @@ class Component extends DCLogic {
       this._startBarResize(t.getAttribute('data-bar'), e);
     };
     document.addEventListener('pointerdown', this._onBarPtr, true);
+    this._onMenuClick=e=>{
+      const t=e.target;
+      document.querySelectorAll('details.gx-menu[open]').forEach(d=>{
+        if(d.contains(t) && (t.closest('summary') || t.closest('[data-keep]') || !t.closest('button'))) return;
+        d.open=false;
+      });
+    };
+    document.addEventListener('click', this._onMenuClick);
     this._onChromeMove=e=>this._chromeMove(e);
     document.addEventListener('mousemove', this._onChromeMove, {passive:true});
     try{ setTimeout(()=>this._clampBars(), 0); }catch(e){}

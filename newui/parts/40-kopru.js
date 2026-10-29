@@ -12,14 +12,14 @@
       _notes:p.notes||'', _links:p.links||[], _path:p.path||'', _git:p.git||null, _stale:p.staleDays||0, _readme:!!p.hasReadme, _remote:!!p.remote };
   }
   _avatar(name,color){
-    const init=String(name||'?').trim().replace(/[^A-Za-zÇĞİÖŞÜçğıöşü0-9]/g,'').slice(0,2).toUpperCase()||'AI';
+    const init=String(name||'?').trim().replace(/[^A-Za-zÇĞİÖŞÜçğıöşü0-9]/g,'').charAt(0).toLocaleUpperCase('tr')||'?';
     // ÖNEMLİ: dc, style'ı `;` üzerinden böldüğü için data-URI'de `;` OLAMAZ (base64/utf8 çalışmaz).
     // Bu yüzden `;` içermeyen `data:image/svg+xml,` + percent-encode kullanılır. SVG çift tırnaklı,
     // gradient/paren yok → url('...') içinde tırnak/paren çakışması olmaz.
     const svg='<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96">'
       +'<rect width="96" height="96" fill="#0a0e1a"/>'
       +'<circle cx="48" cy="48" r="46" fill="'+color+'" opacity="0.20"/>'
-      +'<text x="48" y="61" font-family="JetBrains Mono,monospace" font-size="34" font-weight="700" fill="'+color+'" text-anchor="middle">'+init+'</text></svg>';
+      +'<text x="48" y="62" font-family="Space Grotesk,sans-serif" font-size="40" font-weight="700" fill="'+color+'" text-anchor="middle">'+init+'</text></svg>';
     return 'data:image/svg+xml,'+encodeURIComponent(svg);
   }
   _asText(v){
