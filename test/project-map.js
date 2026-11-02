@@ -4,7 +4,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { analyzeProject } = require('../lib/project-map');
+const { analyzeProject, toDrawio } = require('../lib/project-map');
 
 const results = [];
 const check = (name, ok, detail) => { results.push({ name, ok: !!ok }); console.log((ok ? '✓ ' : '✗ ') + name + (detail ? '  (' + detail + ')' : '')); };
@@ -55,6 +55,16 @@ check('Veri: lib → PostgreSQL kenarı (ORM birincil motora bağlanır)', edge(
 check('Veri: Redis (compose + Python kodu)', node('db:redis') && edge('mod:worker', 'db:redis', 'db'));
 check('Dış servis: Stripe SDK + api.stripe.com', edge('mod:src/services', 'ext:stripe', 'ext') && edge('mod:src/services', 'ext:api.stripe.com', 'ext'));
 check('Compose servisleri listelendi', m.compose.map(s => s.name).join() === 'db,cache,api');
+const svcFns = (m.files.find(f => f.rel === 'src/services/orders.ts') || {}).fns || [];
+check('Fonksiyon: listOrders + payOrder', svcFns.some(x => x.name === 'listOrders') && svcFns.some(x => x.name === 'payOrder'), svcFns.map(x => x.name).join(','));
+const rtFile = m.files.find(f => f.rel === 'src/routes/orders.ts') || {};
+check('Rota → servis çağrısı (payOrder)', (rtFile.calls || []).some(c => c.to === 'payOrder' && c.toRel === 'src/services/orders.ts'), JSON.stringify(rtFile.calls || []));
+const pyFns = (m.files.find(f => f.rel === 'worker/util.py') || {}).fns || [];
+check('Python def helper', pyFns.some(x => x.name === 'helper'));
+const pyCalls = (m.files.find(f => f.rel === 'worker/jobs.py') || {}).calls || [];
+check('Python helper çağrısı', pyCalls.some(c => c.to === 'helper' && c.toRel === 'worker/util.py'), JSON.stringify(pyCalls));
+const dx = toDrawio({ nodes: [{ id: 'a', kind: 'fn', label: 'payOrder' }, { id: 'b', kind: 'db', label: 'PostgreSQL' }], edges: [{ from: 'a', to: 'b', kind: 'db' }] });
+check('draw.io XML', /<mxfile/.test(dx) && /payOrder/.test(dx) && /source="a"/.test(dx) && /target="b"/.test(dx));
 
 // Uygulama analizi worker'da koşturur (ipc/scan-worker.js) — aynı sonuç oradan da gelmeli.
 const { Worker } = require('worker_threads');

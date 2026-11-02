@@ -819,8 +819,8 @@ function renderSettings() {
   bind('setMailList', e => { state.mailListTool = e.target.value; });
   bind('setMailRead', e => { state.mailReadTool = e.target.value; });
   const lt = $('langTr'), le = $('langEn');
-  if (lt) lt.addEventListener('click', () => { harvestSettings(); state.lang = 'tr'; renderSettings(); });
-  if (le) le.addEventListener('click', () => { harvestSettings(); state.lang = 'en'; renderSettings(); });
+  if (lt) lt.addEventListener('click', () => { harvestSettings(); state.lang = 'tr'; renderSettings(); persistLangNow('tr'); });
+  if (le) le.addEventListener('click', () => { harvestSettings(); state.lang = 'en'; renderSettings(); persistLangNow('en'); });
   const tt = $('termTerminal'), ti = $('termIterm');
   if (tt) tt.addEventListener('click', () => { harvestSettings(); state.terminalApp = 'Terminal'; renderSettings(); });
   if (ti) ti.addEventListener('click', () => { harvestSettings(); state.terminalApp = 'iTerm'; renderSettings(); });
@@ -870,6 +870,10 @@ async function testMcp() {
   } catch (e) {
     setTestMsg('mcpTestMsg', (e && e.message) || (tr ? 'denenemedi' : 'failed'), 'bad');
   }
+}
+
+async function persistLangNow(l) {
+  try { if (window.galaxy && window.galaxy.settingsSave) await window.galaxy.settingsSave({ lang: l === 'en' ? 'en' : 'tr' }); } catch (e) {}
 }
 
 async function saveSettings() {

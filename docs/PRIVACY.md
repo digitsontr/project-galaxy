@@ -7,6 +7,7 @@ Project Galaxy veriyi kendi bilgisayarında tutar. Galaxy bir bulut hesabı açm
 ## Ne saklanır (yalnızca yerelde)
 
 - Evren / gezegen listesi, notlar, pano görevleri, ajan kişilikleri
+- Kod inceleme koşuları (`reviews/`): skor, kapı, bulgu listesi — proje diff’inden üretilir, yerelde kalır
 - İsteğe bağlı asistan sohbet geçmişi
 - Ayarlar: dil, Claude yolu, MCP komutu ve ortam değişkenleri (Posta MCP)
 - DB parolaları: macOS Anahtar Zinciri (Keychain) — Galaxy dosyasında düz metin yok

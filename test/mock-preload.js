@@ -16,9 +16,9 @@ const mockMap = () => {
   const F = (rel, group, extra) => Object.assign({ rel, group, lang: 'ts', lines: 60, imports: [], routes: [], ipc: [], db: [], ext: [], tables: [] }, extra || {});
   const files = [
     F('src/server.ts', 'mod:src', { imports: ['src/routes/orders.ts', 'src/routes/users.ts'] }),
-    F('src/routes/orders.ts', 'mod:src/routes', { imports: ['src/services/orders.ts'], routes: [{ method: 'GET', path: '/orders', line: 4, kind: 'http' }, { method: 'POST', path: '/orders/:id/pay', line: 5, kind: 'http' }] }),
+    F('src/routes/orders.ts', 'mod:src/routes', { imports: ['src/services/orders.ts'], routes: [{ method: 'GET', path: '/orders', line: 4, kind: 'http' }, { method: 'POST', path: '/orders/:id/pay', line: 5, kind: 'http' }], fns: [{ name: 'GET /orders', line: 4, kind: 'route' }, { name: 'POST /orders/:id/pay', line: 5, kind: 'route' }], calls: [{ from: 'GET /orders', to: 'listOrders', toRel: 'src/services/orders.ts', line: 4 }, { from: 'POST /orders/:id/pay', to: 'payOrder', toRel: 'src/services/orders.ts', line: 5 }] }),
     F('src/routes/users.ts', 'mod:src/routes', { routes: [{ method: 'GET', path: '/users', line: 3, kind: 'http' }] }),
-    F('src/services/orders.ts', 'mod:src/services', { db: ['db:postgres'], ext: ['ext:stripe'], tables: ['orders'] }),
+    F('src/services/orders.ts', 'mod:src/services', { db: ['db:postgres'], ext: ['ext:stripe'], tables: ['orders'], fns: [{ name: 'listOrders', line: 2, kind: 'fn' }, { name: 'payOrder', line: 3, kind: 'fn' }] }),
     F('web/src/App.tsx', 'mod:web', { lang: 'ts' }),
     F('web/src/main.tsx', 'mod:web', { imports: ['web/src/App.tsx'] })
   ];
@@ -45,34 +45,71 @@ let lastTerminal = '';
 let mockTodoSkip = new Set();
 const mockAgents = [
   { id: 'git', kind: 'git', builtin: true, name: 'Git Yöneticisi', role: 'Dallar · commit · MR · stash', color: '#f78166', abilities: ['Yerel ve uzak dallar, commitler, stash’ler', 'Açık PR / MR listesi'], presets: [{ label: 'Dal grafiğini çiz', ask: 'Dal grafiğini çiz' }] },
+  { id: 'quality', kind: 'quality', builtin: true, name: 'Kod Kalitesi', role: 'Kod inceleme · SonarQube bakışı', color: '#7ee787', abilities: ['Her bulgu dosya:satır', 'Kalite kapısı kararı ve puan'], presets: [{ label: 'Değişikliklerimi incele', ask: 'Commit’lenmemiş değişikliklerimi incele.' }] },
   { id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] },
   { id: 'planner', kind: 'planner', builtin: true, name: 'Planlayıcı', role: 'Fikir → plan → prompt', color: '#ffa657', abilities: ['Fikrini sorgular'], presets: [{ label: 'Bir fikrim var', ask: 'Bir fikrim var' }], gone: true }
 ];
+let lastReview = null;
+let tahtaStore = null;
+const mockReviewRun = () => ({
+  v: 1, id: 'r-mock', createdAt: '2026-10-30T00:00:00.000Z',
+  projectId: 'alpha', projectName: 'AlphaAPI', scope: 'dirty', engine: 'collectors',
+  files: ['src/index.js'], diffBytes: 180,
+  findings: [{ severity: 'minor', category: 'smell', file: 'src/index.js', line: 2, rule: 'debug', title: 'Debug izi', why: 'Üretim kodunda kalabilir.', fix: 'Kaldır.', snippet: '', source: 'collector' }],
+  counts: { blocker: 0, critical: 0, major: 0, minor: 1, info: 0 },
+  score: 97, gate: 'pass', summary: '1 küçük bulgu', error: '', status: 'done'
+});
 let claudeCb = null, shellCb = null, agentCb = null, agentEvCb = null;
 
 contextBridge.exposeInMainWorld('galaxy', {
   load: async () => ({ universes, projects, agents: mockAgents.filter(a => !a.gone), alerts: [], settings: { lang: 'tr' }, ignored: [] }),
   profileGet: async () => ({ lang: 'tr', name: 'Furkan', about: 'geliştirici, Galaxy kaptanı' }),
   settingsGet: async () => ({ settings: { lang: 'tr', focusMin: 25, uiTheme: 'apex' } }),
+  settingsSave: async () => ({ ok: true }),
   gitLog: async () => ({ ok: true, branch: 'main', ahead: 1, behind: 0, commits: [{ h: 'a1b2c3d', an: 'Furkan', ad: '2s', s: 'fix' }], files: [{ path: 'src/index.js', label: 'Değişti', staged: false, unstaged: true }, { path: 'README.md', label: 'Değişti', staged: false, unstaged: true }], dirty: 2, dirtyFiles: [' M src/index.js', ' M README.md'], staged: 0, branches: ['main', 'dev'] }),
   tree: async () => [{ name: 'src', dir: true, children: [{ name: 'index.js', dir: false }] }, { name: 'README.md', dir: false }],
   file: async (a, b) => {
     const rel = (a && typeof a === 'object') ? a.rel : (b || a);
     const name = (rel||'README.md').split('/').pop();
+    if (String(rel || '').replace(/^\/+/, '') === '.galaxy/tahta.json') {
+      return { name: 'tahta.json', rel, size: 120, kind: 'text', content: tahtaStore || JSON.stringify({ v: 1, cards: [{ id: 'c1', x: 80, y: 90, w: 220, h: 96, text: 'Ödeme akışı' }], arrows: [], strokes: [] }) };
+    }
     const html = /\.html?$/i.test(rel||'');
     const isCode = /\.(js|ts|py|swift)$/i.test(rel||'');
     return { name, rel, size: 420, kind: html ? 'html' : (/\.md$/i.test(rel||'') ? 'markdown' : 'text'), url: html ? 'about:blank' : undefined, content: html ? '<h1>Demo</h1><p>Sayfa.</p>' : (isCode ? 'import express from "express";\n\nconst app = express();\napp.get("/health", (req, res) => {\n  res.json({ ok: true, service: "AlphaAPI" });\n});\n\napp.listen(3000);\n' : '# AlphaAPI\n\n**Servis** dokümantasyonu.\n\n## Yapılacaklar\n\n- [ ] Görev bir\n- [x] Görev iki\n') };
   },
   syncReadme: async () => ({ ok: true, added: 2, plan: [{ text: 'Görev bir', done: false }, { text: 'Görev iki', done: true }] }),
   readme: async () => ({ name: 'README.md', content: '# AlphaAPI\n\nBackend.\n\n## Yapılacaklar\n\n- [ ] Görev bir\n' }),
-  fileWrite: async () => ({ ok: true }),
+  fileWrite: async (opts) => {
+    if (opts && /tahta\.json$/.test(String(opts.rel || ''))) tahtaStore = String(opts.content || '');
+    return { ok: true };
+  },
+  fileCreate: async () => ({ ok: true }),
   save: async () => true,
-  dbList: async () => [], dbTables: async ({ id } = {}) => ({ ok: true, tables: id === 'db1' ? ['public.orders', 'public.users'] : [] }),
+  dbList: async () => [{ id: 'db1', name: 'Bu Mac — SQL Server', type: 'mssql', host: 'localhost' }],
+  dbTables: async ({ id } = {}) => ({ ok: true, tables: id === 'db1' ? ['public.orders', 'public.users'] : [] }),
+  dbDatabases: async () => ({ ok: true, databases: ['hysweb'] }),
+  dbSchema: async () => ({ ok: true, tables: [
+    { name: 'dbo.Ajanda', columns: [{ name: 'Id', type: 'bigint', pk: true }, { name: 'OlusturmaZamani', type: 'datetime2' }, { name: 'SonGuncelleme', type: 'datetime2' }, { name: 'Baslik', type: 'nvarchar' }, { name: 'Durumu', type: 'int' }, { name: 'Onaylandi', type: 'bit' }, { name: 'Aciklama', type: 'nvarchar' }, { name: 'Oncelik', type: 'int' }] },
+    { name: 'dbo.AdliSinif', columns: [{ name: 'Id', type: 'bigint', pk: true }, { name: 'Ad', type: 'nvarchar' }] },
+  ] }),
+  dbLog: async () => [],
   projectMap: async () => mockMap(),
   scheduleList: async () => [{ id: 's1', name: 'Nightly', agentId: 'a1', prompt: 'Durum raporu ver', type: 'daily', hour: 2, minute: 0, weekday: 1, enabled: true }],
   scheduleSave: async (s) => ({ ok: true, id: (s && s.id) || 's1' }),
-  sshList: async () => [], sshKeys: async () => ({ ok: true, keys: ['id_ed25519'] }),
-  todoList: async () => [{ id: 't1', text: 'API', done: false, status: 'todo', projectId: 'alpha' }],
+  sshList: async () => [{ id: 's1', name: 'FY-VPS', host: '70.40.199.205', user: 'root', port: '22', key: 'id_ed25519', roots: [] }],
+  sshKeys: async () => ({ ok: true, keys: [{ name: 'id_ed25519', path: '~/.ssh/id_ed25519' }] }),
+  sshShellStart: async ({ shellId } = {}) => ({ ok: true, shellId: shellId || 'srvterm-s1' }),
+  sshShellInput: async ({ shellId, cmd } = {}) => {
+    if (shellCb) setTimeout(() => {
+      if (cmd && cmd !== 'true') shellCb({ id: shellId, kind: 'out', text: 'çıktı: ' + cmd });
+      shellCb({ id: shellId, kind: 'done', code: 0, cwd: '~' });
+    }, 30);
+    return { ok: true };
+  },
+  shellStop: async () => ({ ok: true }),
+  todoList: async () => [],
+  sshShellComplete: async () => ({ ok: true, dirPart: '', matches: ['backupps/', 'dockerer'] }),
   todoSeedFromPlans: async () => ({ ok: true, added: 0 }),
   todoSkip: async (opts) => {
     const pid = String((opts && opts.projectId) || '');
@@ -87,7 +124,7 @@ contextBridge.exposeInMainWorld('galaxy', {
     const n = String((opts && opts.text) || '').replace(/\s+/g, ' ').trim().toLowerCase();
     return { ok: true, skip: mockTodoSkip.has(pid + '::' + n) };
   },
-  todoAdd: async () => true,
+  todoAdd: async () => ({ ok: true, id: 't-new', code: 'GX-1001' }),
   todoSetStatus: async () => true,
   todoDelete: async () => true,
   reports: async () => [], dockerStatus: async () => ({ ok: true, running: true, containers: 1, containersRunning: 1, images: 1 }),
@@ -126,11 +163,15 @@ contextBridge.exposeInMainWorld('galaxy', {
   gitRestoreFiles: async () => ({ ok: true }),
   fileWriteRemote: async () => ({ ok: true }),
   gitDiff: async () => ({ ok: true, out: 'diff --git a/src/index.js b/src/index.js\nindex 111..222 100644\n--- a/src/index.js\n+++ b/src/index.js\n@@ -1,3 +1,4 @@\n import express from "express";\n+\n const app = express();\n app.get("/health", (req, res) => {' }),
+  reviewRun: async () => { lastReview = mockReviewRun(); return { ok: true, run: lastReview }; },
+  reviewLatest: async () => ({ ok: true, run: lastReview }),
+  reviewList: async () => ({ ok: true, runs: lastReview ? [{ id: lastReview.id, createdAt: lastReview.createdAt, score: lastReview.score, gate: lastReview.gate, summary: lastReview.summary, files: 1, findings: 1 }] : [] }),
+  reviewGet: async () => lastReview ? { ok: true, run: lastReview } : { ok: false, error: 'Kayıt yok' },
+  reviewStop: async () => ({ ok: true }),
+  onReview: () => {},
   grepReplacePreview: async ({ query } = {}) => ({ ok: true, total: 2, files: [{ rel: 'src/index.js', count: 2, hits: [{ line: 1, before: 'import "' + (query || 'x') + '"', after: 'import "y"' }, { line: 5, before: (query || 'x') + '()', after: 'y()' }] }] }),
   grepReplaceApply: async () => ({ ok: true, changed: 1, replaced: 2, backupId: '2026-01-01', backupDir: '.galaxy-backups/2026-01-01' }),
   grepReplaceRollback: async () => ({ ok: true, restored: 1 }),
-  testDiscover: async () => ({ ok: true, runner: 'vitest', tests: [{ file: 'src/index.test.js', name: 'health ok döner', line: 3 }, { file: 'src/index.test.js', name: 'listen 3000', line: 9 }] }),
-  testRun: async () => ({ ok: true, passed: true, code: 0, ms: 123, cmd: 'npx vitest run', out: 'Test Files 1 passed', problems: [] }),
   gitFileHistory: async () => ({ ok: true, commits: [{ hash: 'abc123456', short: 'abc1234', date: '2026-10-01', author: 'Furkan', subject: 'feat: health endpoint' }, { hash: 'def789012', short: 'def7890', date: '2026-09-20', author: 'Furkan', subject: 'init' }] }),
   gitBlame: async () => ({ ok: true, lines: [{ line: 1, author: 'Furkan', date: '2026-10-01', summary: 'feat: health endpoint' }, { line: 2, author: 'Furkan', date: '2026-09-20', summary: 'init' }] }),
   gitShowFile: async () => ({ ok: true, content: 'import express from "express";\n// eski sürüm\n' }),
@@ -231,7 +272,7 @@ contextBridge.exposeInMainWorld('galaxy', {
   onClaude: (cb) => { claudeCb = cb; }, onShell: (cb) => { shellCb = cb; }, onStt: () => {},
   onPty: (cb) => { ptyCb = cb; }, onFsChange: () => {},
   onAgent: (cb) => { agentCb = cb; }, onScheduleDone: () => {}, onDockerLog: () => {},
-  openSettings: () => {}, onSettingsPane: () => {}, onEsc: () => {}, onFullscreen: () => {}, toggleFullscreen: async () => ({ ok: true }), openClaude: () => {},
+  openSettings: () => {}, onSettingsPane: () => {}, onLang: () => {}, onEsc: () => {}, onFullscreen: () => {}, toggleFullscreen: async () => ({ ok: true }), openClaude: () => {},
   pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => mockAgents.filter(a => !a.gone), agentSave: async () => ({ ok: true, id: 'a1' }),
   agentDelete: async (id) => { const a = mockAgents.find(x => x.id === id); if (a) a.gone = true; return { ok: true }; },
   agentPause: async ({ id, paused }) => { const a = mockAgents.find(x => x.id === id); if (a) a.paused = !!paused; return { ok: true }; },

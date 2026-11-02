@@ -1,0 +1,24 @@
+/* Gece zemin — referans videodaki doğal arka planın CSS karşılığı */
+#gx-wall{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 118%,#1c4a52 0%,transparent 58%),
+    radial-gradient(ellipse 48% 36% at 14% 8%,rgba(110,168,214,.28),transparent 72%),
+    radial-gradient(ellipse 42% 32% at 88% 12%,rgba(92,118,196,.20),transparent 70%),
+    linear-gradient(180deg,#070c12 0%,#0b141c 42%,#123038 78%,#0c1a20 100%)}
+#gx-wall .w1{position:absolute;inset:0;opacity:.4;background-image:
+  radial-gradient(1.2px 1.2px at 12% 18%,rgba(255,255,255,.7),transparent 60%),
+  radial-gradient(1px 1px at 28% 42%,rgba(200,230,255,.55),transparent 60%),
+  radial-gradient(1.4px 1.4px at 47% 14%,rgba(255,255,255,.65),transparent 60%),
+  radial-gradient(1px 1px at 63% 36%,rgba(180,210,255,.45),transparent 60%),
+  radial-gradient(1px 1px at 81% 22%,rgba(255,255,255,.5),transparent 60%),
+  radial-gradient(1.2px 1.2px at 74% 58%,rgba(160,220,230,.4),transparent 60%),
+  radial-gradient(1px 1px at 18% 72%,rgba(255,255,255,.35),transparent 60%),
+  radial-gradient(1px 1px at 91% 78%,rgba(200,230,255,.4),transparent 60%);
+  background-size:100% 100%}
+#gx-wall .w2{position:absolute;left:-12%;right:-12%;bottom:-18%;height:58%;
+  background:radial-gradient(50% 80% at 50% 100%,rgba(70,170,190,.28),transparent 72%);
+  filter:blur(36px)}
+#gx-wall .w3{position:absolute;left:18%;right:18%;bottom:8%;height:28%;
+  background:radial-gradient(ellipse at 50% 80%,rgba(95,227,192,.16),transparent 70%);
+  filter:blur(28px)}
+svg#gx-lg-fx{position:absolute;width:0;height:0;overflow:hidden}

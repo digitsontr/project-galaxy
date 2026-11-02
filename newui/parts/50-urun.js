@@ -247,7 +247,7 @@
     if(m.kind==='out'||m.kind==='err'){ for(const ln of String(m.text||'').split('\n')){ if(ln!=='') this._dlogLines.push(ln); } this._dlogLines=this._dlogLines.slice(-1000); this.setState({_dlv:(this.state._dlv||0)+1}); this._scrollBottom('#ghud-dlog-scroll'); } }
   closeDlog(){ const d=this.state._dlog; if(d&&d.kind!=='image'&&window.galaxy&&window.galaxy.dockerLogStop){ try{ window.galaxy.dockerLogStop({id:d.id}); }catch(e){} } this._dlogLines=[]; this.setState({_dlog:null,dockExec:''}); }
   onDockExec(e){ this.setState({dockExec:(e&&e.target&&e.target.value)||''}); }
-  onDockExecKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.dockerExecRun(); } }
+  onDockExecKey(e){ if(e.key==='Tab'){ e.preventDefault&&e.preventDefault(); e.stopPropagation&&e.stopPropagation(); return; } if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.dockerExecRun(); } }
   async dockerExecRun(){ const d=this.state._dlog; const cmd=String(this.state.dockExec||'').trim(); if(!d||d.kind==='image'||!cmd||!window.galaxy||!window.galaxy.dockerExec) return;
     this._dlogLines=this._dlogLines||[]; this._dlogLines.push('$ '+cmd); this.setState({dockExec:'',_dlv:(this.state._dlv||0)+1});
     try{ const r=await window.galaxy.dockerExec({id:d.id,cmd}); const out=(r&&r.ok)?(r.out||'(çıktı yok)'):('hata: '+((r&&r.error)||''));
@@ -261,9 +261,6 @@
   // ---------- KANBAN / TODO ----------
   async _loadTodos(){ try{
       const uni=this.state.uniId;
-      if(this._readmeSyncOn() && window.galaxy&&window.galaxy.todoSeedFromPlans && this._panoSeeded!==uni){
-        try{ await window.galaxy.todoSeedFromPlans({universe:uni}); this._panoSeeded=uni; }catch(e){}
-      }
       if(window.galaxy.todoList){ this.setState({_todos:(await window.galaxy.todoList(uni))||[]}); }
     }catch(e){ this.toast('✕ görevler okunamadı','err'); } }
   _findTodoForPlan(pid,text){ const n=this._plainPlan(text).toLowerCase(); return (this.state._todos||[]).find(t=>t.projectId===pid && this._plainPlan(t.text).toLowerCase()===n); }
@@ -290,10 +287,24 @@
   }
   async _todoSetStatus(id,status){ try{ const t=(this.state._todos||[]).find(x=>x.id===id); await window.galaxy.todoSetStatus({id,status}); const sync=this._readmeSyncOn(); if(sync&&t&&t.projectId) this._setPlanItemDone(t.projectId, t.text, status==='done'); this._loadTodos(); if(sync&&t) this._readmeFromTodo(t.text, status==='done', t.projectId); }catch(e){ this.toast('✕ görev güncellenemedi','err'); } }
   async _todoDelete(id){ try{ const t=(this.state._todos||[]).find(x=>x.id===id); await window.galaxy.todoDelete(id); if(t&&t.projectId){ this._todoSkipMark(t.projectId, t.text); if(window.galaxy.todoSkip) try{ await window.galaxy.todoSkip({projectId:t.projectId, text:t.text}); }catch(e){} } this._loadTodos(); if(this._readmeSyncOn()&&t) this._readmeDropTodo(t.text, t.projectId); }catch(e){ this.toast('✕ görev silinemedi','err'); } }
-  async addTodo(){ const text=String(this.state.todoInput||'').trim(); if(!text) return; this.setState({todoInput:''});
-    try{ if(window.galaxy.todoAdd){ const p=this._ctxPlanet(); await window.galaxy.todoAdd({universe:this.state.uniId,text,status:'todo',projectId:p&&p.id,branch:(this.state._git&&this.state._git.branch)||(p&&p.branch)||''}); this._loadTodos(); if(this._readmeSyncOn()) this._readmeFromTodo(text,false, p&&p.id); } }catch(e){ this.toast('✕ görev eklenemedi','err'); } }
-  onTodoInput(e){ this.setState({todoInput:(e&&e.target&&e.target.value)||''}); }
-  onTodoKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.addTodo(); } }
+  async addTodo(){
+    const title=String(this.state.todoTitle||this.state.todoInput||'').trim();
+    const detail=String(this.state.todoDetail||'').trim();
+    if(!title) return;
+    const tagId=this.state.todoTagId||'';
+    const p=(this._allProjects||[]).find(x=>x.id===tagId);
+    this.setState({todoTitle:'',todoDetail:'',todoInput:'',todoHashOpen:false,todoTagId:''});
+    try{ if(window.galaxy.todoAdd){ await window.galaxy.todoAdd({universe:this.state.uniId,title,text:title,detail,status:'todo',projectId:tagId,branch:(this.state._git&&this.state._git.branch)||(p&&p.branch)||''}); this._loadTodos(); } }catch(e){ this.toast('✕ görev eklenemedi','err'); } }
+  onTodoInput(e){ const v=(e&&e.target&&e.target.value)||''; this.setState({todoInput:v, todoTitle:v, todoHashOpen:v.indexOf('#')>=0}); }
+  onTodoTitle(e){ const v=(e&&e.target&&e.target.value)||''; this.setState({todoTitle:v, todoInput:v, todoHashOpen:/#/.test(v)&&!this.state.todoTagId}); }
+  onTodoDetail(e){ this.setState({todoDetail:(e&&e.target&&e.target.value)||''}); }
+  onTodoKey(e){
+    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault&&e.preventDefault(); this.addTodo(); }
+    else if(e.key==='#'){ this.setState({todoHashOpen:true}); }
+    else if(e.key==='Escape'){ this.setState({todoHashOpen:false}); }
+  }
+  todoPickTag(id){ this.setState({todoTagId:id||'', todoHashOpen:false, todoTitle:String(this.state.todoTitle||'').replace(/#[^\s]*$/,'')}); }
+  dbToggleLog(i){ this.setState({_dbLogOpen:this.state._dbLogOpen===i?null:i}); }
   // ---------- NOT EKLE (proje notu — ham projeyi kullanır, format bozulmaz) ----------
   onNoteInput(e){ this.setState({noteInput:(e&&e.target&&e.target.value)||''}); }
   onNoteKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.addNote(); } }
@@ -356,7 +367,7 @@
   addLink(){ const v=String(this.state.linkInput||'').trim(); if(!v){ this.setState({linkAdd:false}); return; }
     const parts=v.split('|'); const name=(parts[0]||'').trim()||v; const desc=(parts[1]||'').trim();
     const raw=this._rawProj(); const p=this.sel;
-    const link={name,desc,color:'#61dcff'};
+    const link={name,desc,color:'var(--gx-accent)'};
     if(raw){ raw.links=raw.links||[]; raw.links.push(link); this._saveRaw(raw); if(p) p._links=raw.links; }
     this.setState({linkInput:'',linkAdd:false,_nv:(this.state._nv||0)+1}); }
   addNote(){
@@ -392,12 +403,12 @@
   async _restoreBackup(name){ try{ await window.galaxy.backupRestore(name); this.setState({backupsOpen:false}); await this._loadReal(); this.toast('✓ yedek geri yüklendi'); }catch(e){ this.toast('✕ yedek geri yüklenemedi','err'); } }
   // ---------- AJAN CRUD ----------
   _formVal(e){ return (e&&e.target&&e.target.value!=null)?e.target.value:(typeof e==='string'?e:''); }
-  openAgentAdd(){ this.setState({agentFormOpen:true,agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'Durum ver',p2:'Ne birikti?',p3:'Sıradaki iş'}}); }
+  openAgentAdd(){ this.setState({agentFormOpen:true,agentForm:{id:'',name:'',role:'',prompt:'',color:'var(--gx-accent)',p1:'Durum ver',p2:'Ne birikti?',p3:'Sıradaki iş'}}); }
   openAgentEdit(id){ const a=this.AGENTS.find(x=>x.id===(id||this.state.asstAgentId||this.state.agentId)); if(!a) return;
     const defs=this._agentPresetDefaults(a);
     const p=a.presets||[];
     this.setState({agentFormOpen:true,agentForm:{
-      id:a.id, name:a.name||'', role:a.role||'', color:a.color||'#61dcff',
+      id:a.id, name:a.name||'', role:a.role||'', color:a.color||'var(--gx-accent)',
       prompt:this._asText(a.sys||a.prompt),
       p1:this._asText((p[0]&&p[0].ask)||defs[0]||''),
       p2:this._asText((p[1]&&p[1].ask)||defs[1]||''),
@@ -412,7 +423,7 @@
         const r=await window.galaxy.agentSave({
           id:f.id||undefined, name:String(f.name).trim().slice(0,40),
           role:String(f.role||prev.role||'Ajan').trim().slice(0,40),
-          color:f.color||prev.color||'#61dcff',
+          color:f.color||prev.color||'var(--gx-accent)',
           prompt:this._asText(f.prompt), write:!!prev.write, presets
         });
         if(r&&r.ok){ this.toast('✓ ajan kaydedildi'); this.setState({agentFormOpen:false}); await this._loadReal(); }
@@ -479,7 +490,7 @@
     }catch(e){}
   }
   async dbSelectConn(id){
-    this.setState({dbSel:id,_dbschema:null});
+    this.setState({dbSel:id,_dbschema:null,_dbColsOpen:{}});
     try{ const r=await window.galaxy.dbDatabases(id); const dbs=(r&&r.ok)?r.databases:[]; const first=dbs[0]||null;
       this.setState({_dbdbs:dbs,dbDatabase:first}); if(first) this._dbLoadSchema(id,first); }catch(e){}
     this._loadDbLog();
@@ -487,6 +498,12 @@
   async dbPickDatabase(db){ this.setState({dbDatabase:db}); this._dbLoadSchema(this.state.dbSel,db); }
   async _dbLoadSchema(id,database){ try{ const r=await window.galaxy.dbSchema({id,database}); this.setState({_dbschema:(r&&r.ok)?r:{error:(r&&r.error)||'şema alınamadı',tables:[]}}); }catch(e){ this.setState({_dbschema:{error:'şema alınamadı',tables:[]}}); } }
   // --- Tablo veri tarayıcı/editör ---
+  dbToggleCols(name){
+    const n=String(name||''); if(!n) return;
+    const cur=Object.assign({}, this.state._dbColsOpen||{});
+    cur[n]=!cur[n];
+    this.setState({_dbColsOpen:cur});
+  }
   async dbOpenTable(name){ if(!this.state.dbSel||!name||!window.galaxy||!window.galaxy.dbRows) return;
     this.setState({_dbTable:name,_dbTableData:null,_dbEdits:{},_dbDelRow:null,_dbRowMsg:'',_dbOffset:0,_dbOrderBy:'',_dbOrderDir:'',_dbNewOpen:false,_dbNewRow:{}});
     this._dbLoadRows(name,0,'',''); }

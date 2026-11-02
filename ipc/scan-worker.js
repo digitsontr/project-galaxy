@@ -1,5 +1,5 @@
 'use strict';
-// Tarama is parcacigi: proje geneli bul-onizleme ve test kesfi burada calisir.
+// Tarama is parcacigi: proje geneli bul-onizleme burada calisir.
 // Amac: patolojik regex (or. (a+)+$) veya dev repo ana sureci (dolayisiyla arayuzu)
 // kilitlemesin. Ust surec zaman asiminda worker'i terminate eder.
 const { parentPort, workerData } = require('worker_threads');
@@ -59,31 +59,9 @@ function grepPreview({ root, query, replacement, isRegex, caseSensitive }) {
   return { ok: true, files, total };
 }
 
-function testDiscover({ root }) {
-  const tests = [];
-  for (const full of walkFiles(root)) {
-    const rel = relOf(root, full);
-    const base = path.basename(rel);
-    const isTest = /(\.test\.|\.spec\.|_test\.py$|test_.*\.py$|Tests?\.swift$)/i.test(base) || /(^|\/)(test|tests|__tests__)(\/|$)/i.test(rel);
-    if (!isTest || !TEXT_EXT.test(rel)) continue;
-    let text = ''; try { text = fs.readFileSync(full, 'utf8').slice(0, 200 * 1024); } catch (e) { continue; }
-    const lines = text.split('\n');
-    lines.forEach((ln, i) => {
-      const m = ln.match(/\b(?:it|test|describe)\s*\(\s*['"`]([^'"`]{2,90})['"`]/) || ln.match(/^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/) || ln.match(/\bfunc\s+(test\w+)\s*\(/);
-      if (m) tests.push({ file: rel, name: m[1], line: i + 1 });
-    });
-    if (!tests.some(t => t.file === rel)) tests.push({ file: rel, name: base, line: 1 });
-    if (tests.length >= 300) break;
-  }
-  let pkg = null; try { pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')); } catch (err) {}
-  const runner = pkg && /vitest/.test(JSON.stringify(pkg)) ? 'vitest' : pkg && /jest/.test(JSON.stringify(pkg)) ? 'jest' : fs.existsSync(path.join(root, 'pytest.ini')) || fs.existsSync(path.join(root, 'pyproject.toml')) ? 'pytest' : pkg ? 'npm' : 'pytest';
-  return { ok: true, runner, tests };
-}
-
 try {
   const d = workerData || {};
-  const out = d.kind === 'testDiscover' ? testDiscover(d)
-    : d.kind === 'projectMap' ? require('../lib/project-map').analyzeProject(d.root)
+  const out = d.kind === 'projectMap' ? require('../lib/project-map').analyzeProject(d.root)
     : grepPreview(d);
   parentPort.postMessage(out);
 } catch (err) {

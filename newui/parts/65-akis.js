@@ -35,10 +35,10 @@
   openFlow(selId){
     if(!this.sel) return;
     this._flowView=null;
-    this.setState({flowOpen:true, flowFocus:null, flowSel:selId||null, flowQuery:''});
+    this.setState({flowOpen:true, flowFocus:null, flowSel:selId||null, flowQuery:'', flowStory:null, flowStoryIdx:0});
     this._loadProjMap(false);
   }
-  closeFlow(){ this.setState({flowOpen:false, flowSel:null, flowFocus:null, flowQuery:''}); }
+  closeFlow(){ this.setState({flowOpen:false, flowSel:null, flowFocus:null, flowQuery:'', flowStory:null, flowStoryIdx:0}); }
   _flowSetFocus(id){ this._flowView=null; this.setState({flowFocus:id||null, flowSel:null}); }
   _flowOpenFile(rel, line){
     if(!rel) return;
@@ -48,9 +48,44 @@
     if(line>1) setTimeout(()=>this._gotoLine(line), 340);
   }
 
+  _flowFnId(rel, name){ return 'fn:'+rel+':'+name; }
+  _flowFileGraph(m, rel){
+    const f=(m.files||[]).find(x=>x.rel===rel); if(!f) return {nodes:[], edges:[]};
+    const byRel=new Map((m.files||[]).map(x=>[x.rel,x]));
+    const nodes=[], have=new Set();
+    const addN=n=>{ if(n&&n.id&&!have.has(n.id)){ have.add(n.id); nodes.push(n); } };
+    const edges=[], ek=new Set();
+    const addE=(from,to,kind,n)=>{ if(!from||!to||from===to) return; const k=from+'>'+to+'>'+kind; if(ek.has(k)) return; ek.add(k); edges.push({from,to,kind,n:n||1}); };
+    addN({ id:'file:'+rel, kind:'file', label:(rel.split('/').pop()), path:rel, file:rel, lines:f.lines, role:'logic' });
+    (f.fns||[]).forEach(fn=>{
+      addN({ id:this._flowFnId(rel, fn.name), kind:fn.kind==='route'?'route':'fn', label:fn.name, file:rel, line:fn.line, path:rel, role:fn.kind==='route'?'api':'logic', sub:rel.split('/').pop()+':'+(fn.line||1) });
+      addE('file:'+rel, this._flowFnId(rel, fn.name), 'run', 1);
+    });
+    (f.calls||[]).forEach(c=>{
+      const fromId=c.from?this._flowFnId(rel, c.from):('file:'+rel);
+      if(c.from) addN({ id:fromId, kind:'fn', label:c.from, file:rel, path:rel, role:'logic' });
+      if(c.toRel && c.toRel!==rel){
+        const toF=byRel.get(c.toRel);
+        const toId=(toF&&(toF.fns||[]).some(x=>x.name===c.to))?this._flowFnId(c.toRel, c.to):('file:'+c.toRel);
+        if(toId.indexOf('fn:')===0){
+          const tf=(toF.fns||[]).find(x=>x.name===c.to);
+          addN({ id:toId, kind:'fn', label:c.to, file:c.toRel, line:tf&&tf.line, path:c.toRel, role:'logic', sub:c.toRel.split('/').pop() });
+        } else addN({ id:toId, kind:'file', label:c.toRel.split('/').pop(), path:c.toRel, file:c.toRel, role:'logic' });
+        addE(fromId, toId, 'call', 1);
+      } else {
+        const local=(f.fns||[]).some(x=>x.name===c.to);
+        const toId=local?this._flowFnId(rel, c.to):fromId;
+        if(local && toId!==fromId) addE(fromId, toId, 'call', 1);
+      }
+    });
+    (f.db||[]).forEach(id=>{ const n=(m.nodes||[]).find(x=>x.id===id); if(n){ addN(n); addE('file:'+rel, id, 'db', 1); } });
+    (f.ext||[]).forEach(id=>{ const n=(m.nodes||[]).find(x=>x.id===id); if(n){ addN(n); addE('file:'+rel, id, 'ext', 1); } });
+    return {nodes, edges};
+  }
   _flowGraph(){
     const m=this._pmapCur(); if(!m||!m.ok) return {nodes:[], edges:[]};
     const focus=this.state.flowFocus;
+    if(focus && String(focus).indexOf('file:')===0) return this._flowFileGraph(m, focus.slice(5));
     const grp=focus&&(m.nodes||[]).find(n=>n.id===focus);
     if(!grp) return {nodes:m.nodes||[], edges:m.edges||[]};
     const inG=new Set(grp.files||[]);
@@ -79,7 +114,7 @@
   // Katmanlı yerleşim: giriş → (import/IPC/HTTP sırasına göre) katmanlar → veri + dış servis.
   // Döngüler DFS ile kırılır; sütun içi sıra barycenter ile kesişmeleri azaltır.
   _flowLayout(g){
-    const W=212, H=62, CG=80, RG=18, PAD=56;
+    const W=228, H=78, CG=72, RG=22, PAD=56;
     const nodes=g.nodes||[], edges=g.edges||[];
     const isMid=n=>n.kind!=='entry'&&n.kind!=='db'&&n.kind!=='ext';
     const mid=nodes.filter(isMid), midSet=new Set(mid.map(n=>n.id));
@@ -140,13 +175,16 @@
   }
 
   _flowColor(n){
-    if(n.kind==='entry') return '#53c98b';
-    if(n.kind==='db') return '#e5b45d';
+    if(n.kind==='entry') return 'var(--gx-ok)';
+    if(n.kind==='db') return 'var(--gx-warn)';
     if(n.kind==='ext') return '#ef8bc0';
-    return ({ui:'#6aa7ff', api:'#a596e8', data:'#e5b45d', config:'#7d8aa8', test:'#7d8aa8'})[n.role]||'#8fa3c8';
+    if(n.kind==='fn') return '#7dd3fc';
+    if(n.kind==='route') return 'var(--gx-violet)';
+    return ({ui:'var(--gx-accent)', api:'var(--gx-violet)', data:'var(--gx-warn)', config:'#7d8aa8', test:'#7d8aa8'})[n.role]||'#8fa3c8';
   }
   _flowIcon(n){
     if(n.kind==='entry') return '▶'; if(n.kind==='db') return '◉'; if(n.kind==='ext') return '☁'; if(n.kind==='file') return '▤';
+    if(n.kind==='fn') return 'ƒ'; if(n.kind==='route') return '⇄';
     return ({ui:'▣', api:'⇄', data:'▦', config:'⚙', test:'✓'})[n.role]||'◆';
   }
   _flowSub(n){
@@ -154,6 +192,7 @@
     if(n.kind==='entry') return n.sub||'';
     if(n.kind==='db'){ const b=n.bound; if(b) return '● '+(b.name||'bağlı'); const e=n.env; if(e&&(e.database||e.host)) return (e.database||'')+(e.host?' @ '+e.host:''); if(n.compose) return 'compose: '+n.compose.service; if((n.models||[]).length) return 'Prisma · '+n.models.length+' model'; return (n.files||[]).length+' dosya erişiyor'; }
     if(n.kind==='ext') return (n.files||[]).length+' dosya';
+    if(n.kind==='fn'||n.kind==='route') return (n.file||'').split('/').pop()+(n.line?(':'+n.line):'');
     if(n.kind==='file') return k(n.lines)+' satır';
     return (n.single?'':(n.files||[]).length+' dosya · ')+k(n.lines)+' satır';
   }
@@ -173,7 +212,7 @@
   _flowPaint(){
     const el=document.getElementById('gx-flow-canvas'); if(!el) return;
     const st=this.state, m=this._pmapCur();
-    const sig=[m&&m.pid, m&&m.at, st.flowFocus, st.flowSel, st.flowQuery].join('|');
+    const sig=[m&&m.pid, m&&m.at, st.flowFocus, st.flowSel, st.flowQuery, st.flowStoryIdx].join('|');
     if(el.dataset.sig===sig&&el.querySelector('svg')) return;
     el.dataset.sig=sig;
     if(!m||!m.ok){ el.innerHTML=''; return; }
@@ -184,8 +223,8 @@
     const link=new Set();
     if(sel){ link.add(sel); g.edges.forEach(e=>{ if(e.from===sel) link.add(e.to); if(e.to===sel) link.add(e.from); }); }
     const hit=n=>!q||String(n.label||'').toLowerCase().includes(q)||String(n.path||n.file||'').toLowerCase().includes(q);
-    const ECOL={import:'#5d6b8c', ipc:'#a596e8', http:'#6aa7ff', db:'#e5b45d', ext:'#ef8bc0', run:'#53c98b'};
-    const ELBL={import:'import', ipc:'IPC / köprü', http:'HTTP çağrısı', db:'veritabanı erişimi', ext:'dış servis', run:'başlatır'};
+    const ECOL={import:'#5d6b8c', ipc:'var(--gx-violet)', http:'var(--gx-accent)', db:'var(--gx-warn)', ext:'#ef8bc0', run:'var(--gx-ok)', call:'#7dd3fc'};
+    const ELBL={import:'import', ipc:'IPC / köprü', http:'HTTP çağrısı', db:'veritabanı erişimi', ext:'dış servis', run:'başlatır', call:'çağrı'};
     let defs='<defs>';
     for(const [k,c] of Object.entries(ECOL)) defs+='<marker id="gxa-'+k+'" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:'+c+'"></path></marker>';
     defs+='</defs>';
@@ -213,12 +252,12 @@
       const strong=isSel||(q&&hit(n));
       const drill=n.kind==='module'&&!n.single&&(n.files||[]).length>1;
       boxes+='<g data-nid="'+E(n.id)+'" style="cursor:pointer;opacity:'+(dim?0.22:1)+'">'
-        +'<rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="11" style="fill:'+(isSel?'rgba(106,167,255,.16)':'rgba(14,20,36,.96)')+';stroke:'+(strong?'#cfe0ff':c)+';stroke-width:'+(strong?2:1.2)+'"></rect>'
+        +'<rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="11" style="fill:'+(isSel?'color-mix(in srgb, var(--gx-accent) 16%, transparent)':'rgba(14,20,36,.96)')+';stroke:'+(strong?'#cfe0ff':c)+';stroke-width:'+(strong?2:1.2)+'"></rect>'
         +'<rect x="'+p.x+'" y="'+(p.y+10)+'" width="3.5" height="'+(p.h-20)+'" rx="2" style="fill:'+c+'"></rect>'
         +'<text x="'+(p.x+14)+'" y="'+(p.y+22)+'" style="fill:'+c+';font:600 12px \'Space Grotesk\',sans-serif">'+E(this._flowIcon(n))+'</text>'
-        +'<text x="'+(p.x+30)+'" y="'+(p.y+22)+'" style="fill:#e8eeff;font:600 13px \'Space Grotesk\',sans-serif">'+E(this._flowCut(n.label, drill?22:25))+'</text>'
+        +'<text x="'+(p.x+30)+'" y="'+(p.y+22)+'" style="fill:var(--gx-ink);font:600 13px \'Space Grotesk\',sans-serif">'+E(this._flowCut(n.label, drill?22:25))+'</text>'
         +(drill?'<text x="'+(p.x+p.w-12)+'" y="'+(p.y+22)+'" text-anchor="end" style="fill:#7d8aa8;font:11px \'JetBrains Mono\',monospace">⤵</text>':'')
-        +'<text x="'+(p.x+14)+'" y="'+(p.y+39)+'" style="fill:#9aa3c2;font:10.5px \'JetBrains Mono\',monospace">'+E(this._flowCut(this._flowSub(n), 30))+'</text>'
+        +'<text x="'+(p.x+14)+'" y="'+(p.y+39)+'" style="fill:var(--gx-dim);font:10.5px \'JetBrains Mono\',monospace">'+E(this._flowCut(this._flowSub(n), 30))+'</text>'
         +'<text x="'+(p.x+14)+'" y="'+(p.y+53)+'" style="fill:'+c+';font:10px \'JetBrains Mono\',monospace;opacity:.9">'+E(this._flowCut(this._flowBadges(n), 34))+'</text>'
         +'<title>'+E((n.path||n.file||n.label)+(drill?' — çift tık: içine gir':n.file||n.single?' — çift tık: dosyayı aç':''))+'</title></g>';
     }
@@ -265,8 +304,86 @@
     const n=this._flowNode(id); if(!n) return;
     if(n.kind==='module'&&!n.single&&(n.files||[]).length>1){ this._flowSetFocus(n.id); return; }
     if(n.kind==='module'&&n.single) return this._flowOpenFile(n.files[0]);
-    if(n.kind==='file'||n.kind==='entry') return this._flowOpenFile(n.file);
+    if(n.kind==='file'){ const rel=n.file||n.path||String(n.id||'').replace(/^file:/,''); if(rel) this._flowSetFocus('file:'+rel); return; }
+    if(n.kind==='fn'||n.kind==='route') return this._flowOpenFile(n.file, n.line);
+    if(n.kind==='entry') return this._flowOpenFile(n.file);
     if(n.kind==='db'&&n.bound) return this._openBoundTable();
+  }
+  _flowUp(){
+    const focus=this.state.flowFocus;
+    if(focus && String(focus).indexOf('file:')===0){
+      const rel=focus.slice(5); const m=this._pmapCur();
+      const f=m&&(m.files||[]).find(x=>x.rel===rel);
+      this._flowSetFocus((f&&f.group)||null); return;
+    }
+    this._flowSetFocus(null);
+  }
+  _flowBuildStory(){
+    const g=this._flowLast&&this._flowLast.g; if(!g||!g.nodes.length) return [];
+    const start=(this.state.flowSel&&g.nodes.find(n=>n.id===this.state.flowSel))||g.nodes.find(n=>n.kind==='entry')||g.nodes.find(n=>n.kind==='route')||g.nodes[0];
+    if(!start) return [];
+    const order=['run','call','http','ipc','import','db','ext'];
+    const out=[], seen=new Set(), q=[start.id];
+    while(q.length && out.length<14){
+      const id=q.shift(); if(seen.has(id)) continue; seen.add(id);
+      const n=g.nodes.find(x=>x.id===id); if(!n) continue;
+      out.push({id, n:out.length+1, label:n.label, kind:n.kind||'', sub:this._flowSub(n), onClick:()=>this._flowStoryGo(out.length)});
+      g.edges.filter(e=>e.from===id).slice().sort((a,b)=>order.indexOf(a.kind)-order.indexOf(b.kind)).forEach(e=>{ if(!seen.has(e.to)) q.push(e.to); });
+    }
+    out.forEach((s,i)=>s.onClick=()=>this._flowStoryGo(i));
+    return out;
+  }
+  _flowPlayStory(){
+    const steps=this._flowBuildStory();
+    if(!steps.length){ this.toast('Yürünecek akış yok','err'); return; }
+    this.setState({flowStory:steps, flowStoryIdx:0, flowSel:steps[0].id});
+    this.toast('Adım 1/'+steps.length+': '+steps[0].label);
+  }
+  _flowStoryGo(i){
+    const steps=this.state.flowStory||[];
+    const idx=Math.max(0, Math.min(steps.length-1, Number(i)||0));
+    const s=steps[idx]; if(!s) return;
+    this.setState({flowStoryIdx:idx, flowSel:s.id});
+  }
+  _flowToDrawio(g, L){
+    const E=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+    const cells=['<mxCell id="0"/>','<mxCell id="1" parent="0"/>'];
+    (g.nodes||[]).forEach((n,i)=>{
+      const p=L&&L.pos&&L.pos.get(n.id);
+      const x=p?Math.round(p.x):(40+(i%6)*220), y=p?Math.round(p.y):(40+Math.floor(i/6)*90);
+      const w=p&&p.w?Math.round(p.w):200, h=p&&p.h?Math.round(p.h):60;
+      const fill=n.kind==='entry'?'#d5f5e3':n.kind==='db'?'#fdebd0':n.kind==='ext'?'#f5d0fe':(n.kind==='fn'||n.kind==='route')?'#d6eaf8':'#eaf0fb';
+      cells.push('<mxCell id="'+E(n.id)+'" value="'+E(n.label||n.id)+'" style="rounded=1;whiteSpace=wrap;html=1;fillColor='+fill+';strokeColor=#5d6d7e;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" as="geometry"/></mxCell>');
+    });
+    (g.edges||[]).forEach((e,i)=>{
+      if(!e.from||!e.to||e.from===e.to) return;
+      const dash=(e.kind==='http'||e.kind==='ipc'||e.kind==='call')?'dashed=1;':'';
+      cells.push('<mxCell id="e'+i+'" value="'+E(e.kind||'')+'" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;'+dash+'strokeColor=#5d6d7e;" edge="1" parent="1" source="'+E(e.from)+'" target="'+E(e.to)+'"><mxGeometry relative="1" as="geometry"/></mxCell>');
+    });
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<mxfile host="Galaxy" type="device">\n  <diagram id="flow" name="Proje akışı">\n    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200">\n      <root>\n        '+cells.join('\n        ')+'\n      </root>\n    </mxGraphModel>\n  </diagram>\n</mxfile>\n';
+  }
+  async _flowExportDrawio(){
+    const p=this.sel; if(!p||!p._path){ this.toast('Önce bir projeye gir','err'); return; }
+    if(!this._flowLast) this._flowPaint();
+    const g=this._flowLast&&this._flowLast.g, L=this._flowLast&&this._flowLast.L;
+    if(!g||!g.nodes.length){ this.toast('Önce şemayı çiz','err'); return; }
+    const xml=this._flowToDrawio(g, L);
+    try{
+      if(window.galaxy&&window.galaxy.fileCreate){ try{ await window.galaxy.fileCreate({root:p._path, rel:'.galaxy/'}); }catch(e){} }
+      if(!(window.galaxy&&window.galaxy.fileWrite)){ this.toast('Kayıt yok','err'); return; }
+      const r=await window.galaxy.fileWrite({root:p._path, rel:'.galaxy/flow.drawio', content:xml});
+      if(r&&r.ok===false){ this.toast(this._failIpc?this._failIpc(r,'yazılamadı'):(r.error||'yazılamadı'),'err'); return; }
+      this.toast('✓ .galaxy/flow.drawio kaydedildi — diagrams.net ile aç');
+    }catch(e){ this.toast('draw.io yazılamadı','err'); }
+  }
+  _flowAgentGo(ask){
+    const q=String(ask||'');
+    this.openFlow();
+    const after=()=>{
+      if(/drawio|kaydet|xml|export/i.test(q)) this._flowExportDrawio();
+      if(/adım|step|yürü|yuru/i.test(q)) this._flowPlayStory();
+    };
+    setTimeout(after, 380);
   }
   _flowSearchGo(){
     const q=String(this.state.flowQuery||'').trim().toLowerCase(); const g=this._flowLast&&this._flowLast.g; if(!q||!g) return;
@@ -283,14 +400,15 @@
     const g=(this._flowLast&&this._flowLast.g)||{nodes:[],edges:[]};
     const name=x=>{ const o=this._flowNode(x); return o?(o.path||o.label):x; };
     const sec=[], acts=[];
-    const item=(label, meta, onClick, color)=>({ label, meta:meta||'', onClick:onClick||(()=>{}), style:'display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;padding:5px 8px;border:none;border-radius:6px;background:transparent;cursor:'+(onClick?'pointer':'default')+';color:'+(color||'var(--gx-ink)')+";font-family:'JetBrains Mono',monospace;font-size:11.5px" });
+    const item=(label, meta, onClick, color)=>({ label, meta:meta||'', onClick:onClick||(()=>{}), style:'display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;padding:5px 8px;border:none;border-radius:6px;background:transparent;cursor:'+(onClick?'pointer':'default')+';color:'+(color||'var(--gx-ink)')+";font-family:var(--gx-font);font-size:11.5px" });
     const outs=g.edges.filter(e=>e.from===n.id), ins=g.edges.filter(e=>e.to===n.id);
     const KL={import:'import', ipc:'IPC', http:'HTTP', db:'DB', ext:'servis', run:'başlatır'};
     const rel=(list, dir)=>list.slice().sort((a,b)=>b.n-a.n).slice(0,30).map(e=>{ const o=dir==='out'?e.to:e.from; return item(name(o), KL[e.kind]+' · '+e.n, ()=>this.setState({flowSel:o}), this._flowColor(this._flowNode(o)||{})); });
     const files=n.kind==='file'?[]:(n.files||[]);
     const fileInfo=new Map((m.files||[]).map(f=>[f.rel,f]));
     if(n.kind==='module'&&!n.single&&files.length>1) acts.push({label:'⤵ İçine gir ('+files.length+' dosya)', onClick:()=>this._flowSetFocus(n.id)});
-    if(n.kind==='file'||n.kind==='entry'||(n.kind==='module'&&n.single)) acts.push({label:'Dosyayı aç', onClick:()=>this._flowOpenFile(n.file||files[0])});
+    if(n.kind==='file') acts.push({label:'⤵ Fonksiyonlara gir', onClick:()=>this._flowSetFocus('file:'+(n.file||n.path))});
+    if(n.kind==='file'||n.kind==='entry'||n.kind==='fn'||n.kind==='route'||(n.kind==='module'&&n.single)) acts.push({label:'Dosyayı aç', onClick:()=>this._flowOpenFile(n.file||files[0], n.line)});
     if(n.kind==='db'){
       if(n.bound) acts.push({label:'DB sekmesinde aç', onClick:()=>this._openBoundTable()});
       else if(st._pw&&st._pw.env&&st._pw.env.dbHint) acts.push({label:'.env’den bağla', onClick:()=>this._bindFromMap()});
@@ -316,11 +434,11 @@
     const routes=[]; routeSrc.forEach(r=>{ const f=fileInfo.get(r); (f&&f.routes||[]).forEach(x=>routes.push(Object.assign({file:r},x))); });
     if(routes.length) sec.push({title:'Rotalar · '+routes.length, items:routes.slice(0,80).map(x=>item(x.method+' '+x.path, x.file.split('/').pop()+':'+x.line, ()=>this._flowOpenFile(x.file, x.line), 'var(--gx-accent)'))});
     const ipcs=[]; routeSrc.forEach(r=>{ const f=fileInfo.get(r); (f&&f.ipc||[]).forEach(x=>ipcs.push(Object.assign({file:r},x))); });
-    if(ipcs.length) sec.push({title:'IPC kanalları · '+ipcs.length, items:ipcs.slice(0,120).map(x=>item(x.channel, x.file.split('/').pop()+':'+x.line, ()=>this._flowOpenFile(x.file, x.line), '#a596e8'))});
+    if(ipcs.length) sec.push({title:'IPC kanalları · '+ipcs.length, items:ipcs.slice(0,120).map(x=>item(x.channel, x.file.split('/').pop()+':'+x.line, ()=>this._flowOpenFile(x.file, x.line), 'var(--gx-violet)'))});
     if(n.kind!=='db'&&(n.tables||[]).length) sec.push({title:'Dokunduğu tablolar', items:n.tables.slice(0,40).map(t=>item(t,''))});
     if(outs.length) sec.push({title:'Bağımlı olduğu → '+outs.length, items:rel(outs,'out')});
     if(ins.length) sec.push({title:'Onu kullananlar ← '+ins.length, items:rel(ins,'in')});
-    const kindLabel={entry:'Giriş noktası', db:'Veritabanı', ext:'Dış servis', file:'Dosya', module:({ui:'Arayüz modülü', api:'API / IPC modülü', data:'Veri modülü', config:'Yapılandırma', test:'Test'})[n.role]||'Modül'}[n.kind];
+    const kindLabel={entry:'Giriş noktası', db:'Veritabanı', ext:'Dış servis', file:'Dosya', fn:'Fonksiyon', route:'Rota işleyici', module:({ui:'Arayüz modülü', api:'API / IPC modülü', data:'Veri modülü', config:'Yapılandırma', test:'Test'})[n.role]||'Modül'}[n.kind];
     return { title:n.label, kind:kindLabel, sub:n.kind==='entry'?((n.cmds||[n.sub]).join('  ·  ')+' → '+n.file):(n.path||n.file||this._flowSub(n)), color:this._flowColor(n), acts, sections:sec };
   }
 
@@ -329,7 +447,9 @@
     const ok=!!(m&&m.ok); const s=(m&&m.stats)||{};
     if(st.flowOpen) this._flowEnsure();
     const ins=st.flowOpen?this._flowInspector():null;
-    const focusNode=st.flowFocus&&m&&(m.nodes||[]).find(n=>n.id===st.flowFocus);
+    const fileFocus=st.flowFocus&&String(st.flowFocus).indexOf('file:')===0?st.flowFocus.slice(5):'';
+    const focusNode=!fileFocus&&st.flowFocus&&m&&(m.nodes||[]).find(n=>n.id===st.flowFocus);
+    const fileNode=fileFocus&&(m.files||[]).find(f=>f.rel===fileFocus);
     const k=v=>v>=1000?(Math.round(v/100)/10)+'k':String(v||0);
     const nodes=(m&&m.nodes)||[];
     const dbNodes=nodes.filter(n=>n.kind==='db'), extNodes=nodes.filter(n=>n.kind==='ext'), modNodes=nodes.filter(n=>n.kind==='module'), entryNodes=nodes.filter(n=>n.kind==='entry');
@@ -361,32 +481,41 @@
     return {
       pmapBusy: busy && !ok, pmapOk: ok, pmapErr: !!(m&&!m.ok), pmapErrText: (m&&!m.ok&&m.error)||'',
       pmapSummary: ok?(k(s.analyzed)+' kaynak dosya · '+k(s.lines)+' satır · '+modNodes.length+' modül'+(s.routes?' · '+s.routes+' rota':'')+(s.pages?' · '+s.pages+' sayfa':'')+(s.ipc?' · '+s.ipc+' IPC kanalı':'')):'',
-      pmapLayers: ok?[layer('Giriş',entryNodes.length,'#53c98b'), layer('Modül',modNodes.length,'#6aa7ff'), layer('Veri',dbNodes.length,'#e5b45d'), layer('Dış servis',extNodes.length,'#ef8bc0')]:[],
+      pmapLayers: ok?[layer('Giriş',entryNodes.length,'var(--gx-ok)'), layer('Modül',modNodes.length,'var(--gx-accent)'), layer('Veri',dbNodes.length,'var(--gx-warn)'), layer('Dış servis',extNodes.length,'#ef8bc0')]:[],
       pmapEntries: entryNodes.slice(0,4).map(n=>({label:n.label+' → '+n.file, onClick:()=>this._flowOpenFile(n.file)})), hasPmapEntries: entryNodes.length>0,
       pdbRows, hasPdb: dbNodes.length>0, pdbNone: ok&&!dbNodes.length,
       pdbAdd: ()=>{ this._openTab('db'); this.setState({dbAddOpen:true}); },
       openFlow: ()=>this.openFlow(), reloadMap: ()=>this._loadProjMap(true),
       flowOpen: !!st.flowOpen, closeFlow: ()=>this.closeFlow(),
       flowTitle: (this.sel&&this.sel.name)||'Proje',
-      flowCrumbs: [{label:'Mimari', onClick:()=>this._flowSetFocus(null), style:'cursor:pointer;color:'+(focusNode?'var(--gx-accent)':'var(--gx-ink)')}].concat(focusNode?[{label:focusNode.label, onClick:()=>{}, style:'color:var(--gx-ink)'}]:[]),
+      flowCrumbs: [{label:'Mimari', onClick:()=>this._flowSetFocus(null), style:'cursor:pointer;color:'+(focusNode||fileFocus?'var(--gx-accent)':'var(--gx-ink)')}].concat(focusNode||fileNode?[{label:focusNode?focusNode.label:(fileNode.group||'').replace(/^mod:/,''), onClick:()=>this._flowSetFocus(focusNode?focusNode.id:(fileNode&&fileNode.group)), style:'cursor:pointer;color:'+(fileFocus?'var(--gx-accent)':'var(--gx-ink)')}]:[]).concat(fileFocus?[{label:fileFocus.split('/').pop(), onClick:()=>{}, style:'color:var(--gx-ink)'}]:[]),
       flowStats: ok?(k(s.analyzed)+' dosya · '+k(s.lines)+' satır'+(s.ms!=null?' · '+s.ms+' ms':'')+(m.truncated?' · ilk '+s.analyzed+' dosya':'')):'',
       flowBusy: busy, flowErr: !!(m&&!m.ok), flowErrText: (m&&!m.ok&&m.error)||'',
+      flowNeedGen: !busy && !(m&&m.ok),
+      flowGenerate: ()=>{ this._flowView=null; this._loadProjMap(true); },
       flowFit: ()=>this._flowFit(), flowZoomIn: ()=>this._flowZoom(1.2), flowZoomOut: ()=>this._flowZoom(1/1.2),
       flowReload: ()=>{ this._flowView=null; this._loadProjMap(true); },
-      flowUp: ()=>this._flowSetFocus(null), flowInFocus: !!focusNode,
+      flowUp: ()=>this._flowUp(), flowInFocus: !!(focusNode||fileFocus),
+      flowWalk: ()=>this._flowPlayStory(), flowExport: ()=>this._flowExportDrawio(),
+      flowHasStory: !!((st.flowStory||[]).length),
+      flowStoryN: String((st.flowStoryIdx||0)+1), flowStoryTotal: String((st.flowStory||[]).length||0),
+      flowStoryPrev: ()=>this._flowStoryGo((st.flowStoryIdx||0)-1),
+      flowStoryNext: ()=>this._flowStoryGo((st.flowStoryIdx||0)+1),
+      flowStorySteps: (st.flowStory||[]).map((s,i)=>({ n:String(s.n), label:s.label, on:i===(st.flowStoryIdx||0), onClick:()=>this._flowStoryGo(i), style:'padding:4px 8px;border:1px solid '+(i===(st.flowStoryIdx||0)?'var(--gx-accent)':'var(--gx-line)')+';border-radius:6px;background:'+(i===(st.flowStoryIdx||0)?'color-mix(in srgb, var(--gx-accent) 14%, transparent)':'transparent')+';color:'+(i===(st.flowStoryIdx||0)?'var(--gx-accent)':'var(--gx-dim)')+';cursor:pointer;font-size:11px' })),
       flowQuery: st.flowQuery||'', onFlowQuery: (e)=>this.setState({flowQuery:(e&&e.target&&e.target.value)||''}),
       onFlowKey: (e)=>{ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this._flowSearchGo(); } else if(e.key==='Escape'){ e.stopPropagation&&e.stopPropagation(); this.setState({flowQuery:''}); } },
-      flowLegend: [['Giriş','#53c98b'],['Arayüz','#6aa7ff'],['API / IPC','#a596e8'],['Mantık','#8fa3c8'],['Veri','#e5b45d'],['Dış servis','#ef8bc0']].map(([l,c])=>({label:l, style:'display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--gx-dim)', dot:'width:9px;height:9px;border-radius:3px;background:'+c})),
-      flowEdgeLegend: 'düz: import · kesikli mor: IPC · kesikli mavi: HTTP · sarı: DB · noktalı pembe: dış servis',
+      flowLegend: [['Giriş','var(--gx-ok)'],['Arayüz','var(--gx-accent)'],['API / rota','var(--gx-violet)'],['Fonksiyon','#7dd3fc'],['Veri','var(--gx-warn)'],['Dış servis','#ef8bc0']].map(([l,c])=>({label:l, style:'display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--gx-dim)', dot:'width:9px;height:9px;border-radius:3px;background:'+c})),
+      flowEdgeLegend: 'düz: import · açık mavi: çağrı · kesikli: HTTP/IPC · sarı: DB · pembe: dış servis',
       flowHasSel: !!ins, flowNoSel: !ins,
       flowSelTitle: ins?ins.title:'', flowSelKind: ins?ins.kind:'', flowSelSub: ins?ins.sub:'',
-      flowSelKindStyle: "font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:"+(ins?ins.color:'var(--gx-dim)'),
+      flowSelKindStyle: "font-family:var(--gx-font);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:"+(ins?ins.color:'var(--gx-dim)'),
       flowSelActs: ins?ins.acts:[], flowSelSections: ins?ins.sections:[],
       flowTips: [
         'Tek tık: düğümü seç, bağlantıları vurgula',
-        'Çift tık: modülün içine gir · dosyayı aç',
-        'Pinch / ⌘ + tekerlek: yakınlaştır · sürükle veya iki parmak: kaydır',
-        'Ara + Enter: düğüm veya dosya bul (dosya ise modülüne iner)',
+        'Çift tık: modül → dosyalar → fonksiyonlar. Fonksiyona çift tık satıra gider',
+        'Adım adım: seçili girişten çağrı / DB / dış servis yürüyüşü',
+        'draw.io kaydet: gördüğün şema .galaxy/flow.drawio olur',
+        'Pinch / ⌘ + tekerlek: yakınlaştır · sürükle: kaydır',
         'Esc: bir üst seviye / kapat'
       ],
     };

@@ -15,7 +15,7 @@
     this._ptyDispose();
     if(!(window.Terminal)){ div.innerHTML='<div style="padding:14px;font-family:var(--gx-mono);font-size:12px;color:var(--gx-dim)">xterm yüklenemedi — BASH sekmesini kullan.</div>'; return; }
     const term=new window.Terminal({
-      theme:{background:'#070a12',foreground:'#d7e3f5',cursor:'#6aa7ff',selectionBackground:'rgba(106,167,255,.3)',green:'#53c98b',red:'#ef6b7b',yellow:'#e5b45d',blue:'#6aa7ff',magenta:'#a596e8',cyan:'#5ce1ff'},
+      theme:{background:'#070a12',foreground:'#d7e3f5',cursor:'var(--gx-accent)',selectionBackground:'color-mix(in srgb, var(--gx-accent) 30%, transparent)',green:'var(--gx-ok)',red:'var(--gx-err)',yellow:'var(--gx-warn)',blue:'var(--gx-accent)',magenta:'var(--gx-violet)',cyan:'#5ce1ff'},
       fontFamily:'"JetBrains Mono",ui-monospace,monospace', fontSize:12, lineHeight:1.25, cursorBlink:true, scrollback:4000
     });
     let fit=null;
@@ -83,7 +83,7 @@
     scored.sort((a,b)=> (recent.indexOf(b.f.path)-recent.indexOf(a.f.path)) || (a.score-b.score) || a.f.path.localeCompare(b.f.path));
     const rows=scored.slice(0,14).map((x,i)=>({
       label:x.f.path, isActive:i===(this.state.filePalIdx||0),
-      style:`display:flex;align-items:center;gap:10px;width:100%;padding:9px 16px;cursor:pointer;background:${i===(this.state.filePalIdx||0)?'rgba(106,167,255,.10)':'transparent'};border:none;border-left:2px solid ${i===(this.state.filePalIdx||0)?'var(--gx-accent)':'transparent'};text-align:left;color:var(--gx-ink);font-family:'JetBrains Mono',monospace;font-size:12.5px`,
+      style:`display:flex;align-items:center;gap:10px;width:100%;padding:9px 16px;cursor:pointer;background:${i===(this.state.filePalIdx||0)?'color-mix(in srgb, var(--gx-accent) 10%, transparent)':'transparent'};border:none;border-left:2px solid ${i===(this.state.filePalIdx||0)?'var(--gx-accent)':'transparent'};text-align:left;color:var(--gx-ink);font-family:var(--gx-font);font-size:12.5px`,
       onClick:()=>{ this.setState({filePalOpen:false,filePalQuery:''}); this._openFilePreview(x.f.path); }
     }));
     this._filePalList=rows;

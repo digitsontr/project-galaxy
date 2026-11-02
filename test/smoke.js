@@ -35,7 +35,11 @@ function staticChecks() {
     check('sprint-i-posta', /Posta/.test(h) && /mail_send/.test(h) && /mailShowCompose/.test(h) && /Gönder/.test(h) && /openMailSettings/.test(h), '');
     check('sprint-j-split', fs.existsSync(path.join(ROOT, 'lib', 'config.js')) && fs.existsSync(path.join(ROOT, 'ipc', 'core.js')) && fs.existsSync(path.join(ROOT, 'lib', 'mcp-client.js')), '');
     check('sprint-k-fonts', (h.match(/data:font\/woff2/g) || []).length === 0 && fs.existsSync(path.join(ROOT, 'newui', 'assets', 'fonts')), '');
-    check('sprint-e-a11y', /prefers-reduced-motion/.test(h) && /#9aa3c2/.test(h) && /aria-label/.test(h) && /role="banner"/.test(h), '');
+    check('sprint-e-a11y', /prefers-reduced-motion/.test(h) && /--gx-dim/.test(h) && /aria-label/.test(h) && /role="banner"/.test(h), '');
+    try {
+      const budget = require('./design-budget').measure();
+      check('design-budget', budget.ok, budget.detail);
+    } catch (e) { check('design-budget', false, String(e && e.message || e)); }
     check('agent-edit-form', /value="\{\{ agFormPrompt \}\}"/.test(h) && /agFormRole/.test(h) && /Kişilik/.test(h) && /Tek tık komutlar/.test(h) && !/>\{\{ agFormPrompt \}\}<\/textarea>/.test(h), '');
     check('ux-shell', /planSections/.test(h) && /pvMd/.test(h) && /pvHtml/.test(h) && /mailPickFiles/.test(h) && /Git nedir/.test(h) && /gx-md-doc/.test(h) && /_toggleTree/.test(h) && /--gx-ok/.test(h) && /asstStatusPill/.test(h) && /grid-area:dock/.test(h) && /toggleHud/.test(h), '');
     const dbGit = fs.readFileSync(path.join(ROOT, 'ipc', 'db-git.js'), 'utf8');
@@ -70,10 +74,24 @@ function staticChecks() {
     const nsis = (pkg.build && pkg.build.nsis) || {};
     check('windows-nsis', Array.isArray(win.target) && win.target.some(t => (t.target || t) === 'nsis') && nsis.shortcutName === 'Project Galaxy', JSON.stringify(win.target));
     check('docs-privacy-windows', fs.existsSync(path.join(ROOT, 'docs', 'PRIVACY.md')) && fs.existsSync(path.join(ROOT, 'docs', 'WINDOWS.md')), '');
-    check('faz2-backend', /grepReplacePreview/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8')) && /testDiscover/.test(fs.readFileSync(path.join(ROOT, 'preload.js'), 'utf8')) && /gitFileHistory/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8')) && /jobStart/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8')) && /Geliştir/.test(h) && /Sembol haritası/.test(h) && /Test Gezgini/.test(h), '');
+    check('faz2-backend', /grepReplacePreview/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8')) && /gitFileHistory/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8')) && /jobStart/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8')) && /Geliştir/.test(h) && /Sembol haritası/.test(h) && !/Test Gezgini/.test(h), '');
     check('faz4-backend', fs.existsSync(path.join(ROOT, 'ipc', 'agent-engine.js')) && /galaxy:agentSend/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'agent-engine.js'), 'utf8')) && /galaxy:dbgStart/.test(fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8')) && /galaxy:agentSend/.test(fs.readFileSync(path.join(ROOT, 'preload.js'), 'utf8')) && /Yerleşik Ajan/.test(h) && /gx-bp-gutter/.test(h) && /Çakışma çöz/.test(h) && /Hızlı düzeltmeler/.test(h), '');
     const devtoolsSrc = fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8');
     check('faz3-backend', fs.existsSync(path.join(ROOT, 'ipc', 'lang-worker.js')) && /galaxy:langRequest/.test(devtoolsSrc) && /galaxy:formatFile/.test(devtoolsSrc) && /galaxy:ghPrList/.test(devtoolsSrc) && /galaxy:gitStashPush/.test(devtoolsSrc) && /galaxy:debugStart/.test(devtoolsSrc) && /langRequest/.test(fs.readFileSync(path.join(ROOT, 'preload.js'), 'utf8')) && /ÇALIŞTIR/.test(h.toLocaleUpperCase('tr-TR')) && /GitHub · PR/.test(h) && /Yeniden adlandır \(LSP\)/.test(h) && /gx-diag-err/.test(h), '');
+    check('code-review', fs.existsSync(path.join(ROOT, 'lib', 'review.js')) && fs.existsSync(path.join(ROOT, 'ipc', 'review.js')) && /galaxy:reviewRun/.test(fs.readFileSync(path.join(ROOT, 'preload.js'), 'utf8')) && /gx-cr/.test(h) && /_crStart/.test(uiSrc) && /Kod incele/.test(h), 'şema + IPC + Kod Kalitesi paneli');
+    check('tahta-surface', /id="gx-tahta"/.test(h) && /openTahta/.test(uiSrc) && /tahta\.json/.test(uiSrc) && /gx-tahta-notes/.test(h), 'tam ekran tahta + notlar');
+    check('docker-dlog', /id="gx-dlog"/.test(h) && /class="gx-dlog"/.test(h) && /gx-dlog-bar/.test(h), 'konteyner overlay kökte');
+    check('db-split', /gx-db-split/.test(h) && /gx-db-side/.test(h) && /gx-db-chev/.test(h) && /dbToggleCols/.test(uiSrc) && /_srvMarkReady/.test(uiSrc), 'DB 3:2 + kolon ok + SSH hazır');
+    check('db-log-fold', /gx-db-log-item/.test(h) && /dbToggleLog/.test(uiSrc), 'işlem günlüğü katlanır');
+    check('term-tab-hold', /data-gx-term="1"/.test(h) && /_srvComplete/.test(uiSrc) && /_termKey/.test(uiSrc), 'terminal Tab odak tutar');
+    check('pano-task-form', /todoTitle/.test(h) && /todoHashOpen/.test(h) && /gx-todo-form/.test(h) && !/todoSeedFromPlans\(\{universe:uni\}\)/.test(uiSrc), 'görev formu + # etiket, otomatik tohum yok');
+    check('home-jumps', /gx-jumps/.test(h) && /deskJumps/.test(uiSrc) && /deskNextHint/.test(uiSrc), 'ana sayfa atlama + sabit CTA');
+    check('no-quick-files', !/Hızlı Dosyalar/.test(h), 'hızlı dosyalar kalktı');
+    check('tahta-undo', /_tahtaUndo/.test(uiSrc) && /tahtaColors/.test(uiSrc), 'tahta geri al + renk');
+    check('tahta-studio', /_tahtaApplyTemplate/.test(uiSrc) && /_tahtaExport/.test(uiSrc) && /_tahtaLock/.test(uiSrc) && /_tahtaMini/.test(uiSrc) && /tahtaTemplates/.test(h) && /gx-tahta-h/.test(h) && /gx-tahta-port/.test(h), 'şekil · şablon · kilit · minimap · bağ');
+    const preloadSrc = fs.readFileSync(path.join(ROOT, 'preload.js'), 'utf8');
+    check('i18n-lang', /_setLang/.test(uiSrc) && /_tx\(/.test(uiSrc) && /_i18nPaint/.test(uiSrc) && /galaxy:lang/.test(preloadSrc) && /onLang/.test(preloadSrc) && /persistLangNow/.test(fs.readFileSync(path.join(ROOT, 'onboarding.html'), 'utf8')), 'dil çekirdeği + ayarlar anında kaydet');
+    check('help-reopen', /_helpForce/.test(uiSrc) && /gx-help-peek/.test(h) && /showHelpAgain/.test(h), 'İpucu tıklanınca banner geri gelir');
   } catch (e) { check('static-read', false, e.message); }
 }
 
@@ -86,7 +104,7 @@ app.whenReady().then(async () => {
     await win.loadFile(INDEX);
     await wait(4500);
     // İzolasyon: önceki koşudan kalan oturum/pixel durumu testi kirletmesin
-    await win.webContents.executeJavaScript(`localStorage.removeItem('gxSession'); localStorage.removeItem('gxMeetings'); true`);
+    await win.webContents.executeJavaScript(`localStorage.removeItem('gxSession'); localStorage.removeItem('gxMeetings'); localStorage.removeItem('gxLang'); localStorage.removeItem('gxAsstLang'); true`);
     await win.reload();
     await wait(3500);
   } catch (e) { check('boot', false, e.message); return finish(); }
@@ -99,6 +117,20 @@ app.whenReady().then(async () => {
     // Sekmeler render
     const nav = await js(`(document.querySelector('nav.gx-tabs')||{}).innerText||''`);
     check('tabs-render', /Ana Sayfa[\s\S]*Görevler[\s\S]*Ajanlar[\s\S]*Otomasyonlar[\s\S]*Servisler/.test(nav) && !/Daha|Zamanlayıcı|Döngü/.test(nav), nav.replace(/\n/g, '|').slice(0, 80));
+    await js(`(function(){ if(window.__gxSetLang) window.__gxSetLang('en','user'); })(); true`);
+    await wait(500);
+    const langEn = await js(`(function(){
+      var nav=(document.querySelector('nav.gx-tabs')||{}).innerText||'';
+      return { lang:document.documentElement.lang, hook:typeof window.__gxSetLang, cur:window.__gxLang?window.__gxLang():'', nav:nav.replace(/\\n/g,'|').slice(0,80), home:/Home/.test(nav), tasks:/Tasks/.test(nav) };
+    })()`);
+    check('lang-en', langEn && langEn.lang==='en' && langEn.home && langEn.tasks, JSON.stringify(langEn));
+    await js(`(function(){ if(window.__gxSetLang) window.__gxSetLang('tr','user'); })(); true`);
+    await wait(500);
+    const langTr = await js(`(function(){
+      var nav=(document.querySelector('nav.gx-tabs')||{}).innerText||'';
+      return document.documentElement.lang==='tr' && /Ana Sayfa/.test(nav) && /Görevler/.test(nav);
+    })()`);
+    check('lang-tr-back', langTr, 'İngilizce sonrası Türkçe geri gelir');
     const goNav = (top, sub) => js(`(function(){
       var n=document.querySelector('nav.gx-tabs'); var b=n?[].slice.call(n.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()===${JSON.stringify(top)}; }):null; if(b) b.click();
       return new Promise(function(res){ setTimeout(function(){
@@ -202,10 +234,52 @@ app.whenReady().then(async () => {
     check('mail-on-ozet', /Posta/.test(ozetText) && /posta MCP|Posta \(MCP\)|Ayarlar → Posta|Posta nasıl bağlanır/i.test(ozetText), '');
     await goNav('Otomasyonlar');
     const subText = await js(`(document.querySelector('nav.gx-subnav')||{}).innerText||''`);
-    check('no-egitim-menu', !/Eğitimlerim/.test(subText) && /Zamanlanmış işler/.test(subText) && /Proje taraması/.test(subText) && /E-posta/.test(subText), subText.replace(/\n/g, '|'));
+    check('no-egitim-menu', !/Eğitimlerim/.test(subText) && /Zamanlanmış işler/.test(subText) && /Proje taraması/.test(subText) && !/E-posta/.test(subText), subText.replace(/\n/g, '|'));
     await goNav('Servisler');
     const svcText = await js(`(document.querySelector('nav.gx-subnav')||{}).innerText||''`);
     check('nav-services-sub', /Veritabanları[\s\S]*Konteynerler[\s\S]*SSH sunucuları/.test(svcText), svcText.replace(/\n/g, '|'));
+    await goNav('Servisler', 'Veritabanları');
+    await wait(700);
+    const dbSplit = await js(`(function(){
+      var split=document.querySelector('.gx-db-split');
+      var side=document.querySelector('.gx-db-side');
+      var cards=[].slice.call(document.querySelectorAll('.gx-db-card'));
+      var cols=document.querySelectorAll('.gx-db-card-cols').length;
+      var chev=document.querySelector('.gx-db-chev');
+      var t=document.body.innerText||'';
+      return { has:!!split && !!side, cards:cards.length, cols:cols, chev:!!chev, agent:/AI Veritabanı Ajanı/.test(t), collapsed:cards.length>0 && cols===0 };
+    })()`);
+    check('db-layout', dbSplit && dbSplit.has && dbSplit.collapsed && dbSplit.agent && dbSplit.cards>=1, JSON.stringify(dbSplit));
+    await js(`(function(){ var b=document.querySelector('.gx-db-chev'); if(b) b.click(); })(); true`);
+    await wait(250);
+    const dbOpen = await js(`document.querySelectorAll('.gx-db-card-cols').length>=1 && /OlusturmaZamani|Id/.test(document.body.innerText||'')`);
+    check('db-expand', dbOpen, 'ok ile kolon açılır');
+    await goNav('Servisler', 'Konteynerler');
+    await wait(700);
+    await js(`(function(){ var r=document.querySelector('.gx-ct-row'); if(r) r.click(); })(); true`);
+    await wait(400);
+    const dlogVis = await js(`(function(){
+      var el=document.getElementById('gx-dlog'); if(!el) return 'yok';
+      var bar=el.querySelector('.gx-dlog-bar'); if(!bar) return 'bar yok';
+      var r=bar.getBoundingClientRect();
+      var t=bar.innerText||'';
+      return r.top>=8 && r.bottom<=window.innerHeight && /KONTEYNER|web/.test(t) ? true : ('top='+Math.round(r.top)+' '+t.slice(0,60));
+    })()`);
+    check('docker-dlog-open', dlogVis===true, dlogVis===true?'üst bar görünür':String(dlogVis));
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`);
+    await wait(250);
+    await goNav('Servisler', 'SSH sunucuları');
+    await wait(600);
+    await js(`(function(){ var r=document.querySelector('.gx-srv-row'); if(r) r.click(); })(); true`);
+    await wait(500);
+    const sshReady = await js(`(function(){
+      var st=(document.querySelector('.gx-srvterm-status')||{}).innerText||'';
+      var body=(document.getElementById('ghud-srvterm-scroll')||{}).innerText||'';
+      return /bağlandı/.test(st) || /bağlandı/.test(body) ? true : (st+' | '+body.slice(0,80));
+    })()`);
+    check('ssh-ready', sshReady===true, sshReady===true?'bağlandı':String(sshReady));
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`);
+    await wait(200);
     // Ajanlar = Toplantı Salonu: ekip kartları, eksik yerleşik ajanı ekle, duraklat, toplantı, sil
     await js(`localStorage.removeItem('gxMeetings'); location.reload(); true`);
     await wait(2500);
@@ -241,6 +315,16 @@ app.whenReady().then(async () => {
     await wait(700);
     const wsHome = await js(`(function(){ var t=document.body.innerText||''; return /AlphaAPI/.test(t) && /Kaldığın yerden|Bir dosya seç/.test(t) && /dosya/.test(t) && !!document.querySelector('input[placeholder*="filtrele"]'); })()`);
     check('workspace-home', wsHome, 'kimlik + filtre + proje evi');
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('Kod Kalitesi')===0;}); if(b) b.click(); })(); true`);
+    await wait(400);
+    const crOpen = await js(`(function(){ var p=document.querySelector('.gx-cr'); return !!p && /Kod incele/.test(p.innerText||''); })()`);
+    check('cr-panel', crOpen, 'Kod Kalitesi inceleme paneli');
+    await js(`(function(){ var b=document.getElementById('gx-cr-run'); if(b) b.click(); })(); true`);
+    await wait(500);
+    const crRun = await js(`(function(){ var p=document.querySelector('.gx-cr'); var t=p?(p.innerText||''):''; return /GEÇTİ/.test(t) && /src\\/index\\.js/.test(t) && /Debug izi/.test(t); })()`);
+    check('cr-run', crRun, 'skor + bulgu listesi');
+    await js(`(function(){ window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); })(); true`);
+    await wait(250);
     // Dosya aç: ağaçtan README → sekme + breadcrumb + okuyucu
     await js(`(function(){ var r=[].slice.call(document.querySelectorAll('.gx-tree-row')).find(function(x){ return /README\\.md/.test(x.innerText||''); }); if(r){ var lb=r.querySelector('[data-noi18n]'); (lb||r).click(); } })(); true`);
     await wait(600);
@@ -269,7 +353,7 @@ app.whenReady().then(async () => {
     const wsFind = await js(`/eşleşme/.test(document.body.innerText||'')`);
     check('workspace-find', wsFind, 'dosyada bul sayacı');
     // DevTools 1: gerçek terminal sekmesi (xterm) monte olur
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /TERMİNAL/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('.gx-term-tab')).find(function(x){ return (x.innerText||'').trim()==='Terminal'; }); if(b) b.click(); })(); true`);
     await wait(900);
     const ptyOk = await js(`(function(){ return !!document.getElementById('gx-xterm') && !!document.querySelector('#gx-xterm .xterm'); })()`);
     check('devtools-pty', ptyOk, 'xterm monte');
@@ -329,11 +413,11 @@ app.whenReady().then(async () => {
     await js(`(function(){ var b=document.getElementById('gx-notif-btn'); if(b) b.click(); })(); true`);
     await wait(200);
     check('faz2-notif-jobs', notifOk, 'bildirim + iş başlat');
-    // Çalıştır paneli (eski Geliştir): Bul&Değiştir önizleme + Test keşfi
+    // Çalıştır paneli (eski Geliştir): profil + ajan, Test Gezgini yok
     await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Çalıştır'; }); if(b) b.click(); })(); true`);
     await wait(500);
-    const devPane = await js(`(function(){ var t=(document.body.innerText||'').toLocaleUpperCase('tr-TR'); return !t.includes('BUL VE DEĞİŞTİR') && t.includes('TEST GEZGİNİ') && t.includes('GALAXY PROFİLİ'); })()`);
-    check('faz2-devpane', devPane, 'Çalıştır sekmesi: test + profil, bul/değiştir yok');
+    const devPane = await js(`(function(){ var t=(document.body.innerText||'').toLocaleUpperCase('tr-TR'); return !t.includes('BUL VE DEĞİŞTİR') && !t.includes('TEST GEZGİNİ') && t.includes('GALAXY PROFİLİ'); })()`);
+    check('faz2-devpane', devPane, 'Çalıştır sekmesi: profil, test gezgini yok');
     // Bul ve değiştir Dosyalar sekmesinde, arama kutusunun yanındaki ⇄ ile açılır
     await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Dosyalar'; }); if(b) b.click(); })(); true`);
     await wait(300);
@@ -345,14 +429,6 @@ app.whenReady().then(async () => {
     check('faz2-grep-replace', grOk, 'önizlemeli toplu değiştir');
     await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Çalıştır'; }); if(b) b.click(); })(); true`);
     await wait(400);
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Keşfet/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
-    await wait(800);
-    const testOk = await js(`(document.body.innerText||'').includes('health ok döner')`);
-    check('faz2-test-explorer', testOk, 'test keşfi');
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).filter(function(x){ return (x.title||'').includes('Bu testi'); }); if(b.length) b[0].click(); })(); true`);
-    await wait(900);
-    const testRunOk = await js(`(document.body.innerText||'').includes('Test geçti') || (document.body.innerText||'').includes('vitest')`);
-    check('faz2-test-run', testRunOk, 'tek tık koş');
     // Dev server önizlemesi
     await js(`(function(){ var i=document.querySelector('input[placeholder*="port (örn"]'); if(i){ i.focus(); i.value='5173'; i.dispatchEvent(new Event('input',{bubbles:true})); } })(); true`);
     await wait(350);
@@ -373,7 +449,7 @@ app.whenReady().then(async () => {
     check('faz3-git-depth', gdOk, 'dallar + stash paneli');
     // ---- FAZ 4 ----
     // AJAN konsol sekmesi: boş durum + mesaj akışı (mock motor)
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='✦ AJAN'; }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('.gx-term-tab')).find(function(x){ return (x.innerText||'').trim()==='Ajan'; }); if(b) b.click(); })(); true`);
     await wait(600);
     const ajEmpty = await js(`(function(){ var t=document.body.innerText||''; return /Yerleşik ajan/.test(t) && /Claude Code CLI gerekmez/.test(t); })()`);
     check('faz4-agent-tab', ajEmpty, 'AJAN sekmesi + CLI gerekmez notu');
@@ -402,6 +478,12 @@ app.whenReady().then(async () => {
     const flowDrill = await js(`(function(){ var c=document.getElementById('gx-flow-canvas'); return !!c.querySelector('[data-nid="file:src/routes/orders.ts"]') && !!c.querySelector('[data-nid="mod:src/services"]') && /src\\/routes\\//.test(document.getElementById('gx-flow').innerText||''); })()`);
     await shot('flow-modul');
     check('flow-drill', flowDrill, 'modül içi dosya grafiği');
+    await nodeClick('file:src/routes/orders.ts', 'dblclick');
+    await wait(450);
+    const flowFn = await js(`(function(){ var c=document.getElementById('gx-flow-canvas'); var t=c?(c.textContent||''):''; return !!c && (/listOrders/.test(t) || /payOrder/.test(t) || /GET \\/orders/.test(t)); })()`);
+    check('flow-fn', flowFn, 'dosya içi fonksiyon / çağrı');
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`);
+    await wait(250);
     await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`);
     await wait(350);
     await nodeClick('db:postgres', 'click');
@@ -420,6 +502,25 @@ app.whenReady().then(async () => {
     await wait(200);
     await shot('gezegen-veri');
     check('planet-db-card', pdbOk === true, pdbOk === true ? 'gezegende bağlı DB + tablolar' : String(pdbOk));
+    await js(`(function(){ var b=document.getElementById('gx-tahta-open')||document.getElementById('gx-tahta-open-side'); if(b) b.click(); })(); true`);
+    await wait(600);
+    const tahtaOk = await js(`(function(){
+      var el=document.getElementById('gx-tahta'); if(!el) return 'yok';
+      var notes=document.getElementById('gx-tahta-notes');
+      var card=el.querySelector('[data-tid]');
+      var t=el.innerText||'';
+      var nt=notes?(notes.innerText||''):'';
+      return !!card && /Ödeme akışı/.test(t) && /Not\\./.test(nt) ? true : ('kart='+(card?'var':'yok')+' not='+nt.slice(0,80));
+    })()`);
+    await shot('tahta');
+    check('tahta-open', tahtaOk === true, tahtaOk === true ? 'kart + sağ notlar' : String(tahtaOk));
+    await js(`(function(){ var b=document.getElementById('gx-tahta-add'); if(b) b.click(); })(); true`);
+    await wait(350);
+    const tahtaAdd = await js(`document.querySelectorAll('#gx-tahta [data-tid]').length>=2`);
+    check('tahta-card', tahtaAdd, 'kart ekle');
+    for (let i = 0; i < 3; i++) { await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`); await wait(180); }
+    const tahtaClosed = await js(`!document.getElementById('gx-tahta')`);
+    check('tahta-esc', tahtaClosed, 'Esc kapatır');
     // Evrene proje ekleme: kendiliğinden keşif yok; modal → depoları bul → işaretle → ekle
     for (let i = 0; i < 2; i++) {
       await js(`(function(){ var b=document.querySelector('button[aria-label="Geri dön"]'); if(b) b.click(); })(); true`);

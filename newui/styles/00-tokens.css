@@ -1,0 +1,54 @@
+/* KAPTAN v2 — tek :root. docs/DESIGN.md */
+:root{
+  --gx-bg:#0b0f14;
+  --gx-panel:rgba(14,20,28,.62);
+  --gx-panel-2:rgba(255,255,255,.08);
+  --gx-line:rgba(255,255,255,.20);
+  --gx-line-soft:rgba(255,255,255,.10);
+  --gx-line-strong:rgba(255,255,255,.32);
+  --gx-accent:#7cc4ff;
+  --gx-cta:#5fe3c0;
+  --gx-ink:#f2f5f8;
+  --gx-dim:#b3bcc8;
+  --gx-faint:#7f8a98;
+  --gx-ok:#6fd3a0;
+  --gx-warn:#e8c170;
+  --gx-err:#f08a96;
+  --gx-info:#7cc4ff;
+  --gx-violet:#b4a6f0;
+  --gx-on-accent:#062018;
+  --gx-ease:.22s cubic-bezier(.22,1,.36,1);
+  --gx-space-1:4px;--gx-space-2:8px;--gx-space-3:12px;--gx-space-4:16px;--gx-space-5:24px;--gx-space-6:32px;
+  --r-sm:10px;--r-md:16px;--r-lg:24px;--r-pill:999px;
+  --gx-radius:var(--r-md);--gx-radius-sm:var(--r-sm);--gx-radius-lg:var(--r-lg);
+  --gx-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI","Space Grotesk",sans-serif;
+  --gx-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --gx-grad:var(--gx-cta);
+  --gx-glow:none;
+  --gx-frame:var(--gx-line-strong);
+  --lg-1-fill:linear-gradient(165deg,rgba(255,255,255,.16),rgba(255,255,255,.05)),rgba(8,12,18,.46);
+  --lg-1-blur:blur(32px) saturate(180%);
+  --lg-2-fill:linear-gradient(165deg,rgba(255,255,255,.22),rgba(255,255,255,.07)),rgba(10,16,24,.58);
+  --lg-2-blur:blur(28px) saturate(190%);
+  --lg-3-fill:linear-gradient(165deg,rgba(24,32,42,.90),rgba(10,14,20,.86));
+  --lg-3-blur:blur(40px) saturate(185%);
+  --lg-edge:rgba(255,255,255,.34);
+  --lg-hi:inset 0 1px 0 rgba(255,255,255,.50),inset 0 -1px 0 rgba(255,255,255,.06);
+  --lg-drop:0 22px 48px -14px rgba(0,0,0,.72);
+  --gx-glass:var(--lg-2-fill);
+  --gx-glass-hi:var(--lg-hi);
+  --gx-lift:var(--lg-drop);
+  --gx-shadow:var(--lg-drop);
+}
+html,body,#dc-root,#dc-root>.sc-host{height:100%;width:100%;overflow:hidden}
+body{background:var(--gx-bg);color:var(--gx-ink);font-family:var(--gx-font);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--gx-accent);text-decoration:none}
+:where(button,input,textarea,select){font-family:inherit}
+pre,.gx-code-ed,.gx-code-ta,.CodeMirror,.xterm,.tr-prose code,.tr-prose .tr-code,.tr-prose .tr-out,.gx-gf-cmd,.gx-cli,.gx-loop-panel-body,.cm-s-galaxy{font-family:var(--gx-mono)}
+::selection{background:color-mix(in srgb,var(--gx-accent) 28%,transparent)}
+#appShell{background:transparent;height:100%;width:100%}
+body.ga-listening #appShell{box-shadow:inset 0 2px 0 0 color-mix(in srgb,var(--gx-ok) 70%,transparent)}
+@media (prefers-reduced-motion:reduce){
+  #gx-wall i{animation:none!important}
+  .gx-tabs>button.on::after{animation:none!important}
+}

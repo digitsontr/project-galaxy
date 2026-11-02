@@ -1,13 +1,14 @@
 
 class Component extends DCLogic {
-  state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'claude', leftTab:'agac', orbitView:false, readmeOpen:false, warping:false, gitCenter:null, addUni:false, editUniId:null, uniName:'', uniEditRoot:'', uniSource:'ssh', settings:false, kayitSub:'gorevler', focusRunning:false, focusSec:1500,
+  state = { mode:'space', tab:'genel', uiMode:'komutan', selId:'haci', hudOpen:false, agentId:null, palette:false, consoleTab:'ajan', leftTab:'agac', orbitView:false, readmeOpen:false, warping:false, gitCenter:null, addUni:false, editUniId:null, uniName:'', uniEditRoot:'', uniSource:'ssh', settings:false, kayitSub:'gorevler', focusRunning:false, focusSec:1500,
     toolsOpen:false, toolFind:'', _clockTick:0, locOpen:false, moreOpen:false, holdPlanet:false, asstOpen:false, asstInput:'', planetTodoInput:'',
     loaded:false, uniId:null, _docker:null, _sched:null, _db:null, _git:null, _preview:null, _prevLoading:false, _fsCwd:'', _reports:null, _reportView:null, query:'', paletteIdx:0,
     gitMsg:'', branchInput:'', _branchAdd:false, _gitBusy:false, _gitActionMsg:'', _gitDiff:null,
     _editMode:false, _editContent:'', _editBusy:false, _editMsg:'', newFileInput:'', _newFileOpen:false, _fsMsg:'', grepQuery:'', _grep:null, _grepBusy:false,
     dockerTab:'containers', _dstatus:null, _images:null, _dlog:null,
     dbSel:null, dbDatabase:null, _dbschema:null, _dbdbs:null, dbAddOpen:false, _dbtest:'',
-    _dbTable:null, _dbTableData:null, _dbEdits:{}, _dbRowBusy:null, _dbDelRow:null, _dbRowMsg:'', _dbOffset:0, _dbOrderBy:'', _dbOrderDir:'', _dbNewOpen:false, _dbNewRow:{},
+    _dbTable:null, _dbTableData:null, _dbEdits:{}, _dbRowBusy:null, _dbDelRow:null, _dbRowMsg:'', _dbOffset:0, _dbOrderBy:'', _dbOrderDir:'', _dbNewOpen:false, _dbNewRow:{}, _dbColsOpen:{}, _dbLogOpen:null,
+    todoTitle:'', todoDetail:'', todoTagId:'', todoHashOpen:false, deskMore:false, tahtaColor:'#7cc4ff',
     dbForm:{name:'',type:'postgres',host:'localhost',port:'5432',database:'',user:'',password:'',file:''},
     agentInput:'', _agentBusy:false, consoleInput:'', _todos:null, todoInput:'', noteInput:'', linkInput:'', linkAdd:false,
     _readme:null, docQuery:'', schInput:'', dbSql:'', dbAsk:'', dbAgentBusy:false, _dbresult:null, _dbConfirm:null, backupsOpen:false, _backups:null, activityOpen:false, _activityTick:0,
@@ -16,7 +17,6 @@ class Component extends DCLogic {
     filePalOpen:false, filePalQuery:'', filePalIdx:0, _agentReview:null, _runProblemsOpen:false,
     grQuery:'', grReplace:'', grRegex:false, grCase:false, _grPreview:null, grBusy:false, _grBackup:null,
     symOpen:false, symQuery:'',
-    _tests:null, testsBusy:false, _testRunning:'',
     _history:null, _blame:null, histBusy:false, _histShow:null,
     _jobs:[], notifOpen:false, _notifs:[], jobCmd:'',
     _gxProfile:null, gxBusy:false, tplKind:'node',
@@ -27,21 +27,23 @@ class Component extends DCLogic {
     _trainings:null, _trainingErr:'', _trainingCat:'', trainingSel:null, _trainingBusy:false, _trainingItem:null, trainingQuery:'',
     trainingMode:'oku', _quiz:null, _quizBusy:false, _quizPicked:null, _quizErr:'', _quizRight:0, _quizWrong:0,
     trainingAddOpen:false, _trainingAddCat:'', trainingAddNewCat:'', _trainingAddFiles:[], _trainingAddBusy:false, _trainingAddErr:'',
-    _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
+    _servers:null, _sshKeys:null, srvAddOpen:false, _srvtest:'', _srvScanId:'', srvRootInput:'', srvForm:{name:'',host:'',user:'',port:'22',key:'',roots:[]}, _srvTerm:null, srvTermInput:'', _uniSrvSel:null, uniRemotePath:'', _toast:null, _confirm:null,
     _conBusy:false, _claudeOk:null, _githubOk:null, _githubMsg:'', _hubPulse:null, planInput:'',
     leftCollapsed:false, rightCollapsed:false, activityId:'explorer', consoleCollapsed:true, _helpTick:0, splashOpen:true, _masBlocked:false,
     _leftPeek:false, _rightPeek:false, _lastSurface:'',
     schAddOpen:false, _schResult:'', schForm:{name:'',prompt:'',agentId:'',type:'weekly',weekday:'1',hour:'9',minute:'0'},
-    consoleH:240, hudH:128, agentFormOpen:false, agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'',p2:'',p3:''},
+    consoleH:240, hudH:128, agentFormOpen:false, agentForm:{id:'',name:'',role:'',prompt:'',color:'#7cc4ff',p1:'',p2:'',p3:''},
     mailPane:'inbox', _inbox:[], mailSel:null, mailReadBody:'', mailTo:'', mailSub:'', mailBody:'', mailAtts:[], _treeOpen:{},
-    _pw:null, _prs:null, _issues:null, _ci:null, _traffic:null, _grepUniOpen:false, _grepUni:[], _grepUniBusy:false, grepUniQuery:'', grepStatus:'', scopePlanet:true, asstAgentId:null, _tourTick:0 };
-  _uiTheme = 'apex';
+    _pw:null, _prs:null, _issues:null, _ci:null, _traffic:null, _grepUniOpen:false, _grepUni:[], _grepUniBusy:false, grepUniQuery:'', grepStatus:'', scopePlanet:true, asstAgentId:null, _tourTick:0,
+    tahtaOpen:false, tahtaTool:'select', tahtaSel:null, tahtaSels:[], tahtaEdit:null, tahtaDoc:null, tahtaNoteInput:'', tahtaSaved:true, tahtaArrow:'curve', tahtaZoomPct:100, tahtaSide:true, tahtaFind:'', tahtaMenu:null, _langTick:0 };
+  _uiTheme = 'kaptan';
+  _lang = 'tr';
 
   NOTES = { haci:['Yol tarifi v1\'de yok — sonraya','Kalıcı oturum: ilk girişten sonra login istenmez','Vital mock verisi sadece nabza indirilecek'], sales:['DuckDuckGo araması — API key gerektirmiyor','Web UI: python web_app.py'], core:['flux ile aynı kod tabanı','Son commit: Aralık 2025'], kyc:['Canlılık testi TurkTrust SDK ile'] };
   LINKS = { haci:[['PAP/BleBracelet','Bileklik firmware','#c77bff'],['KYC TurkTrust','Kimlik doğrulama','#61dcff']], sales:[['Core SDK','Ortak biyometri','#ffc861']], core:[['Flux','Aynı kod tabanı','#8a8fa8']], kyc:[['Hacı Takip','Kimlik modülü','#61dcff']] };
 
-  DARK = { '#61dcff':'#1a6b8f', '#4fe0ff':'#146078', '#55e88b':'#1c6b45', '#c77bff':'#5b2f83', '#ffc861':'#8a6410', '#8a8fa8':'#3a3e52', '#ff6b7a':'#8a2d3a', '#ff8ec8':'#7a3a5c', '#7aa2ff':'#243a78' };
-  STATUS = { active:{c:'#61dcff',l:'Aktif'}, waiting:{c:'#ffc861',l:'Beklemede'}, done:{c:'#55e88b',l:'Tamam'}, new:{c:'#c77bff',l:'Keşfedilmemiş'}, paused:{c:'#8a8fa8',l:'Arşiv'} };
+  DARK = { '#7cc4ff':'#1a3a52', '#61dcff':'#1a3a52', '#4fe0ff':'#163848', '#6fd3a0':'#1a4a38', '#55e88b':'#1a4a38', '#b4a6f0':'#3a3460', '#c77bff':'#3a3460', '#e8c170':'#5a4818', '#ffc861':'#5a4818', '#8a8fa8':'#3a3e52', '#7f8a98':'#3a3e52', '#f08a96':'#5a2a32', '#ff6b7a':'#5a2a32', '#ff8ec8':'#5a3a4c', '#7aa2ff':'#243a58' };
+  STATUS = { active:{c:'#7cc4ff',l:'Aktif'}, waiting:{c:'#e8c170',l:'Beklemede'}, done:{c:'#6fd3a0',l:'Tamam'}, new:{c:'#b4a6f0',l:'Keşfedilmemiş'}, paused:{c:'#7f8a98',l:'Arşiv'} };
 
   PROJECTS = [
     { id:'haci', name:'Hacı Takip', status:'active', prog:35, warn:true, orbit:true, x:19, y:31, size:150, branch:'feature/telemetri-v1', stage:'UI prototip tamam — Faz 1: backend entegrasyonu', desc:'Bileklik tabanlı konum + nabız takip sistemi (iOS + web portal).', plan:[['Login ekranı',true],['BLE eşleştirme',true],['Hacı CRUD ekranları',false],['Geofence alarmları',false],['Telemetri v1',false]] },
@@ -58,7 +60,7 @@ class Component extends DCLogic {
     { id:'git', kind:'git', builtin:true, name:'Git Yöneticisi', role:'Dallar · commit · MR · stash', color:'#f78166', avatar:'', abilities:['Yerel ve uzak dallar, commitler, stash’ler','Açık PR / MR listesi (GitHub, GitLab)','Ne olacağını adım adım grafikle gösterir','Geri alınamaz işlemden önce onay ister'], presets:[{label:'Dal grafiğini çiz',ask:'Bu deponun dal grafiğini çiz ve açıkla.'},{label:'Ne push/pull bekliyor?',ask:'Yerel ile uzağı karşılaştır.'}], badge:0, msgs:[] },
     { id:'quality', kind:'quality', builtin:true, name:'Kod Kalitesi', role:'Kod inceleme · SonarQube bakışı', color:'#7ee787', avatar:'', abilities:['Dili, framework’ü ve proje yapısını tanır','Code review kuralları + SonarQube kategorileri','Her bulgu dosya:satır, neden ve nasıl düzelir','Kalite kapısı kararı ve puan'], presets:[{label:'Değişikliklerimi incele',ask:'Commit’lenmemiş değişikliklerimi incele.'}], badge:0, msgs:[] },
     { id:'docs', kind:'docs', builtin:true, name:'Dokümantasyon', role:'md · pdf · excel · görsel', color:'#79c0ff', avatar:'', abilities:['Projedeki md, pdf, xlsx, csv, görsel dosyaları bulur','README, kılavuz, API dokümanı yazar','PDF, Excel/CSV, SVG diyagram üretir'], presets:[{label:'Tüm dokümanları listele',ask:'Bu projedeki tüm dokümanları listele.'}], badge:0, msgs:[] },
-    { id:'flow', kind:'flow', builtin:true, name:'Akış Analisti', role:'Akışlar · aşamalar · sorunlar', color:'#d2a8ff', avatar:'', abilities:['Her akışı çıkarır: giriş → aşamalar → çıktı','Her aşamadaki sorunları bulur','Sorunların nasıl çözüldüğünü gösterir'], presets:[{label:'Tüm akışları çıkar',ask:'Bu projedeki tüm akışları çıkar.'}], badge:0, msgs:[] },
+    { id:'flow', kind:'flow', builtin:true, name:'Akış Analisti', role:'Fonksiyon · çağrı · draw.io', color:'#d2a8ff', avatar:'', abilities:['Giriş → dosya → fonksiyon → DB/dış servis','Çift tıkla içine gir, adım adım yürü','draw.io dosyası üretir (.galaxy/flow.drawio)'], presets:[{label:'Akışı çiz',ask:'Bu projenin akış şemasını çiz.'},{label:'Adım adım göster',ask:'Adım adım yürü.'},{label:'draw.io kaydet',ask:'Akışı drawio olarak kaydet.'}], badge:0, msgs:[] },
     { id:'planner', kind:'planner', builtin:true, name:'Planlayıcı', role:'Fikir → plan → prompt', color:'#ffa657', avatar:'', abilities:['Fikrini sorgular ve güçlendirir','Riskleri, MVP kapsamını çıkarır','3-4 alternatif plan ve uzun proje promptları'], presets:[{label:'Bir fikrim var',ask:'Yeni bir proje fikrim var. Önce soruları sor.'}], badge:0, msgs:[] },
   ];
 
@@ -71,7 +73,7 @@ class Component extends DCLogic {
   ];
 
   _inForm(e){ const t=(e&&e.target&&e.target.tagName)||''; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='BUTTON'||(e.target&&e.target.isContentEditable); }
-  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.addProj||s.flowOpen||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s._history||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
+  _overlayOpen(){ const s=this.state||{}; return !!(s.palette||s.filePalOpen||s.moreOpen||s.locOpen||s.toolsOpen||s._confirm||s.gitCenter||s.agentId||s.asstOpen||s._guideOpen||s.backupsOpen||s.activityOpen||s.trainingAddOpen||s.addUni||s.addProj||s.flowOpen||s.tahtaOpen||s.settings||s._srvTerm||s._dlog||s.dbAddOpen||s.agentFormOpen||s.schAddOpen||s._gitDiff||s._reportView||s._preview||s._history||s.srvAddOpen||s._dbConfirm||s.splashOpen||s._grepUniOpen||s.mailPane==='compose'); }
   _rememberSurface(id){
     const key=String(id||''); if(!key) return;
     this._lastSurface=key;
@@ -79,7 +81,8 @@ class Component extends DCLogic {
     if(this.state._lastSurface!==key) this.setState({_lastSurface:key});
   }
   _surfaceLabel(id){
-    return ({genel:'Ana Sayfa',evren:'Projeler',db:'Veritabanları',docker:'Konteynerler',pano:'Görevler',zaman:'Zamanlanmış işler',dongu:'Proje taraması',posta:'E-posta',servers:'SSH sunucuları',pixel:'Ajanlar',git:'Değişiklikler',dev:'Çalıştır',agac:'Dosyalar',dosya:'Dosya'}[id])||id||'';
+    const map={genel:['Ana Sayfa','Home'],evren:['Projeler','Projects'],db:['Veritabanları','Databases'],docker:['Konteynerler','Containers'],pano:['Görevler','Tasks'],zaman:['Zamanlanmış işler','Scheduled jobs'],dongu:['Proje taraması','Project scan'],posta:['E-posta','Email'],servers:['SSH sunucuları','SSH servers'],pixel:['Ajanlar','Agents'],git:['Değişiklikler','Changes'],dev:['Çalıştır','Run'],agac:['Dosyalar','Files'],dosya:['Dosya','File']};
+    const p=map[id]; return p?this._tx(p[0],p[1]):(id||'');
   }
   _chromeMove(e){
     if(this._barDragging) return;
@@ -108,8 +111,22 @@ class Component extends DCLogic {
     if(!root) return [];
     try{ return [...root.querySelectorAll('button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(el=>{ const cs=getComputedStyle(el); return cs.display!=='none'&&cs.visibility!=='hidden'&&el.getClientRects().length>0; }); }catch(e){ return []; }
   }
+  _isTermEl(el){ try{ return !!(el&&el.closest&&el.closest('[data-gx-term="1"]')); }catch(e){ return false; } }
+  _termKey(e){
+    if(!e||e.key!=='Tab') return false;
+    const el=e.target||document.activeElement;
+    if(!this._isTermEl(el)) return false;
+    e.preventDefault(); e.stopPropagation&&e.stopPropagation();
+    const id=el.id||'';
+    if(id==='ghud-srvterm-input'||(this.state._srvTerm&&id.indexOf('srvterm')>=0)) this._srvComplete();
+    else if(id==='ghud-split-input') this._complete('split');
+    else if(id==='ghud-console-input'||(el.closest&&el.closest('.gx-console-field'))) this._complete();
+    setTimeout(()=>{ try{ el.focus(); }catch(err){} },0);
+    return true;
+  }
   _trapDialog(e){
     if(!e||e.key!=='Tab') return false;
+    if(this._isTermEl(e.target||document.activeElement)) return this._termKey(e);
     const root=this._activeDialog(); if(!root) return false;
     const fs=this._dialogFocusables(root); if(!fs.length){ e.preventDefault(); root.focus&&root.focus(); return true; }
     const first=fs[0], last=fs[fs.length-1], cur=document.activeElement;
@@ -124,7 +141,7 @@ class Component extends DCLogic {
     if(root){
       if(!this._dialogNode) this._dialogReturn=document.activeElement;
       this._dialogNode=root;
-      setTimeout(()=>{ try{ const target=root.querySelector('[autofocus]')||this._dialogFocusables(root)[0]||root; target.focus&&target.focus(); }catch(e){} },0);
+      setTimeout(()=>{ try{ if(this._isTermEl(document.activeElement)) return; const target=root.querySelector('[autofocus]')||root.querySelector('[data-gx-term="1"]')||this._dialogFocusables(root)[0]||root; target.focus&&target.focus(); }catch(e){} },0);
     }else{
       this._dialogNode=null;
       const ret=this._dialogReturn; this._dialogReturn=null;
@@ -140,7 +157,8 @@ class Component extends DCLogic {
     if(s.palette){ this.setState({palette:false,query:'',paletteIdx:0, activityId:s.activityId==='search'?'explorer':s.activityId}); return true; }
     if(s.moreOpen){ this.setState({moreOpen:false}); return true; }
     if(s._guideOpen){ this.setState({_guideOpen:false}); return true; }
-    if(s.flowOpen){ if(s.flowQuery) this.setState({flowQuery:''}); else if(s.flowSel) this.setState({flowSel:null}); else if(s.flowFocus) this._flowSetFocus(null); else this.closeFlow(); return true; }
+    if(s.flowOpen){ if(s.flowQuery) this.setState({flowQuery:''}); else if(s.flowStory&&s.flowStory.length) this.setState({flowStory:null, flowStoryIdx:0}); else if(s.flowSel) this.setState({flowSel:null}); else if(s.flowFocus) this._flowUp(); else this.closeFlow(); return true; }
+    if(s.tahtaOpen){ if(s.tahtaMenu) this.setState({tahtaMenu:null}); else if(s.tahtaEdit) this.setState({tahtaEdit:null}); else if(s.tahtaSel||(s.tahtaSels&&s.tahtaSels.length)) this.setState({tahtaSel:null, tahtaSels:[]}); else this.closeTahta(); return true; }
     if(s._srvTerm){ this.closeSrvTerm(); return true; }
     if(s._gitDiff){ this.closeGitDiff(); return true; }
     if(s._reportView){ this.closeReport(); return true; }
@@ -171,14 +189,10 @@ class Component extends DCLogic {
   }
   _reduced(){ try{ return !!(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
   _applyTheme(){
-    this._uiTheme='apex';
-    try{ document.documentElement.dataset.theme='apex'; document.body.dataset.theme='apex'; localStorage.setItem('gxUiTheme','apex'); }catch(e){}
+    this._uiTheme='kaptan';
+    try{ document.documentElement.dataset.ui='v2'; localStorage.removeItem('gxUiTheme'); }catch(e){}
   }
-  _theme(){
-    if(this._uiTheme==='ev') return {acc:'#e8b86d', ink:'#f3eadc', dim:'#c4b49a', panel:'#241c16', panel2:'#1c1612', wire:'rgba(232,184,109,.9)', wireDim:'rgba(232,184,109,.28)'};
-    if(this._uiTheme==='apex') return {acc:'#4fe0ff', ink:'#e8f4ff', dim:'#8aa0b8', panel:'#0c1018', panel2:'#080b12', wire:'rgba(79,224,255,.92)', wireDim:'rgba(79,224,255,.28)'};
-    return {acc:'#61dcff', ink:'#dbe4ff', dim:'#9aa3c2', panel:'#10182c', panel2:'#0c1220', wire:'rgba(97,220,255,.9)', wireDim:'rgba(97,220,255,.28)'};
-  }
+  _theme(){ const t=this._t(); return {acc:t.acc, ink:t.ink, dim:t.dim, panel:'var(--gx-panel)', panel2:'var(--gx-panel-2)', wire:t.acc, wireDim:t.accA(28)}; }
   _t(){
     return {
       acc:'var(--gx-accent)', ink:'var(--gx-ink)', dim:'var(--gx-dim)', faint:'var(--gx-faint)',
@@ -188,11 +202,11 @@ class Component extends DCLogic {
       okA:(p)=>`color-mix(in srgb, var(--gx-ok) ${p}%, transparent)`
     };
   }
-  _float(sec){ return this._reduced()?'':`animation:floatOrb ${sec}s ease-in-out infinite`; }
-  _floatC(sec){ return this._reduced()?'':`animation:floatOrbC ${sec}s ease-in-out infinite`; }
+  _float(sec){ return ''; }
+  _floatC(sec){ return ''; }
   _pulse(){ return ''; }
   _planetTint(p, base){
-    const pal=['#61dcff','#7aa2ff','#c77bff','#ff6b9a','#55e88b','#ffc861','#4fe0ff','#a78bfa','#5eead4','#ff8ec8','#f59e0b'];
+    const pal=['#7cc4ff','#8aa8e8','#b4a6f0','#e8a0b8','#6fd3a0','#e8c170','#7ec8c0','#a78bfa','#8ec4b8','#d4a0c0','#c8b07a'];
     const s=String((p&&p.id)||(p&&p.name)||'x'); let h=2166136261;
     for(let i=0;i<s.length;i++) h=Math.imul(h^s.charCodeAt(i),16777619);
     return pal[Math.abs(h)%pal.length]||base||pal[0]; }
@@ -291,7 +305,18 @@ class Component extends DCLogic {
   }
   componentDidMount(){
     this._key = (e) => {
-      if(e.key==='Tab'&&this._activeDialog()){ this._trapDialog(e); return; }
+      if(e.key==='Tab'){
+        if(this._termKey(e)) return;
+        if(this._activeDialog()){ this._trapDialog(e); return; }
+      }
+      if(this.state.tahtaOpen && !this._inForm(e) && (e.metaKey||e.ctrlKey)){
+        const k=e.key.toLowerCase();
+        if(k==='z'){ e.preventDefault(); if(e.shiftKey) this._tahtaRedo(); else this._tahtaUndo(); return; }
+        if(k==='c'){ e.preventDefault(); this._tahtaCopy(); return; }
+        if(k==='v'){ e.preventDefault(); this._tahtaPaste(); return; }
+        if(k==='d'){ e.preventDefault(); this._tahtaDup(); return; }
+        if(k==='a'){ e.preventDefault(); this._tahtaSelAll(); return; }
+      }
       if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='p'){ if(this.state.mode==='planet'){ e.preventDefault(); this.setState({filePalOpen:true,filePalQuery:'',filePalIdx:0}); setTimeout(()=>{ try{ const i=document.getElementById('gx-filepal-input'); if(i) i.focus(); }catch(err){} },60); return; } }
       if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='s'){ if(this.state._editMode){ e.preventDefault(); this.saveEdit(); return; } }
       if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='e'){ const p=this.state._preview; if(this.state.mode==='planet'&&p&&!this.state._editMode&&(p.kind==='text'||p.kind==='markdown'||p.kind==='html')){ e.preventDefault(); this.startEdit(); return; } }
@@ -338,52 +363,48 @@ class Component extends DCLogic {
     document.addEventListener('mousemove', this._onChromeMove, {passive:true});
     try{ setTimeout(()=>this._clampBars(), 0); }catch(e){}
     try{ this.state.uiMode='komutan'; }catch(e){}
-    try{ if(this.state.kayitSub==='baglanti') this.state.kayitSub='gorevler'; }catch(e){}
+    try{ if(this.state.kayitSub==='baglanti'||this.state.kayitSub==='odak') this.state.kayitSub='gorevler'; }catch(e){}
     try{ const h=parseInt(localStorage.getItem('gxConsoleH'),10); if(h>=140) this.state.consoleH=Math.min(560,h); }catch(e){}
     try{ const hh=parseInt(localStorage.getItem('gxHudH'),10); if(hh>160) this.state.hudH=128; else if(hh>=88) this.state.hudH=Math.min(160,hh); }catch(e){}
     try{ document.documentElement.style.removeProperty('--dock'); document.documentElement.style.removeProperty('--term'); }catch(e){}
     try{ if(localStorage.getItem('gxConsoleCollapsed')==='0') this.state.consoleCollapsed=false; }catch(e){}
     try{ this._recentIds=this._recentRead(); }catch(e){ this._recentIds=[]; }
-    try{ if(localStorage.getItem('gxOrbitView')==='1') this.state.orbitView=true; else this.state.orbitView=false; }catch(e){}
+    try{ this.state.orbitView=false; localStorage.setItem('gxOrbitView','0'); }catch(e){}
     try{ if(localStorage.getItem('gxSplash')==='1') this.state.splashOpen=false; }catch(e){}
     if(this.state.splashOpen){ clearTimeout(this._splashT); this._splashT=setTimeout(()=>this.dismissSplash(),1600); }
     try{ if(localStorage.getItem('gxReadmeOpen')==='1') this.state.readmeOpen=true; else this.state.readmeOpen=false; }catch(e){}
     try{ const lt=localStorage.getItem('gxLeftTab'); if(lt==='kayit'||lt==='agac'||lt==='git'||lt==='dev') this.state.leftTab=lt; }catch(e){}
     try{ this.state.rightCollapsed = localStorage.getItem('gxRightPanel')==='closed'; }catch(e){ this.state.rightCollapsed=false; }
     try{ const ls=JSON.parse(localStorage.getItem('gxLastSurface')||'null'); if(ls&&ls.tab) this.state._lastSurface=ls.tab; }catch(e){}
-    try{ this._applyTheme(); }catch(e){ this._uiTheme='apex'; }
-    this._waitThree(0);
+    try{ this._applyTheme(); }catch(e){}
     this._loadReal();
     // Dil tercihi (tr/en) — ayarlardan gelir; UI metinleri buna göre çevrilir.
     this._lang='tr';
     try{ const lg=localStorage.getItem('gxAsstLang')||localStorage.getItem('gxLang'); if(lg==='en'||lg==='tr') this._lang=lg; }catch(e){}
-    try{ if(window.galaxy&&window.galaxy.profileGet){ window.galaxy.profileGet().then(p=>{ this._profile=p||{}; if(this._langUserSet) return; this._lang=(p&&p.lang)||this._lang||'tr'; this._applyLang(); }); } }catch(e){ this._applyLang(); }
-    // Odak (Pomodoro) süresi sabit 25 dk — ayar ekranı yok
-    this._focusDefault=1500;
+    if(this._lang==='en') this._applyLang();
+    try{ if(window.galaxy&&window.galaxy.profileGet){ window.galaxy.profileGet().then(p=>{ this._profile=p||{}; if(this._langUserSet) return; this._setLang((p&&p.lang)||this._lang||'tr','profile'); }); } else this._applyLang(); }catch(e){ this._applyLang(); }
+    try{ if(window.galaxy&&window.galaxy.onLang) window.galaxy.onLang(l=>this._setLang(l,'profile')); }catch(e){}
+    try{ window.__gxSetLang=(l,from)=>this._setLang(l,from||'user'); window.__gxLang=()=>this._lang; }catch(e){}
     this._loadFocusPref=()=>{ try{ if(window.galaxy&&window.galaxy.settingsGet) window.galaxy.settingsGet().then(r=>{
       const s=(r&&r.settings)||{};
       this._mailTo=s.mailTo||'';
       this._mailListTool=s.mailListTool||'';
       this._mailReadTool=s.mailReadTool||'';
       this._mcpOn=!!(s.mcpServers&&s.mcpServers[0]&&String(s.mcpServers[0].command||'').trim());
-      this._focusDefault=1500;
       const ns={_setupTick:(this.state._setupTick||0)+1};
-      if(!this.state.focusRunning) ns.focusSec=this._focusDefault;
       this._applyTheme();
       if(s.mailTo && !this.state.mailTo) ns.mailTo=s.mailTo;
       if(Object.keys(ns).length) this.setState(ns);
     }); }catch(e){} };
     this._loadFocusPref();
-    // Üst bar saati — re-render'a gerek olmadan doğrudan DOM güncellemesi (her sn)
-    this._barClock=setInterval(()=>{ try{ const el=document.getElementById('gx-clock'); if(el){ const d=new Date(),p=n=>String(n).padStart(2,'0'); el.textContent=p(d.getHours())+':'+p(d.getMinutes()); } }catch(e){} },1000);
-    // Ayarlar penceresinde dil/odak değişince pencere focus'unda güncelle
-    this._onFocus=()=>{ try{ if(!this._langUserSet&&window.galaxy&&window.galaxy.profileGet) window.galaxy.profileGet().then(p=>{ const l=(p&&p.lang)||'tr'; if(l!==this._lang){ this._lang=l; this._applyLang(); } }); }catch(e){} this._loadFocusPref(); };
+    // Ayarlar penceresinde dil değişince pencere focus'unda güncelle
+    this._onFocus=()=>{ try{ if(window.galaxy&&window.galaxy.profileGet) window.galaxy.profileGet().then(p=>{ const l=(p&&p.lang)||'tr'; if(l!==this._lang) this._setLang(l,'profile'); }); }catch(e){} this._loadFocusPref(); };
     window.addEventListener('focus', this._onFocus);
     // Ajan yanıt akışı (Claude CLI) — {runId, kind:text|tool|err|done, text}
     try{ if(window.galaxy&&window.galaxy.onAgent){ window.galaxy.onAgent(m=>{ try{ if(this._salonAgentMsg(m)) return; }catch(e){} this._onAgentMsg(m); }); } }catch(e){}
     // Konsol akışları (Claude CLI + Bash shell)
     try{ if(window.galaxy&&window.galaxy.onClaude){ window.galaxy.onClaude(m=>{ try{ if(this._salonClaudeMsg(m)) return; }catch(e){} if(m&&String(m.runId||'').indexOf('asst-')===0){ this._asstClaudeMsg(m); return; } const pid=this._pidFromRun(m&&m.runId); this._appendOut(this._con(pid).cout,m); if(m&&pid&&(m.kind==='done'||m.kind==='info')) this._markClaudeSess(pid); }); } }catch(e){}
-    try{ if(window.galaxy&&window.galaxy.onShell){ window.galaxy.onShell(m=>{ const sid=String((m&&m.id)||''); if(sid.indexOf('asst-sh-')===0){ this._asstShellMsg(m); return; } if(sid.indexOf('srvterm')===0){ this._sbout=this._sbout||[]; this._appendOut(this._sbout,m); } else if(sid.indexOf('sh2-')===0){ const pid=sid.slice(4); const con=this._con(pid); con.bout2=con.bout2||[]; this._appendOut(con.bout2,m); } else { const pid=this._pidFromShell(m&&m.id); const con=this._con(pid); if(m&&m.kind==='done'&&m.cwd) con.cwd=m.cwd; if(m&&m.kind==='done') this._noteTestPulse(m, pid); this._appendOut(con.bout,m); } }); } }catch(e){}
+    try{ if(window.galaxy&&window.galaxy.onShell){ window.galaxy.onShell(m=>{ const sid=String((m&&m.id)||''); if(sid.indexOf('asst-sh-')===0){ this._asstShellMsg(m); return; } if(sid.indexOf('srvterm')===0){ this._sbout=this._sbout||[]; if(this._srvMarkReady&&this.state._srvTerm&&!this.state._srvTerm.ready&&m&&(m.kind==='out'||m.kind==='err'||m.kind==='done'||m.kind==='exit')) this._srvMarkReady(m); this._appendOut(this._sbout,m); } else if(sid.indexOf('sh2-')===0){ const pid=sid.slice(4); const con=this._con(pid); con.bout2=con.bout2||[]; this._appendOut(con.bout2,m); } else { const pid=this._pidFromShell(m&&m.id); const con=this._con(pid); if(m&&m.kind==='done'&&m.cwd) con.cwd=m.cwd; if(m&&m.kind==='done') this._noteTestPulse(m, pid); this._appendOut(con.bout,m); } }); } }catch(e){}
     try{ this._initAssistant(); }catch(e){}
     try{ if(window.galaxy&&window.galaxy.onStt) window.galaxy.onStt(m=>this._onStt(m)); }catch(e){}
     try{ if(window.galaxy&&window.galaxy.sttAvailable) window.galaxy.sttAvailable().then(r=>{ if(this._asst&&r&&r.ok){ this._asst.native=true; let wake=false; try{ wake=localStorage.getItem('gxWakeOn')==='1'; }catch(e){} this._asst.wakeOn=!!wake; this._asstWakeBtnStyle(); this._asstSyncChrome(); if(this._asst.wakeOn) this._asstWakeStart(); this._asstWatchStt(true); this.setState({_hubTick:(this.state._hubTick||0)+1}); } }); }catch(e){}

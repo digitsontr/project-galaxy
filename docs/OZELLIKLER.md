@@ -81,7 +81,7 @@ Soldan sağa, yukarıdan aşağıya:
 - **Üst bar:** CAPTAIN · konum (Evren › Gezegen) · gezegen bağlam şeridi · sekmeler · sistem sağlığı · Asistan · ⌘K.
 - **Sahne:** seçili sekme veya gezegen atölyesi.
 - **Sağ şerit:** uzman ajanlar (varsayılan kapalı, kenardan açılır).
-- **Alt dock:** HUD (🚀) — raporlar, odak, özet kartlar.
+- **Alt dock:** HUD (🚀) — raporlar, özet kartlar.
 
 **Ana sekmeler:** Özet · Evren · DB · Docker · Pano · **Daha ▾**  
 **Daha menüsü:** Zamanlayıcı · Döngü · Sunucular · İstasyon · HUD
@@ -174,7 +174,7 @@ Bulunduğun gezegenin nabzı, her an görünür:
 - Varsayılan: bu gezegenin Pano görevleri
 - **README’ye işle** anahtarı (kapalı): Pano CRUD README’ye dokunmaz
 - README planı ayrı sekmede (`- [ ]` checklist)
-- Notlar, odak kronometresi
+- Notlar
 - Klasörü Aç · Editörde Aç (Cursor / VS Code) · Kaldır (gizle; diskte kalır)
 - İlişkili gezegenler (aynı klasör / aynı compose / aynı paket adı)
 - Uzaksa: salt okuma uyarısı
@@ -184,10 +184,9 @@ Bulunduğun gezegenin nabzı, her an görünür:
 - Tek ana düğme bağlama göre: Commit… / Push / Pull / Güncel
 - Git yoksa: **git init**
 
-### 8.3 Orta — Dosya veya Yörünge
+### 8.3 Orta — Dosya
 
-- **Yörünge (varsayılan):** klasörler halkalı uydu, gezegen/dosya adları altta belirgin.
-- **Dosya:** kod, markdown, HTML, görsel, PDF, video önizleme. Düzenle → kaydet (yerel).
+- Kod, markdown, HTML, görsel, PDF, video önizleme. Düzenle → kaydet (yerel).
 - Boş: “Soldaki Ağaç’tan bir dosyaya tıkla.”
 
 ### 8.4 Sağ — README
@@ -200,8 +199,9 @@ Projeye özel, **kalıcı** oturum. Başka gezegene geçince kapanmaz; geri dön
 
 | Sekme | Ne işe yarar |
 |-------|----------------|
-| **⌁ CLAUDE** | Claude Code bu klasörde. Dosya okur/yazar, komut çalıştırır. Oturum devam eder. |
-| **▮ BASH** | Gömülü kabuk. `cd` ve ortam kalır. Tab tamamlama, ↑/↓ geçmiş. |
+| **Ajan** | Yerleşik ajan bu klasörde. Dosya okur/yazar, komut çalıştırır (onayınla). CLI varsa onu kullanır. |
+| **Bash** | Gömülü kabuk. `cd` ve ortam kalır. Tab tamamlama, ↑/↓ geçmiş. |
+| **Terminal** | Gerçek PTY. |
 
 - Yüksekliği sürükleyerek ayarla (hatırlanır)
 - Üstte **script çipleri:** `package.json` (dev, test, lint…), Makefile, justfile, pyproject, migrate
@@ -223,7 +223,7 @@ Galaxy bir git istemcisidir. PAT yapıştırılmaz.
 3. **CI** — `gh run list`  
 4. **Takım akışı** — yazar dağılımı  
 5. **Geçmiş** — commit zaman çizelgesi  
-6. **Git Flow rehberi** — hiç bilmeyen için şerit + kopyalanabilir komutlar  
+6. **Git nasıl** — günlük kullanım: pull → status → kod incele → stage → commit → push → PR  
 
 **Pull request**
 - Commit sonrası: “Bu commit için PR açılsın mı?”
@@ -342,7 +342,7 @@ Sağ şerit. Varsayılan kapalı. Ajan avatarına tıklamak **ikinci bir sohbet 
 | **ATLAS** | CTO | Durum raporu, riskler, bu hafta neye odaklan | Okur, raporlar |
 | **NAVIGATOR** | PM | Standup, ihmaller, sıradaki somut adım | Okur, takip |
 | **DOCUMENTOR** | Dokümantasyon | README yaz, eksikleri tara | Onayınla dosya yazar |
-| **FORGE** | Kod kalitesi | Teknik borç, en riskli 3 proje | Okur, **değiştirmez** |
+| **Kod Kalitesi** | Code review | Commitlenmemiş diff, skor, kalite kapısı, `dosya:satır` | Okur, **değiştirmez** |
 | **MENTOR** | Koç | Haftalık plan, küçük hedef | Öğrenme temposu |
 
 İsim, renk, kişilik, hazır komutlar düzenlenir; yeni ajan eklenir, silinir.
@@ -421,13 +421,9 @@ Uzak gezegen **salt okunur:** compose, script, `.env` bağlama, Finder/editör y
 
 ---
 
-## 20. İstasyon, HUD, odak, aktivite
-
-**İstasyon** (saat): canlı saat, gezegenlere hızlı ara.
+## 20. İstasyon, HUD, aktivite
 
 **HUD (🚀):** en aktif yıldız, son yapılanlar, rapor arşivi, notlar. Taşınca kayar, kırpılmaz.
-
-**Odak:** geri sayım (ayarlanan dakika). Palette’ten başlat/durdur.
 
 **Aktivite şeridi:** commit, push, gezegen aç… kalıcı iz. Bazıları geri alınır (ör. gizlenen gezegen).
 
@@ -439,7 +435,7 @@ Uzak gezegen **salt okunur:** compose, script, `.env` bağlama, Finder/editör y
 
 **⌘K** tek kapı: son gezegenler, tüm projeler, komutlar, **evreni ara**. Eşleşme yoksa satır **Kaptan’a sor** olur.
 
-Palette komutları: kaldığın yerden devam, Özet, Pano, DB, Docker, Zamanlayıcı, SSH, odak, Git Flow, yedekler, aktivite, ayarlar, editörde aç.
+Palette komutları: kaldığın yerden devam, Özet, Pano, DB, Docker, Zamanlayıcı, SSH, Git nasıl, kod incele, yedekler, aktivite, ayarlar, editörde aç.
 
 | Kısayol | İş |
 |---------|----|
@@ -608,9 +604,9 @@ GÜVENLİK            yerel veri · keychain DB · PAT yok · günlük yedek
 Galaxy artık sadece proje yöneticisi değil; gezegenin içinde günlük geliştirme işinin kendisi de yapılıyor. Sol panelde yeni **Geliştir** sekmesi: dosya ağacının yanına dördüncü bir sekme olarak.
 
 ### 28.1 Terminal (üç oturum tipi + bölme)
-- **CLAUDE** — projeye özel, kalıcı Claude Code oturumu.
-- **BASH** — kalıcı kabuk (cd/env korunur, Tab tamamlama).
-- **>_ TERMİNAL** — gerçek PTY: xterm.js + `script` köprüsüyle gerçek etkileşimli zsh (vim, top, REPL çalışır; ayrıca derlenmiş uzantı gerekmez).
+- **Ajan** — yerleşik ajan (CLI varsa onu kullanır).
+- **Bash** — kalıcı kabuk (cd/env korunur, Tab tamamlama).
+- **Terminal** — gerçek PTY: xterm.js + `script` köprüsüyle gerçek etkileşimli zsh (vim, top, REPL çalışır; ayrıca derlenmiş uzantı gerekmez).
 - **◧ böl** — ikinci bağımsız bash oturumu (dev server izlemek için) terminal panelinin içinde.
 - Çıktılar **tıklanabilir**: `dosya:satır` satıra zıplar, `localhost` bağlantısı önizlemeyi açar.
 
@@ -626,8 +622,7 @@ Galaxy artık sadece proje yöneticisi değil; gezegenin içinde günlük geliş
 - “Tümünü uygula” otomatik yedek alır (`.galaxy-backups/<tarih>`); “↩ geri al” saniyeler içinde eski haline döner.
 
 ### 28.4 Test Gezgini
-- Vitest/Jest/Pytest testlerini keşfeder, adıyla listeler; **▶** tek testi koşturur.
-- Çıktı bash'e akar, başarısızlıklar `dosya:satır` bağlantısıyla **Sorunlar** listesine düşer; sonuç bildirim olarak da gelir.
+Kalktı. Testler **Çalıştır** profilleri, bildirimlerden `npm test` veya terminalden koşulur.
 
 ### 28.5 Dosya geçmişi
 - **◷ Geçmiş**: açık dosyanın git zaman çizelgesi (commit, tarih, yazar). Bir sürümü **gör** ya da editöre **geri yükle** (⌘S ile yazarsın).
@@ -638,7 +633,7 @@ Galaxy artık sadece proje yöneticisi değil; gezegenin içinde günlük geliş
 
 ### 28.7 AI bağlam
 - Claude konsolunda **@dosya** yazmak, dosya içeriğini bağlama ekler.
-- Editörde seçimle: **Açıkla / Düzelt / Test yaz**. **🤖 Diff incele** açık değişiklikleri Claude'a kod incelemesi yaptırır.
+- Editörde seçimle: **Açıkla / Düzelt / Test yaz**. **Kod incele**, Git’teki aynı düğme ve Kaptan **review al** aynı motora gider: commitlenmemiş diff → kolektör + isteğe bağlı Claude yargıcı → Kod Kalitesi tam ekranında skor / kapı / son 5 koşu (`DATA_DIR/reviews/`). Bulguya tıklayınca dosya:satıra zıplar. Commit öncesi son skor görünür; kapı kaldıysa onay uyarır.
 - Prompt kütüphanesi (`.galaxy.json` + hazır şablonlar); proje talimatı her gönderime eklenir. Ajan değişikliklerinde **Kabul/Geri al** şeridi aynen çalışır.
 
 ### 28.8 Dev server önizlemesi
@@ -657,15 +652,15 @@ Galaxy artık sadece proje yöneticisi değil; gezegenin içinde günlük geliş
 - CodeMirror: sembol haritası, tanıma git (F12), tamamlama (Ctrl+Space); imleç/kaydırma konumu kalıcı.
 - Bölünmüş editör (yan panel) + sekme sürükleme/ok düğmeleri.
 - Proje geneli Bul & Değiştir: regex, önizleme, yedekli uygula/geri al.
-- Test Gezgini: keşif, tek tık çalıştırma, sorunlara akış.
+- Test Gezgini kalktı; testler Çalıştır profili veya terminalden koşulur.
 - Dosya geçmişi: zaman çizelgesi, sürüm gör/geri yükle, blame özeti.
 - AI bağlam: `@dosya`, seçime özel aksiyonlar, diff inceleme, prompt kütüphanesi, proje talimatı.
 - Dev server önizlemesi: port algılama + gömülü açılış.
 - `.galaxy.json` profili + 4 iskelet şablonu; açılış görevleri arka planda çalışır.
 - Arka plan işleri (jobStart/jobList/jobStop IPC'leri) + Bildirim merkezi (🔔 üst barda).
-- Backend: `ipc/devtools.js` genişledi (toplu değiştir, test keşif/koş, tarih/blame, işler, profil/şablon). Arayüz ↔ backend yeni IPC'ler: `grepReplacePreview/Apply/Rollback`, `testDiscover/testRun`, `gitFileHistory/gitBlame/gitShowFile`, `jobStart/jobList/jobStop` + `job:done` olayı, `profileRead/profileWrite/templateCreate`.
+- Backend: `ipc/devtools.js` genişledi (toplu değiştir, tarih/blame, işler, profil/şablon). Arayüz ↔ backend IPC'ler: `grepReplacePreview/Apply/Rollback`, `gitFileHistory/gitBlame/gitShowFile`, `jobStart/jobList/jobStop` + `job:done` olayı, `profileRead/profileWrite/templateCreate`.
 - Smoke: 79/79 — yeni 12 Faz 2 kontrolü eklendi (mock-preload stub'ları dahil).
-- Dayanıklılık (2026-10-19 genel kontrol sonrası): proje taramaları (`grepReplacePreview`, `testDiscover`) `ipc/scan-worker.js` içinde **worker + 15 sn zaman aşımı** ile çalışıyor — patolojik regex (örn. `(a+)+$`, gerçek repoda test edildi) ve >20.000 karakterlik satırlar ana süreci kilitlemiyor, anlaşılır hata dönüyor. Uygulama kapanışında (`will-quit`) PTY kabukları, dosya izleyiciler ve arka plan işleri (süreç grubuyla, dev server torunları dahil) temizleniyor; durdurulan iş artık `stopped` durumuyla doğru raporlanıyor. Backend mantığı gerçek geçici git reposuyla **24/24** testten geçti.
+- Dayanıklılık (2026-10-19 genel kontrol sonrası): proje taramaları (`grepReplacePreview`) `ipc/scan-worker.js` içinde **worker + 15 sn zaman aşımı** ile çalışıyor — patolojik regex (örn. `(a+)+$`, gerçek repoda test edildi) ve >20.000 karakterlik satırlar ana süreci kilitlemiyor, anlaşılır hata dönüyor. Uygulama kapanışında (`will-quit`) PTY kabukları, dosya izleyiciler ve arka plan işleri (süreç grubuyla, dev server torunları dahil) temizleniyor; durdurulan iş artık `stopped` durumuyla doğru raporlanıyor. Backend mantığı gerçek geçici git reposuyla **24/24** testten geçti.
 
 ## 29. Faz 3 — "başka tool gerekmesin" katmanı
 
@@ -738,7 +733,7 @@ Ekranda kaybolma / baş ağrısı: aynı bilgi 2-3 yerde, açık overlay'ler pro
 - **Sakin renk:** sürekli `gxpulse` / `gxhubpulse` / `pulseGlow` ve yeşil `box-shadow` glow’ları kapalı. Sağlık noktaları, dinleme şeridi, Docker/port çipleri statik.
 - **Tek Git:** sol **Git** sekmesi tek kapı. Aktivite çubuğu, sağ bağlam, Kaptan komutu oraya gider. Kahraman kartındaki ve Git sekmesindeki **Git Merkezi** düğmeleri kalktı.
 - **Tek arama (ağaç):** “içerikte ara” + “dosya adına göre filtrele” birleşti. Yazınca ağaç süzülür; Enter içerikte arar. Global ⌘K paleti durur (komut, dosya değil).
-- **Tek kimlik:** sol rayda ad/yol + Klasör/Editör. Ortadaki kahraman kartı kısa: ad, cümle, kaldığın dosya. Üst kimlik şeridi yalnızca Dosya/Yörünge + README.
+- **Tek kimlik:** sol rayda ad/yol + Klasör/Editör. Ortadaki kahraman kartı kısa: ad, cümle, kaldığın dosya. Üst kimlik şeridi Dosya + README.
 
 ## 35. Projeleri sen eklersin — otomatik keşif yok (2026-10-25)
 
@@ -764,8 +759,32 @@ Gezegene inen kullanıcı projenin neye bağlı olduğunu ve içinde işin nası
   - **Veri:** `.env` (`DATABASE_URL`, `DB_*`; şifre dışarı verilmez), compose imajları (postgres/mysql/mongo/redis/mssql), Prisma (`provider` + modeller ve alanlar), sürücü/ORM paketleri, `*.sqlite` dosyaları, migration `CREATE TABLE`. Koddan tablo: SQL (`FROM/JOIN/INTO/UPDATE`), `prisma.x.findMany`, knex, mongoose, SQLAlchemy `__tablename__`, Django modelleri. ORM'ler birincil motora bağlanır.
   - **Dış servis:** SDK paketleri (Stripe, OpenAI, Anthropic, AWS, Firebase, Supabase, GitHub, Slack, Sentry, SMTP…) ve `fetch('https://host')` ile çağrılan hostlar.
 - **Gezegen ana ekranı:** **Veri katmanı** kartı (motor, durum: `● bağlı · N tablo` / `.env’de tanımlı · bağlı değil` / `koddan tespit`, bağlantı adresi, compose servisi, erişen dosya sayısı, tablo çipleri → DB sekmesinde tabloyu açar; **Bağla**, **Akışta göster**). Bağlı DB'nin canlı tabloları `dbTables` ile okunur. **Proje haritası** kartı: özet + Giriş/Modül/Veri/Dış servis sayıları + giriş noktaları + tam ekran düğmesi. Ayrıca kimlik şeridinde ve sağ bağlamda **⤢ Akış şeması**.
-- **Tam ekran şema:** katmanlı yerleşim (döngüler DFS ile kırılır, sütun içi barycenter); sütunlar GİRİŞ · KATMAN n · VERİ · DIŞ SERVİS. Renk = rol (arayüz, API/IPC, mantık, veri, yapılandırma), çizgi = tür (import düz, IPC kesikli mor, HTTP kesikli mavi, DB sarı, dış servis noktalı pembe), kalınlık = bağlantı sayısı. Tek tık seçer ve komşuları vurgular; çift tık modülün içine iner (dosya düzeyi şema + komşu modüller) ya da dosyayı açar. Sağ panel: dosyalar, rotalar (dosya:satır'a gider), IPC kanalları, tablolar, bağımlı olduğu / onu kullananlar, DB için bağlantı + canlı tablolar + Prisma modelleri. Arama (Enter: düğüm ya da dosya bulur), ⌘/pinch yakınlaştırma, sürükleyerek kaydırma, Sığdır, Esc katman katman çıkar.
+- **Tam ekran şema:** katmanlı yerleşim (döngüler DFS ile kırılır, sütun içi barycenter); sütunlar GİRİŞ · KATMAN n · VERİ · DIŞ SERVİS. Renk = rol (arayüz, API/rota, fonksiyon, veri), çizgi = tür (import düz, çağrı açık mavi, IPC/HTTP kesikli, DB sarı, dış servis noktalı pembe). Tek tık seçer; çift tık **modül → dosyalar → fonksiyonlar**; fonksiyona çift tık `dosya:satır` açar. **Adım adım** seçili girişten çağrı / DB / dış servis yürür. **draw.io kaydet** görünen şemayı `.galaxy/flow.drawio` yazar (diagrams.net). Akış Analisti “Akışı çiz” / Kaptan “akışı çiz” aynı tuvalı açar. Sağ panel: dosyalar, fonksiyonlar, rotalar, IPC, tablolar, kim kimi çağırır, DB canlı tablolar. Esc katman katman çıkar.
 - **IPC:** `galaxy:projectMap` (uzak gezegende henüz yok). Test: `test/project-map.js` (Express + Prisma + React + Python worker fixture'ı, worker yolu dahil; `npm run test:integration` içinde) + smoke `flow-*`, `planet-db-card`. `GX_SHOTS=klasör npm test` ekran görüntüsü kaydeder.
+
+## 37. Tahta — serbest çalışma alanı (2026-11-01)
+
+Gezegen başına bir tam ekran tuval. Akış kodun gerçeğidir; tahta senin karalaman. Referans: Excalidraw / tldraw / FigJam — sonsuz kanvas, şekil, yapışkan not, akıllı bağlayıcı.
+
+- **Aç:** gezegen şeridi **✎ Tahta**, palet “Tahta”, Kaptan “tahtayı aç”. Esc katman katman çıkar (düzenleme → seçim → kapat).
+- **Araçlar:** Seç, Not, Kart, Yazı, Kutu, Elips, Karar, Çerçeve, Ok, Çiz, İşaret, Sil, Kaydır. Kısayol: V N C T R O D F A P H E S. Space ile geçici kaydır. Şekil aracı yerleştirince yerinde kalır; sürükleyerek boyut ver.
+- **Seçim:** sürükle-kutu, Shift+tık çoklu, köşeden boyut (Shift = oran), ok tuşuyla kaydır (Shift = ızgara). Sağ tık menü. ⌘D çoğalt, ⌘C/V kopyala-yapıştır, ⌘A tümü, ⌘Z / ⇧⌘Z, L kilit, 2 seçime sığdır.
+- **Ok:** kenar noktası veya araçla bağla; eğri / dirsek / kesik; ok yazısı. Çerçeve içindeki kartlar birlikte kayar. Nesne kenarına yapışır.
+- **Şablon:** Akış, Fırtına, Kanban, Karar, Retro, Yolculuk.
+- **Tuval:** ızgara + yapışma, sığdır, zoom %, minimap, SVG + JSON dışa aktar. Hizala / dağıt / öne-alta al.
+- **Sağ panel:** şablonlar, seçim, gezegen notları, kart arama. ☰ veya [ ] ile gizle.
+- **Kayıt:** `.galaxy/tahta.json` v2 (eski v1 kartlar açılır). Git’e istersen gider.
+- **Tema:** liquid glass (`lg-1` şerit/yan, `lg-2` kart). Yeni sekme yok.
+
+## 38. v2 Liquid Glass (2026-10-29)
+
+AI şablonu imzasından çıkış: neon parıltı ve katman katman tema yerine tek tasarım sistemi.
+
+- **Kaynak:** `docs/DESIGN.md` (sakinlik bütçesi + token tablosu). Görsel CSS `newui/styles/*.css`; `newui/build.js` bunları `index.html` sonuna basar. `index.html`'e dokunulmaz.
+- **Malzeme:** koyu doğal zemin (`#gx-wall`) + üç cam kademesi (ince / kart / yüzen). Mint birincil eylem (`--gx-cta`), yumuşak vurgu (`--gx-accent`).
+- **Tipografi:** gövde sistem sans; JetBrains Mono yalnız kod/terminal. Köşe 3 kademe (10 / 16 / 24).
+- **Ölü tema akışı:** `_applyTheme()` artık apex'e çivilemez; `_theme()` token okur. Three.js galaksi canvas'ı kalktı. Eski galaxy/ev/apex v3–v5 katmanları silindi.
+- **Neden geri sızmıştı:** §34 sakin yüzey nabzı kapattı ama APEX v3/v4/v5 üst üste `!important` yazdı; son katman parıltıyı geri açtı. v2 kuralı: katman eklenmez, `test/design-budget.js` her `npm test`'te sınırı ölçer.
 
 ---
 

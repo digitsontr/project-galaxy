@@ -1,0 +1,47 @@
+.gx-uni-card,.gx-project-tile,.gx-kanban-card,.gx-salon-card{border-radius:var(--r-md);box-shadow:var(--lg-hi)}
+.gx-uni-card.on,.gx-salon-card:hover,.gx-project-tile:hover{border-color:color-mix(in srgb,var(--gx-accent) 40%,var(--gx-line))}
+.gx-uni-add{font-family:var(--gx-font);letter-spacing:0;border-radius:var(--r-md)}
+.gx-empty,.gx-empty-state{background:var(--lg-2-fill);border:1px dashed var(--gx-line);border-radius:var(--r-md);box-shadow:none}
+.gx-page-head,.gx-project-browser-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin-bottom:22px}
+.gx-page-head>:first-child,.gx-project-browser-head>:first-child{flex:1 1 280px;min-width:0}
+.gx-page-head>.gx-primary-action,.gx-page-head>.gx-btn,.gx-page-head>.gx-scope-label,.gx-page-head>:last-child:not(:first-child),
+.gx-project-browser-head>.gx-scope-label{flex:0 0 auto;align-self:flex-start;margin-top:4px}
+.gx-scope-label{display:inline-flex;align-items:center;height:28px;padding:0 12px;border:1px solid var(--lg-edge);border-radius:var(--r-pill);background:rgba(255,255,255,.08);color:var(--gx-dim);font-size:12px;white-space:nowrap}
+.gx-project-browser{position:absolute;inset:0;z-index:7;padding:36px 28px;overflow:auto}
+.gx-project-browser-inner{width:min(1100px,100%);margin:0 auto}
+.gx-project-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.gx-project-tile{display:flex;flex-direction:column;align-items:stretch;text-align:left;width:100%;min-height:148px;padding:18px;cursor:pointer;gap:8px}
+.gx-project-tile-top{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
+.gx-project-tile-dot{width:8px;height:8px;border-radius:50%;background:var(--gx-cta);flex-shrink:0}
+.gx-project-tile-name{flex:1;min-width:0;font-size:15px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gx-project-tile-branch{flex-shrink:0;max-width:42%;overflow:hidden;text-overflow:ellipsis}
+.gx-project-tile-foot{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:8px;width:100%}
+.gx-project-tile-meta{font-size:12px;color:var(--gx-dim);font-variant-numeric:tabular-nums}
+.gx-project-tile-open{margin-left:auto;color:var(--gx-cta);font-size:12px;font-weight:600}
+.gx-kanban{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px}
+.gx-kanban-col{display:flex;flex-direction:column;min-width:0;min-height:280px}
+.gx-kanban-card{background:rgba(255,255,255,.08)!important;border:1px solid var(--lg-edge)!important;border-left-width:2px!important;border-radius:var(--r-sm);min-width:0}
+.gx-kanban-card:hover{transform:none}
+.gx-kanban-card>div{min-width:0}
+.gx-kanban-card>div>div:first-child{min-width:0;overflow-wrap:anywhere}
+.gx-column-empty{border-radius:var(--r-sm)}
+.gx-todo-bar{display:flex;gap:8px;align-items:center;max-width:1100px;margin-bottom:16px}
+.gx-srv-row,.gx-ct-row,.gx-sch-row{display:flex;align-items:center;gap:14px;padding:14px 16px;min-width:0}
+.gx-srv-meta{flex:1;min-width:0}
+.gx-srv-name{font-size:14px;font-weight:600;color:var(--gx-ink)}
+.gx-srv-host{font-size:12px;color:var(--gx-dim);margin-top:2px}
+.gx-form-card{max-width:560px;padding:18px;display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.gx-form-card .gx-input, .gx-form-card input{width:100%;padding:9px 12px;box-sizing:border-box}
+.gx-db-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.gx-db-pane{padding:14px;margin-top:20px}
+.gx-resume{border-bottom-color:var(--gx-line-soft)}
+.gx-resume-go{background:color-mix(in srgb,var(--gx-cta) 14%,transparent);color:var(--gx-cta);border-radius:var(--r-sm);box-shadow:none}
+.gx-orbit-core,.gx-workshop-core{animation:none!important;box-shadow:0 8px 28px -12px rgba(0,0,0,.5)!important;filter:saturate(.8)}
+.gx-orbit-ring,.gx-workshop-svg ellipse{filter:none!important;box-shadow:none!important;opacity:.4}
+.gx-splash{background:rgba(4,8,12,.45)}
+.gx-code-ed,.CodeMirror,.gx-cm-host{background:rgba(8,12,16,.55)!important}
+.CodeMirror-gutters{background:rgba(8,12,16,.4);border-right-color:var(--gx-line-soft)}
+.gx-tree-row:hover{background:rgba(255,255,255,.05)!important}
+.gx-db-grid{background:rgba(255,255,255,.03);border-radius:var(--r-sm)}
+.gx-legacy-project-map{display:none!important}
+@media (max-width:900px){.gx-kanban{grid-template-columns:1fr}}

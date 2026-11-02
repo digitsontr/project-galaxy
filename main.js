@@ -35,6 +35,7 @@ require('./ipc/infra')(g);
 require('./ipc/planet-work')(g);
 require('./ipc/devtools')(g);
 require('./ipc/agent-engine')(g);
+require('./ipc/review')(g);
 require('./lib/trainings')(g);
 
 const {

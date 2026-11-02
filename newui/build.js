@@ -9,12 +9,22 @@ const path = require('path');
 
 const dir = __dirname;
 const partsDir = path.join(dir, 'parts');
+const stylesDir = path.join(dir, 'styles');
 let page = fs.readFileSync(path.join(dir, 'preview-sample.html'), 'utf8');
 const comp = fs.readdirSync(partsDir)
   .filter(f => f.endsWith('.js'))
   .sort()
   .map(f => fs.readFileSync(path.join(partsDir, f), 'utf8'))
   .join('');
+const css = fs.existsSync(stylesDir)
+  ? fs.readdirSync(stylesDir).filter(f => f.endsWith('.css')).sort()
+      .map(f => '/* '+f+' */\n'+fs.readFileSync(path.join(stylesDir, f), 'utf8')).join('\n')
+  : '';
+if (css) {
+  const tag = '<style id="gx-v2">\n'+css+'\n</style>';
+  if (page.includes('</helmet>')) page = page.replace('</helmet>', tag+'\n</helmet>');
+  else page += tag;
+}
 
 const m = /(<script type="text\/x-dc"[^>]*>)([\s\S]*?)(<\/script>)/.exec(page);
 if (!m) {
