@@ -93,7 +93,9 @@ claude   # ilk çalıştırmada hesabınla giriş yapar
 
 ### İlk açılış
 
-Uygulama seni **bir defalığına tanır**: dil (TR/EN), adın, proje klasörlerin (her biri bir evren) ve ajanların. Hepsi sonradan **⚙ Ayarlar**’dan değişir. Verin kod klasöründe değil, `~/Library/Application Support/ProjectGalaxy/` (Windows: `%APPDATA%\ProjectGalaxy\`) altında durur.
+Uygulama seni **bir defalığına tanır**: dil (TR/EN), adın, çalışma alanı klasörlerin (her biri bir evren) ve ajanların. Hepsi sonradan **⚙ Ayarlar**’dan değişir.
+
+Evren **boş başlar** — altındaki depolar kendiliğinden gezegen olmaz. Projeleri sen eklersin: sol raydaki **＋ Ekle** (ya da evren kartındaki ＋) → yolu yaz (satır başına bir yol, `~` olur), **Klasör seç…** ile çoklu seç ya da **Depoları bul** ile bir klasörün altındaki git depolarını listeleyip işaretle. Evren kökü dışındaki klasörler de eklenebilir. Verin kod klasöründe değil, `~/Library/Application Support/ProjectGalaxy/` (Windows: `%APPDATA%\ProjectGalaxy\`) altında durur.
 
 ### Geliştirirken
 
@@ -115,10 +117,10 @@ Arayüzü düzenlerken `newui/index.html`’e **dokunma** — üretilmiş dosyad
 | Kavram | Karşılığı |
 |--------|-----------|
 | **Galaksi** | Evrenin (çalışma alanının) kendisi — seçtiğin bir kök klasör. |
-| **Yıldız sistemi** | Projeleri gruplayan çatı klasör (kendi `.git`'i yok ama içinde git projeleri var). Kendisi gezegen olmaz; içindeki her proje onun gezegeni olur, adı da grup etiketi olur. |
-| **Gezegen** | **İçinde `.git` olan** asıl proje klasörü. |
+| **Yıldız sistemi** | Evren kökünün altındaki çatı klasör. Eklediğin proje bunun içindeyse (ör. `kök/mobil/app`) grup etiketi `mobil` olur. |
+| **Gezegen** | Evrene **senin eklediğin** proje klasörü. |
 
-> **Önemli:** Yalnızca **içinde `.git` olan** klasörler gezegen olarak gösterilir. Rastgele/çatı klasörler (indirmeler, geçici klasörler vb.) haritayı ve listeyi kirletmez. `.git`'i olan bir klasör her zaman **tek** gezegendir (monorepo kökü dahil); kendi `.git`'i yok ama alt klasörlerinde git deposu olan → yıldız sistemi.
+> **Önemli:** Evrene yalnızca **eklediğin** klasörler gezegen olur; kökün altında yeni bir depo açman haritayı değiştirmez. Git şart değil ama önerilir (dal, kirli dosya, PR bilgisi git'ten gelir). Bir gezegeni **evrenden çıkarmak** klasöre dokunmaz; aynı yolu tekrar eklersen notu/planı geri gelir.
 
 **Gezegen durumu (renk):** 🔵 aktif · 🟡 beklemede · 🟢 tamamlandı · ⚪ arşiv · 🟣 keşfedilmemiş.
 
@@ -135,7 +137,7 @@ Soldan sağa:
 
 - **KAPTAN** markası + **durum noktası** (hazır / çalışıyor / hata) · gezegen modundayken **‹** (uzaya dön) düğmesi.
 - **Konum breadcrumb'ı** — **🌌 Evren › 🪐 Gezegen ▾**. Tıkla → hızlı geçiş: üstte tüm **evrenler**, altta o evrenin **gezegenleri**. Tek tıkla başka evrene/projeye geç.
-- **Segmentli sekme çubuğu** — **Özet / Evren / DB / Docker** + **Daha ▾** (Pano, Zaman, SSH, Döngü, Posta, Eğitim).
+- **Ana menü** — **Ana Sayfa · Görevler · Ajanlar · Otomasyonlar · Servisler**. Gruplu bölümlerin altında alt sekmeler var: Ana Sayfa → Bugün, Projeler · Otomasyonlar → Zamanlanmış işler, Proje taraması, E-posta · Servisler → Veritabanları, Konteynerler, SSH sunucuları. Her bölüm son açtığın alt sekmeyi hatırlar.
 - **Kaptan** — dijital ikiz (asistan) her zaman üst barda.
 - **◷ Saat** — tıkla → **İstasyon Araçları**. **⌘K** — komut paleti. **⚙ Ayarlar**.
 
@@ -163,6 +165,15 @@ Ekran 3 kolondur: sol (ağaç / git), orta (iş), sağ **bağlam** (nerede kald�
 <p align="center"><img src="docs/gezegen-modu.png" alt="Gezegen modu — gerçek ekran" width="900"></p>
 
 - **Orta — atölye:** varsayılan **Dosya** görünümü; soldaki ağaçtan tıklanan dosya burada açılır (kod, markdown, resim, PDF, video). **Yörünge** anahtarı eski uydu haritasını geri getirir (klasör = halkalı uydu, dosya = türe göre renk).
+- **Gezegene inince (dosya açık değilken):**
+  - **Veri katmanı** kartı projenin veritabanlarını gösterir. Kaynaklar: `.env`, compose, Prisma şeması, sürücü paketleri, koddaki SQL/ORM kullanımı.
+  - Bağlı bir bağlantı varsa canlı durumu ve tablolarını da gösterir; tabloya tıklayınca DB sekmesinde açılır. Bağlı değilse **Bağla** ile `.env`'den kurulur.
+  - **Proje haritası** kartı dosya, satır, modül, rota ve IPC özetini verir.
+- **⤢ Akış şeması (tam ekran):** proje kodu çalıştırılmadan okunur ve soldan sağa akan bir şema çizilir. Sıra: giriş noktaları (`npm` script'leri, `main`, `__main__`, HTML `<script>`), klasör modülleri, veritabanları ve dış servisler (Stripe, OpenAI, fetch edilen hostlar…).
+  - **Oklar:** import, Electron IPC / `contextBridge`, ön yüzden API rotasına giden HTTP çağrısı, DB erişimi.
+  - **Düğüme tıklayınca:** dosyalar, rotalar (dosya:satır), IPC kanalları, dokunduğu tablolar, bağımlı olduğu ve onu kullanan modüller görünür.
+  - **Çift tık:** modülün içine iner (dosya düzeyinde şema) ya da dosyayı açar.
+  - Arama, yakınlaştırma ve kaydırma var; **Esc** bir üst seviyeye çıkar.
 - **Sol panel, üç sekme (varsayılan Ağaç):**
   - **Ağaç** — tam dosya ağacı + projede ara (grep).
   - **Kayıt** — durum, ilerleme, plan checklist'i (**tek tıkla** tamam/beklemede), notlar, **odak kronometresi** (süresi Ayarlar'dan), onaylı proje kaldırma, klasörü aç.
@@ -234,14 +245,14 @@ Postgres / MySQL / SQLite sunucularını ekle (parolalar macOS `safeStorage` ile
 
 ### ⏱ ZAMANLAYICI
 
-"Her sabah 09:00'da ATLAS durum raporu hazırlasın" gibi görevler tanımla (haftalık/günlük, ajan seç). Görev çalışınca **çıktısı ekranda görünür**, rapor arşivine (`reports/`) düşer ve hangi sekmede olursan ol bildirim (toast) çıkar. ▸ ÇALIŞTIR ile elle de tetiklenir.
+"Her sabah 09:00'da Kod Kalitesi ajanı rapor hazırlasın" gibi görevler tanımla (haftalık/günlük, ajan seç). Görev çalışınca **çıktısı ekranda görünür**, rapor arşivine (`reports/`) düşer ve hangi sekmede olursan ol bildirim (toast) çıkar. ▸ ÇALIŞTIR ile elle de tetiklenir.
 
 ### 🖧 SUNUCULAR — Uzak / SSH
 
 <p align="center"><img src="assets/guide/gorev-murettebati.jpg" alt="Görev mürettebatı" width="900"></p>
 
 - **Sunucu ekle/düzenle:** ad, host, kullanıcı, port, **anahtar seçici** (`~/.ssh` altındaki gerçek anahtarlar çip olarak listelenir). **Test et** bağlantıyı ve uzak kabuğu (POSIX/Windows) doğrular.
-- **Uzak klasör → evren:** sunucudaki bir yolu (ör. `/root`, `/home/kullanıcı/projeler`) yaz → o klasör **uzak evren** olur; içindeki projeler tıpkı yerel gezegenler gibi haritaya çıkar (arka planda taranır, stale-while-revalidate önbellek).
+- **Uzak klasör → evren:** sunucudaki bir yolu (ör. `/root`, `/home/kullanıcı/projeler`) yaz → o klasör **uzak evren** olur ve boş başlar; arka plandaki tarama (stale-while-revalidate önbellek) bulduğu depoları **＋ Ekle** penceresinde listeler, istediklerini işaretleyip eklersin.
 - **Uzak terminal:** sunucuda gömülü terminal — **login kabuk** (`bash -l`) kullanır; böylece uzak `PATH` senin kendi terminalindekiyle aynıdır (docker/node/nvm/brew komutları bulunur).
 - ControlMaster multiplexing, `accept-new` host-key politikası, yapılandırılabilir zaman aşımı (Ayarlar).
 
@@ -260,17 +271,19 @@ Varsayılan kök `~/Desktop/FY/software-practice` (yoksa `~/Desktop/yazılım`).
 
 <p align="center"><img src="assets/guide/ajan-akisi.jpg" alt="Ajan akışı" width="900"></p>
 
-Günlük kapı **Asistan** (üst bar) — dijital ikiz. Beş uzman (ATLAS…) sağ İSTASYON rayında; ray varsayılan kapalı, kenardan açılır. **Uzaydayken tüm evrene, gezegen modundayken sadece o projeye** bakarlar. Mağaza sürümünde uzmanlar / CLI kapalıdır (sideload veya sonra BYOK).
+**Kaptan** (üst bar) senin dijital ikizin: seni birebir temsil eder, beş uzmanın tüm yeteneklerine hâkimdir, küçük işi kendisi yapar, büyük işi uzmana devreder (`[[ACT open_agent|…]]`) ya da toplantı açar. Kalıcı hafızası `DATA_DIR/twin/facts.json`'dadır; tercihlerini ve kararlarını öğrendikçe kaydeder. Sesli konuşmada kısa, yazılı konuşmada gerektiği kadar derin cevap verir.
 
-| Ajan | Rolü | Ona ne dersin |
-|------|------|----------------|
-| 🔵 **ATLAS** | CTO | "İş evreninin durum raporunu ver", "Risk analizi yap" |
-| 🟡 **NAVIGATOR** | PM | "Standup", "İhmal ettiklerim neler?" — rozetinde uyarı sayısı birikir |
-| 🟢 **DOCUMENTOR** | Dokümantasyon | "Bu projeye README yaz" — dosya yazabilen tek ajan |
-| 🩷 **FORGE** | Kod kalitesi | "Teknik borcu tara" — okur ama asla değiştirmez |
-| 🟣 **MENTOR** | Kişisel koç | "Bu hafta için çalışma planı öner" |
+Yerleşik ekip (ilk kurulumda "Ekibini seç" adımında listelenir, sonra **Ajanlar → Toplantı Salonu**'ndan duraklatılır, silinir ya da geri eklenir):
 
-⚙ ile adlarını, renklerini, görev tanımlarını, hazır komut düğmelerini düzenle; yeni ajan ekle. Ajanlar `claude -p --output-format stream-json` alt süreci olarak akar.
+| Ajan | Ne yapar | Yetki |
+|------|----------|-------|
+| **Git Yöneticisi** | Yerel + uzak dallar, commit, stash, PR/MR; dal grafiğini çizer, adım adım anlatır | `git`, `gh`, `glab`; geri alınamaz işlemden önce onay ister |
+| **Kod Kalitesi** | Dili/framework'ü tanır, code review + SonarQube kategorileriyle `dosya:satır` bulgular, kalite kapısı kararı | Sadece okur |
+| **Dokümantasyon** | md, pdf, xlsx/csv, görsel/SVG dokümanları bulur, üretir, iyileştirir | Dosya yazar; üzerine yazmadan sorar |
+| **Akış Analisti** | Her akışı aşamalarıyla çıkarır; sorunları ve git geçmişinden nasıl çözüldüklerini gösterir | Sadece okur |
+| **Planlayıcı** | Fikri sorgular, MVP ve riskleri çıkarır, 3-4 alternatif plan + uzun proje promptu yazar | Sadece okur |
+
+**Toplantı Salonu** (Ajanlar sekmesi): ekip kartları; **Konuş** ile ajan tam ekran çalışma alanında açılır (solda yetenekler ve hızlı işler, ortada sohbet). **Toplantı masası**na bir konu yazıp katılımcıları seçersen ajanlar sırayla, birbirini görerek konuşur; sonunda Kaptan kararları ve yapılacakları özetler. Geçmiş toplantılar saklanır. Ajanlar uzaydayken tüm projelere, bir projeye girdiğinde yalnız o projeye bakar. Eski ATLAS/NAVIGATOR/… ekibi ilk açılışta `backups/agents-v1.json`'a yedeklenir; kendi oluşturduğun ajanlar korunur.
 
 ### Günlük iş akışın (Otonom README döngüsü)
 
@@ -345,9 +358,9 @@ Terminal istemezsen: **Sistem Ayarları → Gizlilik ve Güvenlik** → aşağı
 
 **Ajanlar / ⌁ CLAUDE "claude bulunamadı" diyor.** Kurulum Adım 2'yi yap; `claude` yazıp giriş yaptığından emin ol. Gerekirse **Ayarlar → Claude komut yolu**'na tam yolu gir.
 
-**Yeni eklediğim klasör görünmüyor.** İçinde `.git` var mı? Yalnız git depoları gezegen olur. 60 sn bekle ya da pencereye tıkla (odaklanınca tarar).
+**Evrenin altına açtığım yeni proje görünmüyor.** Kasıtlı: projeler kendiliğinden eklenmez. Sol raydaki **＋ Ekle** ile yolunu gir ya da **Depoları bul**'dan işaretle.
 
-**Sol listede eskiden gördüğüm klasörler kayboldu.** Kasıtlı: artık yalnız `.git` içeren gerçek projeler gösteriliyor. Bir klasörü göstermek istiyorsan içinde `git init` çalıştır.
+**Güncellemeden sonra projelerim duruyor mu?** Evet. Eski bir evren ilk açılışta bir kez taşınır: o an görünen projeler üye olarak kaydedilir (gizlediklerin hariç). Bundan sonra yeni depolar otomatik gelmez.
 
 **Docker konteynerlerim listelenmiyor.** DOCKER sekmesine geç (açılışta tazelenir) ya da **⟳ Yenile**'ye bas. Gerçekten konteyner yoksa panel bunu açıkça yazar. Motor kapalıysa **▸ Başlat**.
 
@@ -374,6 +387,7 @@ ProjectGalaxy/                       (kod)
 │   ├── data.js                      #   galaxy-data.json, yedek + otomatik commit, ayarlar, Claude keşfi
 │   ├── projects.js                  #   evren tarama → gezegenler, knownPaths (izinli yollar)
 │   ├── planet-work.js               #   proje bağlamı: .env anahtarları, compose, script, migrate
+│   ├── project-map.js               #   proje haritası: giriş → modül → rota/IPC → veri → dış servis (akış şeması)
 │   ├── cli.js                       #   platformdan bağımsız CLI çağrısı (Windows .cmd → gömülü Node)
 │   ├── mcp-client.js                #   MCP stdio istemcisi (posta vb.)
 │   └── trainings.js                 #   Eğitimlerim: docx/pptx/ipynb okuma
@@ -386,7 +400,7 @@ ProjectGalaxy/                       (kod)
 │   ├── devtools.js                  #   gerçek PTY terminal, dosya izleme, tanılama, LSP, debug, işler
 │   ├── agent-engine.js              #   yerleşik ajan motoru (CLI ya da API anahtarı)
 │   ├── pty-host.py                  #   PTY köprüsü (python pty.spawn) — terminal sekmesi
-│   ├── lang-worker.js, scan-worker.js  # worker thread'ler: TypeScript dil servisi, toplu arama
+│   ├── lang-worker.js, scan-worker.js  # worker thread'ler: TypeScript dil servisi, toplu arama, proje haritası
 ├── newui/                           # Uygulamanın yüklediği arayüz
 │   ├── preview-sample.html          #   şablon (dc template sözdizimi) + stiller
 │   ├── parts/00-…80-*.js            #   tek `class Component`'in sıralı dilimleri (tek başına geçerli JS değil)
@@ -450,7 +464,6 @@ Hedef: kişisel evren OS’undan, bir geliştiricinin **her sabah** Finder + Ter
 
 ### Faz E — ajanları evcilleştir
 
-- [ ] Uzmanlar (ATLAS…) ikizin içinde rol olsun; ayrı ray olmasın
 - [ ] Mağaza sürümünde ajan UI kapalı + dürüst boş durum
 - [ ] Sideload’da Jarvis (ikiz) tek sohbet kapısı
 

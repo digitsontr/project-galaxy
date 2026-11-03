@@ -81,6 +81,53 @@ module.exports = function register(g) {
     };
   });
 
+  // Proje haritası (akış şeması + veri katmanı). Analiz worker'da koşar; sonuç kısa süre önbellekte.
+  const mapCache = new Map();
+  function analyzeInWorker(root, timeoutMs) {
+    return new Promise(resolve => {
+      let worker;
+      try {
+        const { Worker } = require('worker_threads');
+        worker = new Worker(path.join(__dirname, 'scan-worker.js'), { workerData: { kind: 'projectMap', root } });
+      } catch (err) { resolve({ ok: false, error: 'Analiz başlatılamadı: ' + err.message }); return; }
+      let done = false;
+      const finish = (val) => { if (done) return; done = true; clearTimeout(to); try { worker.terminate(); } catch (err) {} resolve(val); };
+      const to = setTimeout(() => finish({ ok: false, error: 'Analiz zaman aşımı — proje çok büyük' }), timeoutMs || 30000);
+      worker.on('message', msg => finish(msg && typeof msg === 'object' ? msg : { ok: false, error: 'Analiz yanıtı bozuk' }));
+      worker.on('error', err => finish({ ok: false, error: 'Analiz hatası: ' + err.message }));
+      worker.on('exit', code => { if (!done && code !== 0) finish({ ok: false, error: 'Analiz beklenmedik şekilde bitti (kod ' + code + ')' }); });
+    });
+  }
+
+  ipcMain.handle('galaxy:projectMap', async (e, { projectId, force } = {}) => {
+    const loc = localProj(projectId);
+    if (loc.remote) return { ok: false, remote: true, error: 'Uzak projede akış şeması henüz yok — yerel kopyada aç.' };
+    if (loc.error) return { ok: false, error: loc.error };
+    const root = loc.proj.path;
+    const hit = mapCache.get(root);
+    let map = (!force && hit && Date.now() - hit.at < 20000) ? hit.map : null;
+    if (!map) {
+      map = await analyzeInWorker(root, 30000);
+      if (map && map.ok) {
+        mapCache.set(root, { at: Date.now(), map });
+        if (mapCache.size > 12) mapCache.delete(mapCache.keys().next().value);
+      }
+    }
+    if (!map || !map.ok) return map || { ok: false, error: 'Analiz başarısız' };
+    const bound = (loadData().dbs || []).find(d => d.projectId === loc.proj.id);
+    if (!bound) return map;
+    const out = Object.assign({}, map, { nodes: map.nodes.map(n => Object.assign({}, n)) });
+    const info = { id: bound.id, name: bound.name, type: bound.type, host: bound.host || '', port: bound.port || 0, database: bound.database || (bound.file ? path.basename(bound.file) : '') };
+    let target = out.nodes.find(n => n.kind === 'db' && n.engine === bound.type) || out.nodes.find(n => n.kind === 'db' && n.engine === 'sql');
+    if (!target) {
+      target = { id: 'db:' + bound.type, kind: 'db', label: ({ postgres: 'PostgreSQL', mysql: 'MySQL', sqlite: 'SQLite', mssql: 'SQL Server' })[bound.type] || bound.type, engine: bound.type, sources: [], models: [], tables: [], files: [] };
+      out.nodes.push(target);
+    }
+    target.bound = info;
+    target.sources = (target.sources || []).concat(['bağlantı']);
+    return out;
+  });
+
   ipcMain.handle('galaxy:planetBindDb', async (e, { projectId } = {}) => {
     const loc = localProj(projectId);
     if (loc.error) return { ok: false, error: loc.error };

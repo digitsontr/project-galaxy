@@ -421,8 +421,12 @@
     for(const u of us){ if(!u.id) continue; const s=this._asstNameScore(q,u.name||''); if(s>bs){ bs=s; best=u; } }
     return bs>=28?best:null; }
   _asstTabId(arg){ const a=this._asstFold(arg||''); if(!a) return '';
-    if(/(^| )(genel|ozet|özet|overview|dashboard)( |$)/.test(a)||a==='genel') return 'genel';
-    if(/(^| )(evren|galaksi|universe)( |$)/.test(a)||a==='evren') return 'evren';
+    if(/(^| )(genel|ozet|özet|overview|dashboard|ana sayfa|anasayfa|home|bugun|bugün)( |$)/.test(a)||a==='genel') return 'genel';
+    if(/(^| )(evren|galaksi|universe|projeler)( |$)/.test(a)||a==='evren') return 'evren';
+    if(/(^| )(ajan|ajanlar|agents?|toplanti|toplantı)( |$)/.test(a)) return 'pixel';
+    if(/(otomasyon|automation)/.test(a)) return 'zaman';
+    if(/(proje taramas|tarama)/.test(a)) return 'dongu';
+    if(/(servis|services)/.test(a)) return 'db';
     if(/(pano|kanban|todo|görev|gorev)/.test(a)) return 'pano';
     if(/(veritaban|(^| )db( |$)|sql)/.test(a)) return 'db';
     if(/(docker|konteyner|container)/.test(a)) return 'docker';
@@ -431,7 +435,7 @@
     if(/(posta|gmail|e-?posta|(^| )mail( |$))/.test(a)) return 'posta';
     if(/(sunucu|ssh|servers?)/.test(a)) return 'servers';
     return ''; }
-  _asstTabLabel(id){ return {genel:'Özet',evren:'Evren',pano:'Pano',db:'Veritabanı',docker:'Docker',zaman:'Zamanlayıcı',dongu:'Döngü',posta:'Posta',servers:'Sunucular'}[id]||id; }
+  _asstTabLabel(id){ return {genel:'Ana Sayfa',evren:'Projeler',pano:'Görevler',pixel:'Ajanlar',db:'Veritabanları',docker:'Konteynerler',zaman:'Zamanlanmış işler',dongu:'Proje taraması',posta:'E-posta',servers:'SSH sunucuları'}[id]||id; }
   _asstCtx(){
     const pw=this.state._pw||{};
     const bits=[];
@@ -447,6 +451,7 @@
       location:(this._inPlanet()?('“'+((this.sel&&this.sel.name)||'')+'” gezegeni'):'uzay (evren: '+(((this._unis||[]).find(u=>u.id===this.state.uniId)||{}).name||'-')+')'),
       planetWork: bits.join(' · '),
       agentName: ag?ag.name:'', agentRole: ag?ag.role:'', agentSys: '',
+      voice: !!(this._asst&&this._asst.speak),
       captainName: this._captainWho().name, captainAbout: this._captainWho().about
     };
   }
@@ -456,7 +461,7 @@
     switch(name){
       case 'open_universe':{ const u=this._asstFindUni(arg); if(u){ this.selectUni(u.id); return '“'+u.name+'” evrenini açtım.'; } return arg?('“'+arg+'” diye bir evren bulamadım.'):null; }
       case 'open_project':{ const p=this._asstFindProject(arg); if(p){ this._gotoProject(p.id); return '“'+p.name+'” gezegenine indim.'; } return arg?('“'+arg+'” diye bir proje bulamadım.'):null; }
-      case 'open_tab':{ const raw=String(arg||'').toLowerCase().trim(); const id=this._asstTabId(arg)||({genel:1,evren:1,pano:1,db:1,docker:1,zaman:1,dongu:1,posta:1,servers:1}[raw]?raw:''); if(id){ this._openTab(id); return this._asstTabLabel(id)+' sekmesini açtım.'; } return null; }
+      case 'open_tab':{ const raw=String(arg||'').toLowerCase().trim(); const id=this._asstTabId(arg)||({genel:1,evren:1,pano:1,pixel:1,db:1,docker:1,zaman:1,dongu:1,posta:1,servers:1}[raw]?raw:''); if(id){ this._openTab(id); return this._asstTabLabel(id)+' sekmesini açtım.'; } return null; }
       case 'mail_brief': this._openTab('posta'); this.setState({mailPane:'compose', mailTo:this.state.mailTo||this._mailTo||'', mailSub:this.state.mailSub||'Galaxy', mailBody:this._mailItems().map(i=>i.kind+'\n'+i.text).join('\n\n')||this._asstBriefData()||''}); return 'Posta yazma alanını açtım.';
       case 'mail_send': try{ if(window.galaxy&&window.galaxy.mcpCall) window.galaxy.mcpCall({alias:'send', args:this._mailArgs(arg||'','Galaxy')}).then(r=>this._asstReply((r&&r.ok)?'Posta gitti.':('Posta: '+((r&&r.error)||'MCP yok')))); else this._asstReply('Posta: MCP yok'); }catch(e){} return 'Postayı deniyorum.';
       case 'open_git': if(!inProj) return 'Git için önce bir projeye girmem gerek.'; this._setLeftTab('git'); return 'Git sekmesini açtım.';
@@ -477,6 +482,8 @@
       case 'open_port': this._openPlanetPort(arg||((this.state._pw&&(this.state._pw.listening||this.state._pw.ports)||[])[0])); return 'Portu açıyorum.';
       case 'run_script':{ const scripts=(this.state._pw&&this.state._pw.scripts)||[]; const hit=scripts.find(s=>String(s.name).toLowerCase()===String(arg||'').toLowerCase())||scripts[0]; if(!hit) return 'Bu gezegende script yok.'; this._runPlanetScript(hit); return hit.name+' çalışıyor.'; }
       case 'git_pr': this._planetPrCreate(); return 'PR açıyorum.';
+      case 'open_agent':{ const i=arg.indexOf('|'); const q=(i>=0?arg.slice(0,i):arg).trim(); const task=i>=0?arg.slice(i+1).trim():''; const ag=this._findAgent(q); if(!ag) return q?('“'+q+'” diye bir ajan bulamadım.'):null; this._agentWsOpen(ag.id, task); return ag.name+' açıldı.'; }
+      case 'meeting': this._openTab('pixel'); this._salonStart(arg); return 'Toplantıyı açtım.';
     }
     return null; }
   async assistantHandle(text){ text=String(text||'').trim(); if(!text) return; const A=this._asst; if(!A) return;
@@ -555,14 +562,16 @@
     const key=inProj?('p:'+p.id):'chat'; const cwd=inProj?p._path:null;
     const runId='asst-'+key.replace(/[^a-z0-9]/gi,'')+'-'+(++A.cc);
     this._asstClaudeSess=this._asstClaudeSess||{}; const cont=!!this._asstClaudeSess[key]; this._asstClaudeSess[key]=true;
-    A._clRaw=''; A._clRow=null; A._clRun=runId; A._clActN=0;
+    A._clRaw=''; A._clRow=null; A._clRun=runId; A._clActN=0; A._clMemN=0;
     try{ const r=await window.galaxy.assistantRun({runId,cwd,prompt:text,continueSession:cont,ctx:this._asstCtx()});
       if(r&&r.ok===false){ this._asstSetState('idle'); this._asstReply(this._friendlyFail(r,'Şu an yanıt veremedim.','claude')); } }
     catch(e){ this._asstSetState('idle'); this._friendlyFail({error:'claude'},'Şu an yanıt veremedim.','claude'); this._asstReply('Bir şeyler ters gitti, tekrar dener misin?'); } }
   // Akıştan gizli [[ACT ...]] komutlarını ayıkla + çalıştır, gerisini temiz gösterip oku (token token akış).
-  _asstActDisplay(raw){ return String(raw||'').replace(/\[\[ACT[^\]]*\]\]/g,'').replace(/\[\[[^\]]*$/,'').replace(/\s{2,}/g,' ').trimStart(); }
+  _asstActDisplay(raw){ return String(raw||'').replace(/\[\[(ACT|MEM)[^\]]*\]\]/g,'').replace(/\[\[[^\]]*$/,'').replace(/\s{2,}/g,' ').trimStart(); }
   _asstRunActions(){ const A=this._asst; const re=/\[\[ACT\s+([a-z_]+)(?:\|([^\]]*))?\]\]/gi; let m,i=0; const raw=A._clRaw||'';
-    while((m=re.exec(raw))){ i++; if(i>A._clActN){ A._clActN=i; try{ this._asstDoAction(String(m[1]||'').toLowerCase().trim(), (m[2]||'').trim()); }catch(e){} } } }
+    while((m=re.exec(raw))){ i++; if(i>A._clActN){ A._clActN=i; try{ this._asstDoAction(String(m[1]||'').toLowerCase().trim(), (m[2]||'').trim()); }catch(e){} } }
+    const mre=/\[\[MEM\s+([^\]]+)\]\]/gi; let k=0;
+    while((m=mre.exec(raw))){ k++; if(k>(A._clMemN||0)){ A._clMemN=k; try{ if(window.galaxy&&window.galaxy.twinMemAdd) window.galaxy.twinMemAdd(m[1].trim()); }catch(e){} } } }
   _asstClaudeMsg(m){ const A=this._asst; if(!A||!m) return;
     const push=(t)=>{ A._clRaw=(A._clRaw||'')+t; this._asstRunActions(); const disp=this._asstActDisplay(A._clRaw); if(disp){ if(A._clRow){ A._clRow.text=disp; this._asstFlush(); } else { A._clRow=this._asstSay('assistant',disp,{speak:false}); } } if(A.state!=='speaking') this._asstSetState('working'); this._asstScroll(); };
     if(m.kind==='text'||m.kind==='data'){ const t=String(m.text||''); if(t) push(t); }

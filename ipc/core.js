@@ -26,8 +26,7 @@ ipcMain.handle('galaxy:projectDelete', async (e, projectId) => {
 
   const data = loadData();
   if (response === 1) {
-    data.ignored = data.ignored || [];
-    if (!data.ignored.includes(projectId)) data.ignored.push(projectId);
+    removeMember(data, proj);
     saveData(data);
     return { ok: true, action: 'hidden' };
   }
@@ -47,7 +46,7 @@ ipcMain.handle('galaxy:projectDelete', async (e, projectId) => {
   try {
     await shell.trashItem(proj.path);
     delete data.projects[projectId];
-    data.ignored = (data.ignored || []).filter(x => x !== projectId);
+    removeMember(data, proj);
     saveData(data);
     return { ok: true, action: 'trashed' };
   } catch (err) {
@@ -62,14 +61,135 @@ ipcMain.handle('galaxy:projectUnhide', (e, projectId) => {
   return { ok: true };
 });
 
-// Galaksiden gizle (klasöre dokunulmaz) — onay kartı renderer’da
+// Evrenden çıkar (klasöre dokunulmaz) — onay kartı renderer’da. Proje verisi (plan/not) silinmez;
+// aynı yol tekrar eklenirse aynı kimlikle geri gelir.
 ipcMain.handle('galaxy:projectHide', (e, projectId) => {
   if (!projectId) return { ok: false, error: 'Proje yok' };
+  const proj = scanProjects().projects.find(p => p.id === projectId);
   const data = loadData();
-  data.ignored = data.ignored || [];
-  if (!data.ignored.includes(projectId)) data.ignored.push(projectId);
+  if (!removeMember(data, proj || { id: projectId })) {
+    data.ignored = data.ignored || [];
+    if (!data.ignored.includes(projectId)) data.ignored.push(projectId);
+  }
   saveData(data);
   return { ok: true, action: 'hidden' };
+});
+
+function removeMember(data, proj) {
+  if (!proj) return false;
+  for (const u of data.universes || []) {
+    const before = (u.members || []).length;
+    u.members = (u.members || []).filter(m => m.id !== proj.id);
+    if (u.members.length !== before) return true;
+  }
+  const rp = isRemotePath(proj.path) ? parseRemote(proj.path) : null;
+  if (rp) {
+    const srv = (data.servers || []).find(s => s.id === rp.serverId);
+    for (const rt of (srv && srv.roots) || []) {
+      if (Array.isArray(rt.members) && rt.members.includes(rp.path)) { rt.members = rt.members.filter(x => x !== rp.path); return true; }
+    }
+  }
+  return false;
+}
+
+function universeRef(data, universeId) {
+  const u = (data.universes || []).find(x => x.id === universeId);
+  if (u) return { local: u };
+  for (const srv of data.servers || []) {
+    for (const rt of srv.roots || []) {
+      if ('ssh-' + srv.id + '-' + slugify(rt.name || rt.path) === universeId) return { srv, rt };
+    }
+  }
+  return null;
+}
+
+// Evrene proje ekle: tek ya da çok yol. Yerel: klasör var olmalı (git şart değil).
+// Uzak: yol o çalışma alanının taramasında bulunan bir depo olmalı.
+ipcMain.handle('galaxy:projectsAdd', (e, { universeId, items } = {}) => {
+  const data = loadData();
+  const ref = universeRef(data, universeId);
+  if (!ref) return { ok: false, error: 'Çalışma alanı bulunamadı' };
+  const list = (Array.isArray(items) ? items : []).map(it => typeof it === 'string' ? { path: it } : (it || {}))
+    .map(it => ({ path: String(it.path || '').trim(), bookmark: it.bookmark || null })).filter(it => it.path).slice(0, 300);
+  if (!list.length) return { ok: false, error: 'Yol yok' };
+  const added = [], skipped = [];
+  if (ref.local) {
+    const u = ref.local;
+    u.members = Array.isArray(u.members) ? u.members : [];
+    const taken = allMemberIds(data);
+    for (const it of list) {
+      let p = it.path.replace(/^~(?=$|[\\/])/, os.homedir());
+      if (!path.isAbsolute(p)) { skipped.push({ path: it.path, reason: 'tam yol gir (ör. ~/Projeler/app)' }); continue; }
+      p = path.resolve(p).normalize('NFC');
+      try { if (!fs.statSync(p).isDirectory()) { skipped.push({ path: it.path, reason: 'klasör değil' }); continue; } }
+      catch (err) { skipped.push({ path: it.path, reason: 'bulunamadı' }); continue; }
+      if (u.members.some(m => path.resolve(m.path) === p)) { skipped.push({ path: it.path, reason: 'zaten bu alanda' }); continue; }
+      const id = memberId(u, p, taken);
+      taken.add(id);
+      u.members.push(it.bookmark ? { id, path: p, bookmark: it.bookmark } : { id, path: p });
+      startBookmarkAccess(it.bookmark);
+      added.push({ id, path: p, name: path.basename(p) });
+    }
+  } else {
+    const { srv, rt } = ref;
+    const found = (((remoteCache.get(srv.id) || {}).projects) || []).filter(rp => rp.root === rt.path);
+    rt.members = Array.isArray(rt.members) ? rt.members : [];
+    for (const it of list) {
+      const p = it.path.replace(/\/+$/, '') || '/';
+      const hit = found.find(rp => rp.path === p);
+      if (!hit) { skipped.push({ path: it.path, reason: 'bu alanın taramasında yok' }); continue; }
+      if (rt.members.includes(p)) { skipped.push({ path: it.path, reason: 'zaten bu alanda' }); continue; }
+      rt.members.push(p);
+      added.push({ path: p, name: hit.name });
+    }
+  }
+  if (added.length) saveData(data);
+  return { ok: true, added, skipped };
+});
+
+// Toplu ekleme için: bir klasörün altındaki git depolarını listele (en çok 3 seviye; depo
+// içine inilmez). Uzak çalışma alanında son taramanın bulduğu depolar döner.
+ipcMain.handle('galaxy:findRepos', (e, { universeId, root } = {}) => {
+  const data = loadData();
+  const ref = universeRef(data, universeId);
+  if (ref && ref.srv) {
+    const found = (((remoteCache.get(ref.srv.id) || {}).projects) || []).filter(rp => rp.root === ref.rt.path);
+    const mem = ref.rt.members || [];
+    return { ok: true, root: ref.rt.path, repos: found.map(rp => ({ path: rp.path, name: rp.name, rel: rp.path, isGit: rp.isGit, already: mem.includes(rp.path) })) };
+  }
+  let base = String(root || (ref && ref.local && resolveRoot(ref.local.root)) || '').trim().replace(/^~(?=$|[\\/])/, os.homedir());
+  if (!base || !path.isAbsolute(base)) return { ok: false, error: 'Tam klasör yolu gir' };
+  base = path.resolve(base);
+  try { if (!fs.statSync(base).isDirectory()) return { ok: false, error: 'Klasör değil' }; }
+  catch (err) { return { ok: false, error: 'Klasör bulunamadı: ' + base }; }
+  const members = new Set(((ref && ref.local && ref.local.members) || []).map(m => path.resolve(m.path)));
+  const repos = [];
+  let visited = 0;
+  const walk = (dir, depth) => {
+    if (repos.length >= 300 || visited > 4000) return;
+    visited++;
+    if (isGitRepo(dir)) {
+      const rel = path.relative(base, dir).split(path.sep).join('/') || '.';
+      repos.push({ path: dir, name: path.basename(dir), rel, isGit: true, already: members.has(dir) });
+      return;
+    }
+    if (depth <= 0) return;
+    for (const name of listDirs(dir)) walk(path.join(dir, name), depth - 1);
+  };
+  walk(base, 3);
+  repos.sort((a, b) => a.rel.localeCompare(b.rel));
+  return { ok: true, root: base, repos, truncated: repos.length >= 300 };
+});
+
+ipcMain.handle('galaxy:pickFolders', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const r = await dialog.showOpenDialog(win, {
+    title: 'Proje klasörlerini seç',
+    properties: ['openDirectory', 'multiSelections'],
+    securityScopedBookmarks: true
+  });
+  if (r.canceled || !r.filePaths.length) return [];
+  return r.filePaths.map((p, i) => ({ path: p, bookmark: (r.bookmarks && r.bookmarks[i]) || null }));
 });
 
 ipcMain.handle('galaxy:load', async () => {
@@ -101,7 +221,7 @@ ipcMain.handle('galaxy:universeAdd', (e, { name, root, bookmark }) => {
   while (data.universes.find(u => u.id === id)) id += '2';
   const prefix = path.basename(root).normalize('NFC');
   if (data.universes.find(u => u.prefix === prefix)) return { ok: false, error: 'Aynı klasör adına sahip bir evren zaten var' };
-  data.universes.push({ id, name, subtitle: prefix, root, prefix, bookmark: bookmark || undefined, expandDirs: [] });
+  data.universes.push({ id, name, subtitle: prefix, root, prefix, bookmark: bookmark || undefined, members: [] });
   saveData(data);
   startBookmarkAccess(bookmark);
   return { ok: true, id };
@@ -486,14 +606,42 @@ ipcMain.handle('galaxy:agentSave', (e, agent) => {
     while (data.agents.find(a => a.id === agent.id)) agent.id += '2';
   }
   const idx = data.agents.findIndex(a => a.id === agent.id);
+  const prev = idx >= 0 ? data.agents[idx] : {};
   const clean = {
     id: agent.id, name: agent.name, role: agent.role || 'AJAN', color: agent.color || '#61dcff',
-    prompt: agent.prompt || '', write: !!agent.write,
-    presets: Array.isArray(agent.presets) ? agent.presets.filter(p => p && p.label && p.ask).slice(0, 8) : []
+    prompt: agent.prompt != null ? agent.prompt : (prev.prompt || ''), write: agent.write != null ? !!agent.write : !!prev.write,
+    presets: Array.isArray(agent.presets) ? agent.presets.filter(p => p && p.label && p.ask).slice(0, 8) : (prev.presets || []),
+    paused: agent.paused != null ? !!agent.paused : !!prev.paused
   };
+  if (prev.builtin) Object.assign(clean, { builtin: true, kind: prev.kind, tools: prev.tools || [], abilities: prev.abilities || [] });
   if (idx >= 0) data.agents[idx] = clean; else data.agents.push(clean);
   saveData(data);
   return { ok: true, id: agent.id };
+});
+
+ipcMain.handle('galaxy:agentPause', (e, { id, paused } = {}) => {
+  const data = loadData();
+  const a = (data.agents || []).find(x => x.id === id);
+  if (!a) return { ok: false, error: 'Ajan bulunamadı' };
+  a.paused = !!paused;
+  saveData(data);
+  return { ok: true, paused: a.paused };
+});
+
+ipcMain.handle('galaxy:agentRestore', (e, id) => {
+  const data = loadData();
+  const def = defaultAgents((data.profile && data.profile.lang) || 'tr').find(a => a.id === id);
+  if (!def) return { ok: false, error: 'Yerleşik ajan bulunamadı' };
+  data.agents = data.agents || [];
+  if (!data.agents.some(a => a.id === id)) data.agents.push(def);
+  saveData(data);
+  return { ok: true };
+});
+
+ipcMain.handle('galaxy:agentCatalog', () => {
+  const data = loadData();
+  const have = new Set((data.agents || []).map(a => a.id));
+  return defaultAgents((data.profile && data.profile.lang) || 'tr').map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color, abilities: a.abilities, added: have.has(a.id) }));
 });
 
 ipcMain.handle('galaxy:agentDelete', (e, id) => {
@@ -531,7 +679,7 @@ ipcMain.handle('galaxy:onboardStatus', () => {
     needed: !(d.profile && d.profile.onboarded),
     profile: { name: (d.profile && d.profile.name) || '', lang },
     universes: (d.universes || []).map(u => ({ id: u.id, name: u.name, root: resolveRoot(u.root) })),
-    agents: (d.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff' })),
+    agents: (d.agents || []).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color || '#61dcff', builtin: !!a.builtin, abilities: Array.isArray(a.abilities) ? a.abilities : [] })),
     isMas: IS_MAS
   };
 });
@@ -561,7 +709,7 @@ ipcMain.handle('galaxy:onboardComplete', (e, payload) => {
       }
       let id = slugify(u.name || prefix);
       while (data.universes.find(x => x.id === id)) id += '2';
-      data.universes.push({ id, name: (u.name || prefix).slice(0, 60), subtitle: prefix, root, prefix, bookmark: u.bookmark || undefined, expandDirs: [] });
+      data.universes.push({ id, name: (u.name || prefix).slice(0, 60), subtitle: prefix, root, prefix, bookmark: u.bookmark || undefined, members: [] });
     }
   }
   // Ajan adları/rolleri kişiselleştirmesi
@@ -573,6 +721,9 @@ ipcMain.handle('galaxy:onboardComplete', (e, payload) => {
         if (a.role) ex.role = String(a.role).slice(0, 40);
       }
     }
+    const off = new Set(p.agents.filter(a => a && a.on === false).map(a => a.id));
+    const kept = (data.agents || []).filter(a => !off.has(a.id));
+    if (kept.length) data.agents = kept;
   }
   if (!data.universes.length) return { ok: false, error: data.profile.lang === 'en' ? 'Pick at least one folder' : 'En az bir klasör seç' };
   saveData(data);

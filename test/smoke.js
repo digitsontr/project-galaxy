@@ -29,7 +29,7 @@ function staticChecks() {
     check('index-nonempty', h.length > 50000, h.length + ' bytes');
     check('workshop-stage', /Bir dosya seç/.test(h) && /Yörünge/.test(h) && !/belgede ara/.test(h), '');
     check('sprint-c-copy', /Evren bağla/.test(h) && /git init/.test(h) && /README.den/.test(h) && /confirmOkLabel/.test(h), '');
-    check('sprint-d-twin', /id="ga-root"/.test(h) && /id="ga-panel"/.test(h) && /id="ga-orbwrap"/.test(h), '');
+    check('sprint-d-twin', /id="ga-root"/.test(h) && /id="ga-panel"/.test(h) && /id="ga-open"/.test(h) && /dijital ikizin/.test(h) && !/id="ga-orbwrap"/.test(h), '');
     check('sprint-f-stt', /id="ga-mic"/.test(h) && /id="ga-wake"/.test(h) && /id="ga-open"/.test(h) && /Dinliyor/.test(h) && /Voice On/.test(h) && /STATUS: READY/.test(h) && /ga-hud-frame/.test(h) && /SYSTEM ONLINE/.test(h), '');
     check('sprint-h-loop', /Döngü/.test(h) && /Tetik/.test(h) && /Bildir/.test(h), '');
     check('sprint-i-posta', /Posta/.test(h) && /mail_send/.test(h) && /mailShowCompose/.test(h) && /Gönder/.test(h) && /openMailSettings/.test(h), '');
@@ -44,7 +44,7 @@ function staticChecks() {
     check('db-agent-sql-guard', /parseAgentSql/.test(dbGit) && /session limit/.test(dbGit) && /_sqlLooks/.test(uiSrc) && /you've hit/.test(uiSrc), '');
     check('mssql-support', /setDbTypeMs/.test(h) && /SQL Server/.test(h) && /dbIsMssql/.test(h) && /cfg\.type === 'mssql'/.test(dbGit) && /sys\.foreign_key_columns/.test(dbGit) && /mssql: 1433/.test(dbGit), 'SQL Server tipi: form + sürücü dalı + FK kaynağı');
     check('daily-desk', /resumeSession/.test(h) && /Kaldığın yerden devam/.test(h) && /openInEditor/.test(h) && /Editörde Aç/.test(h) && /gxSession/.test(uiSrc), '');
-    check('sade-chrome', />KAPTAN</.test(h) && /Nerede kaldın/.test(h) && /ctxJumps/.test(h) && /closeHistory/.test(h) && /_chromeMove/.test(uiSrc) && /_rememberSurface/.test(uiSrc) && /showPlanetIdent/.test(h), 'kenar hover + sağ bağlam + Kaptan markası + geçmiş kapanır');
+    check('sade-chrome', />KAPTAN</.test(h) && /Kaldığın yer/.test(h) && !/Nerede kaldın/.test(h) && !/ctxJumps/.test(h) && !/Daha ▾/.test(h) && /gx-subnav/.test(h) && /id="gx-notif-btn"/.test(h) && /_navGroups/.test(uiSrc) && /closeHistory/.test(h) && /_chromeMove/.test(uiSrc) && /_rememberSurface/.test(uiSrc) && /showPlanetIdent/.test(h), 'tek menü + alt sekmeler + bildirim zili; sağ kısayol paneli ve Daha menüsü yok');
     const ptySrc = fs.readFileSync(path.join(ROOT, 'ipc', 'devtools.js'), 'utf8');
     check('calm-ui', /filtrele veya Enter ile içerikte ara/.test(h) && !/placeholder="içerikte ara/.test(h) && !/Git Merkezi<\/button>/.test(h) && /pty-host\.py/.test(ptySrc) && /spawnPtyChild/.test(ptySrc) && fs.existsSync(path.join(ROOT, 'ipc', 'pty-host.py')) && /box-shadow:none!important/.test(h), 'tek ağaç araması + tek Git + sakin yüzey + gerçek PTY');
     const onb = fs.readFileSync(path.join(ROOT, 'onboarding.html'), 'utf8');
@@ -57,7 +57,7 @@ function staticChecks() {
     check('sprint-l-health', /Sistem sağlığı/.test(h) && /healthItems/.test(h) && /galaxy:githubCheck/.test(fs.readFileSync(path.join(ROOT, 'lib', 'data.js'), 'utf8')), '');
     check('no-egitim-tab', !/Eğitimlerim/.test(h) && !/id="tr-reader"/.test(h), '');
     check('no-calculator', !/hesap makinesi/i.test(h) && !/takvim · hesap/.test(h) && !/\bcalcKeys\b/.test(uiSrc) && !/gx-calc/.test(h), '');
-    check('no-second-agent-chat', !/id="ghud-agent-scroll"/.test(h) && /_openAsstVoice/.test(uiSrc), '');
+    check('agent-single-surface', !/id="ghud-agent-scroll"/.test(h) && /id="gx-agent"/.test(h) && /_agentWsOpen/.test(uiSrc) && !/_initPixelAgents/.test(uiSrc), 'ajanlar tek tam ekran alanında');
     // Gerçek ama boş evren listesinde sahte demo evrenler (İş Evreni/Papilon/Arşiv) ASLA gösterilmemeli.
     check('no-fake-universes-in-real-mode', /\(demoData \? \[\{name:'İş Evreni'/.test(h), '');
     check('wake-kaptan', /_asstWakePat/.test(uiSrc) && /kaptan\|kapten\|captain/.test(uiSrc) && /aria-label="Kaptan"/.test(h) && /id="ga-wake"/.test(h), '');
@@ -82,28 +82,35 @@ app.whenReady().then(async () => {
   let win, consoleErr = 0;
   try {
     win = new BrowserWindow({ width: 1400, height: 900, show: false, webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: false } });
-    win.webContents.on('console-message', (e, level) => { if (level >= 3) consoleErr++; });
+    win.webContents.on('console-message', (e, level, msg, line, src) => { if (level >= 3) { consoleErr++; if (process.env.GX_DEBUG) console.log('[console]', String(msg).slice(0, 400), String(src || '').slice(-60) + ':' + line); } });
     await win.loadFile(INDEX);
     await wait(4500);
     // İzolasyon: önceki koşudan kalan oturum/pixel durumu testi kirletmesin
-    await win.webContents.executeJavaScript(`localStorage.removeItem('gxSession'); localStorage.removeItem('gxPixelOffice'); true`);
+    await win.webContents.executeJavaScript(`localStorage.removeItem('gxSession'); localStorage.removeItem('gxMeetings'); true`);
     await win.reload();
     await wait(3500);
   } catch (e) { check('boot', false, e.message); return finish(); }
 
   const js = c => win.webContents.executeJavaScript(c);
+  const shot = async name => { const dir = process.env.GX_SHOTS; if (!dir) return; try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, name + '.png'), (await win.webContents.capturePage()).toPNG()); } catch (e) {} };
   try {
     check('boot', true);
     check('no-console-errors', consoleErr === 0, consoleErr + ' hata');
     // Sekmeler render
-    const nav = await js(`(document.querySelector('nav')||{}).innerText||''`);
-    check('tabs-render', /Özet[\s\S]*Projeler[\s\S]*DB[\s\S]*Docker[\s\S]*Daha/i.test(nav), nav.replace(/\n/g, '|').slice(0, 80));
+    const nav = await js(`(document.querySelector('nav.gx-tabs')||{}).innerText||''`);
+    check('tabs-render', /Ana Sayfa[\s\S]*Görevler[\s\S]*Ajanlar[\s\S]*Otomasyonlar[\s\S]*Servisler/.test(nav) && !/Daha|Zamanlayıcı|Döngü/.test(nav), nav.replace(/\n/g, '|').slice(0, 80));
+    const goNav = (top, sub) => js(`(function(){
+      var n=document.querySelector('nav.gx-tabs'); var b=n?[].slice.call(n.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()===${JSON.stringify(top)}; }):null; if(b) b.click();
+      return new Promise(function(res){ setTimeout(function(){
+        var s=document.querySelector('nav.gx-subnav'); var c=(s&&${JSON.stringify(sub || '')})?[].slice.call(s.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()===${JSON.stringify(sub || '')}; }):null; if(c) c.click();
+        setTimeout(function(){ res(!!b && (!${JSON.stringify(sub || '')} || !!c)); }, 400);
+      }, 250); });
+    })()`);
     // Sol proje listesi (railItems)
     const rail = await js(`document.body.innerText.includes('PROJELER')`);
     check('project-list', rail);
-    // Asistan orbu var
-    const orb = await js(`!!document.getElementById('ga-orbwrap')`);
-    check('assistant-orb', orb);
+    const twinBtn = await js(`(function(){ var b=document.getElementById('ga-open'); return !!b && /dijital ikizin/.test(b.title||'') && !document.getElementById('ga-orbwrap'); })()`);
+    check('assistant-twin-button', twinBtn, 'üst barda tek Kaptan düğmesi, yüzen küre yok');
     // Asistan açılıyor + karşılama — sağ şerit kapalıyken orb görünmez; üst çubuktaki Asistan düğmesi her zaman var.
     // Panel visibility:hidden iken innerText boş kalır; textContent + mesaj tamponu esas alınır.
     await js(`(function(){ var b=document.getElementById('ga-open')||document.querySelector('button[aria-label="Asistan"]')||document.getElementById('ga-orbwrap'); if(b) b.click(); })(); true`);
@@ -118,7 +125,7 @@ app.whenReady().then(async () => {
     // Yazışma + komut yönlendirme: "docker aç" → Docker sekmesi
     await js(`(function(){var i=document.getElementById('ga-text');i.value='docker aç';i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})(); true`);
     await wait(700);
-    const dockerReply = await js(`(document.getElementById('ga-log').innerText||'').includes('Docker')`);
+    const dockerReply = await js(`/Docker|Konteyner/.test(document.getElementById('ga-log').innerText||'')`);
     check('assistant-command', dockerReply);
     // Evren değiştir: "şirket evrenini aç"
     await js(`(function(){var i=document.getElementById('ga-text');i.value='şirket evrenini aç';i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})(); true`);
@@ -161,14 +168,20 @@ app.whenReady().then(async () => {
     await wait(600);
     const backToSpace = await js(`(document.body.innerText||'').includes('PROJELER')`);
     check('activity-undo', backToSpace);
-    // Ajan nabzı: ATLAS Kaptan sesi olur, #ga-text'e yazınca "son koşu" tooltip'e düşmeli
+    // Ajan çalışma alanı: sağ paneldeki ajan kartı tam ekran alanı açar; yazınca "son koşu" düşer
     await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); if(b) b.click(); })(); true`);
     await wait(300);
-    await js(`(function(){var i=document.getElementById('ga-text'); if(i){ i.value='durum ver'; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); } })(); true`);
-    await wait(900);
-    const pulseTitle = await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); return b?b.title:''; })()`);
-    check('agent-pulse', /son koşu|çalışıyor/.test(pulseTitle), pulseTitle);
-    await js(`(function(){ var c=document.getElementById('ga-close'); if(c) c.click(); var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); if(b) b.click(); })(); true`);
+    const wsOpen = await js(`(function(){ var w=document.getElementById('gx-agent'); return !!w && /ATLAS/.test(w.innerText||'') && /Neler yapar/.test(w.innerText||'') && /Hızlı işler/.test(w.innerText||''); })()`);
+    check('agent-ws-open', wsOpen, 'tam ekran ajan alanı');
+    await js(`(function(){var i=document.getElementById('gx-ws-input'); if(i){ i.value='durum ver'; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); } })(); true`);
+    await wait(700);
+    const wsReply = await js(`(function(){ var w=document.getElementById('gx-agent'); var t=w?(w.innerText||''):''; return /durum ver/.test(t) && /Durum iyi/.test(t); })()`);
+    check('agent-ws-chat', wsReply, 'mesaj + yanıt');
+    await js(`(function(){ window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); })(); true`);
+    await wait(300);
+    const pulseTitle = await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); return (document.getElementById('gx-agent')?'açık kaldı ':'')+(b?b.title:''); })()`);
+    check('agent-pulse', /son koşu|çalışıyor/.test(pulseTitle) && !/açık kaldı/.test(pulseTitle), pulseTitle);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return (x.title||'').indexOf('ATLAS')===0;}); if(b) b.click(); })(); true`);
     await wait(400);
     await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Düzenle') b.click(); }); })(); true`);
     await wait(450);
@@ -181,59 +194,49 @@ app.whenReady().then(async () => {
     })()`);
     check('agent-edit-content', form && /ATLAS/i.test(form.txt||'') && /CTO/i.test(form.role||'') && form.p1 && !form.obj, JSON.stringify(form));
     // UI temizliği: Zamanlayıcı gerçek görev adını/saatini göstermeli (önceden hep "görev" + ham cron alanı düşüyordu)
-    const openMore = (label) => js(`(function(){
-      document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim().indexOf('Daha')===0) b.click(); });
-      return new Promise(function(res){ setTimeout(function(){
-        var items=document.querySelectorAll('button');
-        for (var i=0;i<items.length;i++){ if((items[i].innerText||'').trim()==='${label}'){ items[i].click(); break; } }
-        setTimeout(res, 400);
-      }, 250); });
-    })()`);
-    await openMore('Zamanlayıcı');
+    const toSched = await goNav('Otomasyonlar', 'Zamanlanmış işler');
     const schedText = await js(`document.body.innerText||''`);
-    check('sched-real-name', /Nightly/.test(schedText) && /Her gün 02:00/.test(schedText) && !/^görev$/m.test(schedText), schedText.split('\n').filter(function(){return true;}).slice(0,1).join(''));
-    await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Özet') b.click(); }); })(); true`);
-    await wait(350);
+    check('sched-real-name', toSched && /Nightly/.test(schedText) && /Her gün 02:00/.test(schedText) && !/^görev$/m.test(schedText), schedText.split('\n').filter(function(){return true;}).slice(0,1).join(''));
+    await goNav('Ana Sayfa', 'Bugün');
     const ozetText = await js(`document.body.innerText||''`);
     check('mail-on-ozet', /Posta/.test(ozetText) && /posta MCP|Posta \(MCP\)|Ayarlar → Posta|Posta nasıl bağlanır/i.test(ozetText), '');
-    await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim().indexOf('Daha')===0) b.click(); }); })(); true`);
-    await wait(250);
-    const moreText = await js(`document.body.innerText||''`);
-    check('no-egitim-menu', !/Eğitimlerim/.test(moreText) && /Döngü/.test(moreText) && /Zamanlayıcı/.test(moreText), '');
-    // Pixel Agents: üst barda DEĞİL, sol etkinlik barından açılır; varsayılan ajan açılmaz.
-    await js(`localStorage.removeItem('gxPixelOffice'); location.reload(); true`);
+    await goNav('Otomasyonlar');
+    const subText = await js(`(document.querySelector('nav.gx-subnav')||{}).innerText||''`);
+    check('no-egitim-menu', !/Eğitimlerim/.test(subText) && /Zamanlanmış işler/.test(subText) && /Proje taraması/.test(subText) && /E-posta/.test(subText), subText.replace(/\n/g, '|'));
+    await goNav('Servisler');
+    const svcText = await js(`(document.querySelector('nav.gx-subnav')||{}).innerText||''`);
+    check('nav-services-sub', /Veritabanları[\s\S]*Konteynerler[\s\S]*SSH sunucuları/.test(svcText), svcText.replace(/\n/g, '|'));
+    // Ajanlar = Toplantı Salonu: ekip kartları, eksik yerleşik ajanı ekle, duraklat, toplantı, sil
+    await js(`localStorage.removeItem('gxMeetings'); location.reload(); true`);
     await wait(2500);
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Pixel Agents/i.test(x.title||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('.gx-actbar button, nav[aria-label] button')).find(function(x){ return /^Ajanlar/.test(x.title||''); }); if(b) b.click(); })(); true`);
     await wait(600);
-    const pxOk = await js(`(function(){
-      var cv = document.getElementById('gxPixelCanvasMain');
-      var txt = document.body.innerText||'';
-      var topHasPixel = !![].slice.call(document.querySelectorAll('header button, .gx-term button')).find(function(b){ return /PIXEL AGENTS/i.test(b.innerText||''); });
-      return !!(cv && cv.width > 300 && /PIXEL AGENTS/.test(txt) && /Koltuk Modu/.test(txt) && /henüz çalışan bir ajan yok/.test(txt) && !topHasPixel);
-    })()`);
-    check('pixel-agents-office', pxOk, 'sol bar + boş ofis + canvas');
-    // Kullanıcı şablondan ajan açar → duraklatır → siler (onay kartıyla)
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Yeni Ajan Oluştur/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
-    await wait(350);
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /NAVIGATOR/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
-    await wait(250);
-    await js(`(function(){ var inp=document.querySelector('input[placeholder*="İlk görevi"]'); if(inp){ inp.focus(); } var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Ofise Yerleştir/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
-    await wait(600);
-    const pxCreated = await js(`/NAVIGATOR/.test(document.body.innerText||'') && /Masa #/.test(document.body.innerText||'')`);
-    check('pixel-agent-create', pxCreated, 'şablondan ajan');
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Duraklat/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
-    await wait(350);
-    const pxPaused = await js(`/DURAKLATILDI|duraklatıldı/.test(document.body.innerText||'')`);
-    check('pixel-agent-pause', pxPaused, 'duraklat');
-    await js(`(function(){ var bs=[].slice.call(document.querySelectorAll('button')).filter(function(x){ return /🗑/.test(x.innerText||''); }); if(bs.length) bs[0].click(); })(); true`);
-    await wait(350);
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Sil'; }); if(b) b.click(); })(); true`);
+    const salonOk = await js(`(function(){ var r=document.querySelector('.gx-salon'); var t=r?(r.innerText||''):''; return !!r && /Toplantı Salonu/.test(t) && /Git Yöneticisi/.test(t) && /ATLAS/.test(t) && /Ekibe eklenebilecekler/.test(t) && /Planlayıcı/.test(t) && !document.getElementById('gxPixelCanvasMain'); })()`);
+    check('salon-team', salonOk, 'ekip + eklenebilecekler, pixel yok');
+    const card = (name) => `[].slice.call(document.querySelectorAll('.gx-salon-card')).find(function(c){ return (c.innerText||'').indexOf(${JSON.stringify(name)})>=0; })`;
+    const cardBtn = (name, label) => js(`(function(){ var c=${card(name)}; if(!c) return false; var b=[].slice.call(c.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()===${JSON.stringify(label)}; }); if(b){ b.click(); return true; } return false; })()`);
+    await cardBtn('Planlayıcı', 'Ekibe ekle');
     await wait(500);
-    const pxDeleted = await js(`/henüz çalışan bir ajan yok/.test(document.body.innerText||'')`);
-    check('pixel-agent-delete', pxDeleted, 'sil → boş ofis');
+    const restored = await js(`(function(){ var c=${card('Planlayıcı')}; return !!c && !c.classList.contains('ghost') && !/Ekibe eklenebilecekler/.test(document.querySelector('.gx-salon').innerText||''); })()`);
+    check('salon-restore', restored, 'Planlayıcı ekibe döndü');
+    await cardBtn('Git Yöneticisi', 'Duraklat');
+    await wait(400);
+    const paused = await js(`(function(){ var c=${card('Git Yöneticisi')}; return !!c && /Duraklatıldı/.test(c.innerText||'') && /Devam ettir/.test(c.innerText||''); })()`);
+    check('salon-pause', paused, 'duraklat');
+    await js(`(function(){ var t=document.getElementById('gx-salon-topic'); if(t){ t.value='Sürüm planı'; t.dispatchEvent(new Event('input',{bubbles:true})); } })(); true`);
+    await wait(200);
+    await js(`(function(){ var b=document.getElementById('gx-salon-start'); if(b) b.click(); })(); true`);
+    await wait(1500);
+    const meet = await js(`(function(){ var f=document.getElementById('gx-salon-feed'); var t=f?(f.innerText||''):''; return /ATLAS/.test(t) && /Durum iyi/.test(t) && /toplantı özeti/i.test(t) && !/Git Yöneticisi/.test(t) && /Geçmiş toplantılar/.test(document.querySelector('.gx-salon').innerText||'') ? true : t.slice(0,200).replace(/\s+/g,' '); })()`);
+    check('salon-meeting', meet === true, meet === true ? 'sırayla konuştular + Kaptan özeti, duraklatılan katılmadı' : String(meet));
+    await cardBtn('ATLAS', 'Sil');
+    await wait(300);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).reverse().find(function(x){ return (x.innerText||'').trim()==='Sil' && !x.closest('.gx-salon-card'); }); if(b) b.click(); })(); true`);
+    await wait(600);
+    const deleted = await js(`!(${card('ATLAS')})`);
+    check('salon-delete', deleted, 'sil → ekipten çıktı');
     // Proje çalışma alanı: gezegene gir → kimlik çubuğu + proje evi
-    await js(`(function(){ document.querySelectorAll('button').forEach(function(b){ if((b.innerText||'').trim()==='Projeler') b.click(); }); })(); true`);
-    await wait(500);
+    await goNav('Ana Sayfa', 'Projeler');
     await js(`(function(){ var b=document.querySelector('main button[title*="çift tık"]'); if(b) b.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})); })(); true`);
     await wait(700);
     const wsHome = await js(`(function(){ var t=document.body.innerText||''; return /AlphaAPI/.test(t) && /Kaldığın yerden|Bir dosya seç/.test(t) && /dosya/.test(t) && !!document.querySelector('input[placeholder*="filtrele"]'); })()`);
@@ -298,14 +301,14 @@ app.whenReady().then(async () => {
     check('devtools-problems-strip', dtVals, 'sorun şeridi');
     // ---- FAZ 2 ----
     // Sembol haritası açılır
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.textContent||''); }); if(b) b.click(); })(); true`);
     await wait(400);
     const symOk = await js(`(document.body.innerText||'').toLocaleUpperCase('tr-TR').includes('SEMBOL HARİTASI')`);
     check('faz2-symbols', symOk, 'sembol paneli');
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Semboller/.test(x.textContent||''); }); if(b) b.click(); })(); true`);
     await wait(200);
     // Geçmiş paneli (mock commit)
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Geçmiş/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Geçmiş/.test(x.textContent||''); }); if(b) b.click(); })(); true`);
     await wait(700);
     const histOk = await js(`(document.body.innerText||'').includes('health endpoint')`);
     check('faz2-history', histOk, 'zaman çizelgesi + blame');
@@ -322,17 +325,26 @@ app.whenReady().then(async () => {
     // Bildirim merkezi
     await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /🔔/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
     await wait(400);
-    const notifOk = await js(`(document.body.innerText||'').toLocaleUpperCase('tr-TR').includes('BİLDİRİMLER') && !!document.querySelector('input[placeholder*="arka plan komutu"]')`);
+    const notifOk = await js(`(document.body.innerText||'').toLocaleUpperCase('tr-TR').includes('BİLDİRİMLER') && !!document.querySelector('input[placeholder*="Arka planda çalıştır"]')`);
+    await js(`(function(){ var b=document.getElementById('gx-notif-btn'); if(b) b.click(); })(); true`);
+    await wait(200);
     check('faz2-notif-jobs', notifOk, 'bildirim + iş başlat');
-    // Geliştir paneli: Bul&Değiştir önizleme + Test keşfi
-    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Geliştir'; }); if(b) b.click(); })(); true`);
+    // Çalıştır paneli (eski Geliştir): Bul&Değiştir önizleme + Test keşfi
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Çalıştır'; }); if(b) b.click(); })(); true`);
     await wait(500);
-    const devPane = await js(`(function(){ var t=(document.body.innerText||'').toLocaleUpperCase('tr-TR'); return t.includes('BUL & DEĞİŞTİR') && t.includes('TEST GEZGİNİ') && t.includes('GALAXY PROFİLİ'); })()`);
-    check('faz2-devpane', devPane, 'Geliştir sekmesi');
+    const devPane = await js(`(function(){ var t=(document.body.innerText||'').toLocaleUpperCase('tr-TR'); return !t.includes('BUL VE DEĞİŞTİR') && t.includes('TEST GEZGİNİ') && t.includes('GALAXY PROFİLİ'); })()`);
+    check('faz2-devpane', devPane, 'Çalıştır sekmesi: test + profil, bul/değiştir yok');
+    // Bul ve değiştir Dosyalar sekmesinde, arama kutusunun yanındaki ⇄ ile açılır
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Dosyalar'; }); if(b) b.click(); })(); true`);
+    await wait(300);
+    await js(`(function(){ var b=document.querySelector('button[title="Projede bul ve değiştir"]'); if(b) b.click(); })(); true`);
+    await wait(300);
     await js(`(function(){ var i=document.querySelector('input[placeholder*="aranacak"]'); if(i){ i.focus(); i.value='express'; i.dispatchEvent(new Event('input',{bubbles:true})); } var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Önizle/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
     await wait(800);
     const grOk = await js(`(document.body.innerText||'').includes('eşleşme') && (document.body.innerText||'').includes('Tümünü uygula')`);
     check('faz2-grep-replace', grOk, 'önizlemeli toplu değiştir');
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Çalıştır'; }); if(b) b.click(); })(); true`);
+    await wait(400);
     await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Keşfet/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
     await wait(800);
     const testOk = await js(`(document.body.innerText||'').includes('health ok döner')`);
@@ -353,7 +365,7 @@ app.whenReady().then(async () => {
     const runOk = await js(`(function(){ var t=document.body.innerText||''; return /ÇALIŞTIR/.test(t.toLocaleUpperCase('tr-TR')) && /npm run dev|npm run build|node server\\.js/.test(t) && /TypeScript 5\\.6\\.3/.test(t); })()`);
     check('faz3-runprofiles-lsp', runOk, 'profilller + TS durumu');
     // Git sekmesi: GitHub PR + dallar + stash (sol panel segmesinden bas — etkinlik çubuğundaki Git ile karıştırma)
-    await js(`(function(){ var seg=document.querySelector('.gx-seg'); var b=seg?[].slice.call(seg.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Git'; }):null; if(!b) b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Git'; }); if(b) b.click(); })(); true`);
+    await js(`(function(){ var seg=document.querySelector('.gx-seg'); var b=seg?[].slice.call(seg.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Değişiklikler'; }):null; if(b) b.click(); })(); true`);
     await wait(800);
     const ghOk = await js(`(function(){ var t=document.body.innerText||''; return /#12/.test(t) && /Health endpoint düzeltmesi/.test(t) && /fix\\/health/.test(t); })()`);
     check('faz3-github-pr', ghOk, 'PR listesi + CI');
@@ -370,10 +382,67 @@ app.whenReady().then(async () => {
     const ajFeed = await js(`(function(){ var t=document.body.innerText||''; return /hello\\.js dosyası yaz/.test(t) && /değişen dosyalar/.test(t) && /src\\/hello\\.js/.test(t); })()`);
     check('faz4-agent-send', ajFeed, 'mesaj + tur-sonu değişen dosya listesi akışta');
     // Yerleşik Ajan kartı (Geliştir sekmesi): anahtar durumu
-    await js(`(function(){ var seg=document.querySelector('.gx-seg'); var b=seg?[].slice.call(seg.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Geliştir'; }):null; if(b) b.click(); })(); true`);
+    await js(`(function(){ var seg=document.querySelector('.gx-seg'); var b=seg?[].slice.call(seg.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Çalıştır'; }):null; if(b) b.click(); })(); true`);
     await wait(700);
     const ajCard = await js(`(function(){ var t=document.body.innerText||''; return /YERLEŞİK AJAN/.test(t.toLocaleUpperCase('tr-TR')) && /anahtar kayıtlı/.test(t); })()`);
     check('faz4-agent-card', ajCard, 'BYOK kartı + anahtar durumu');
+    // Akış şeması: tam ekran, katmanlı mimari + seçim paneli + modüle in + DB canlı tablolar
+    await js(`(function(){ var b=document.getElementById('gx-flow-open')||document.getElementById('gx-flow-open-side')||document.getElementById('gx-pmap-open')||[].slice.call(document.querySelectorAll('button')).find(function(x){ return /Akış şeması/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await wait(700);
+    const flowOk = await js(`(function(){ var c=document.getElementById('gx-flow-canvas'); if(!c) return 'kanvas yok'; var n=c.querySelectorAll('[data-nid]').length; var t=c.textContent||''; return n>=7 && /PostgreSQL/.test(t) && /GİRİŞ/.test(t) && /Stripe/.test(t) ? true : ('düğüm '+n); })()`);
+    await shot('flow-mimari');
+    check('flow-open', flowOk === true, flowOk === true ? 'giriş → modül → veri/dış servis' : String(flowOk));
+    const nodeClick = (id, type) => js(`(function(){ var g=document.querySelector('#gx-flow-canvas [data-nid="${id}"]'); if(g) g.dispatchEvent(new MouseEvent('${type}',{bubbles:true})); return !!g; })()`);
+    await nodeClick('mod:src/routes', 'click');
+    await wait(350);
+    const flowSel = await js(`(function(){ var t=(document.getElementById('gx-flow-side')||{}).textContent||''; return /Rotalar · 3/.test(t) && /POST \\/orders\\/:id\\/pay/.test(t) && /Onu kullananlar/.test(t); })()`);
+    check('flow-inspect', flowSel, flowSel ? 'rotalar + kim kullanıyor' : await js(`((document.getElementById('gx-flow-side')||{}).innerText||'yok').slice(0,300).replace(/\\s+/g,' ')`));
+    await nodeClick('mod:src/routes', 'dblclick');
+    await wait(450);
+    const flowDrill = await js(`(function(){ var c=document.getElementById('gx-flow-canvas'); return !!c.querySelector('[data-nid="file:src/routes/orders.ts"]') && !!c.querySelector('[data-nid="mod:src/services"]') && /src\\/routes\\//.test(document.getElementById('gx-flow').innerText||''); })()`);
+    await shot('flow-modul');
+    check('flow-drill', flowDrill, 'modül içi dosya grafiği');
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`);
+    await wait(350);
+    await nodeClick('db:postgres', 'click');
+    await wait(400);
+    const flowDb = await js(`(function(){ var t=(document.getElementById('gx-flow-side')||{}).textContent||''; return /Canlı tablolar · 2/.test(t) && /Prisma modelleri/.test(t) && /DB sekmesinde aç/.test(t); })()`);
+    await shot('flow-db');
+    check('flow-db', flowDb, 'bağlı DB canlı tablolar + modeller');
+    for (let i = 0; i < 4; i++) { await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`); await wait(200); }
+    const flowClosed = await js(`!document.getElementById('gx-flow')`);
+    check('flow-esc', flowClosed, 'Esc katman katman çıkar');
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('button')).find(function(x){ return (x.innerText||'').trim()==='Dosyalar'; }); if(b) b.click(); })(); true`);
+    await wait(300);
+    for (let i = 0; i < 2 && await js(`!document.getElementById('gx-pdb')`); i++) { await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`); await wait(300); }
+    const pdbOk = await js(`(function(){ var c=document.getElementById('gx-pdb'); var t=c?(c.innerText||''):''; return /PostgreSQL/.test(t) && /bağlı · 2 tablo/.test(t) && /orders/.test(t) ? true : (c?t.slice(0,160).replace(/\\s+/g,' '):'kart yok'); })()`);
+    await js(`(function(){ var c=document.getElementById('gx-pdb'); if(c) c.scrollIntoView(); })(); true`);
+    await wait(200);
+    await shot('gezegen-veri');
+    check('planet-db-card', pdbOk === true, pdbOk === true ? 'gezegende bağlı DB + tablolar' : String(pdbOk));
+    // Evrene proje ekleme: kendiliğinden keşif yok; modal → depoları bul → işaretle → ekle
+    for (let i = 0; i < 2; i++) {
+      await js(`(function(){ var b=document.querySelector('button[aria-label="Geri dön"]'); if(b) b.click(); })(); true`);
+      await wait(400);
+    }
+    await goNav('Ana Sayfa', 'Projeler');
+    await wait(200);
+    await js(`(function(){ var b=document.querySelector('button[aria-label="Proje ekle"]'); if(b) b.click(); })(); true`);
+    await wait(400);
+    const apOpen = await js(`!!document.getElementById('gx-addproj') && !!document.getElementById('gx-addproj-paths')`);
+    check('addproj-modal', apOpen, apOpen ? 'yol kutusu + depo bul' : await js(`document.querySelectorAll('button[aria-label="Proje ekle"]').length+' btn | '+(document.body.innerText||'').slice(0,300).replace(/\\s+/g,' ')`));
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('#gx-addproj button')).find(function(x){ return /Depoları bul/.test(x.innerText||''); }); if(b) b.click(); })(); true`);
+    await wait(500);
+    const apRows = await js(`(function(){ var r=document.querySelectorAll('#gx-addproj .gx-addproj-row'); var t=document.getElementById('gx-addproj').innerText||''; return r.length===3 && /epsilon/.test(t) && /lab\\/zeta/.test(t); })()`);
+    check('addproj-find', apRows, '3 depo, ekli olan işaretli');
+    await js(`(function(){ var r=[].slice.call(document.querySelectorAll('#gx-addproj .gx-addproj-row')).find(function(x){ return /epsilon/.test(x.innerText||''); }); if(r) r.click(); })(); true`);
+    await wait(200);
+    await js(`(function(){ var t=document.getElementById('gx-addproj-paths'); if(t){ t.value='/x/lab/zeta'; t.dispatchEvent(new Event('input',{bubbles:true})); } })(); true`);
+    await wait(200);
+    await js(`(function(){ var b=[].slice.call(document.querySelectorAll('#gx-addproj button')).find(function(x){ return /^Ekle/.test((x.innerText||'').trim()); }); if(b) b.click(); })(); true`);
+    await wait(900);
+    const apDone = await js(`!document.getElementById('gx-addproj') && /epsilon/i.test(document.body.innerText||'') && /zeta/i.test(document.body.innerText||'')`);
+    check('addproj-submit', apDone, 'işaretli + yazılan yol eklendi');
   } catch (e) { check('runtime', false, e.message); }
   finish();
 

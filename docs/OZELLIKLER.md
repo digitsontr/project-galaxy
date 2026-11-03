@@ -43,8 +43,8 @@ Galaxy bir bulut hesabı değildir. **Senin bilgisayarın, senin klasörlerin, s
 | Galaxy dili | Gerçek karşılığı |
 |-------------|------------------|
 | **Evren** | Seçtiğin kök klasör (ör. `~/Projects`) veya uzak SSH kökü |
-| **Yıldız sistemi** | İçinde birden fazla git deposu olan çatı klasör |
-| **Gezegen** | Asıl proje — kural: içinde `.git` var |
+| **Yıldız sistemi** | Evren kökü altındaki çatı klasör (eklenen projeleri gruplar) |
+| **Gezegen** | Asıl proje — kural: evrene sen eklersin (yol yazarak, klasör seçerek ya da bulunan depolardan) |
 | **Kaptan** | Dijital ikiz asistan. Yazılır, seslenilir, uygulama içi iş yapar |
 | **Mürettebat** | 5 uzman AI ajan (ATLAS, NAVIGATOR, DOCUMENTOR, FORGE, MENTOR) |
 | **Özet** | Bugünün masası — kaldığın yer, kirli git, ihmal, PR, compose |
@@ -61,7 +61,7 @@ Uygulama bir kez sorar, bir daha sormaz. Sonradan her şey **sol alt Ayarlar**�
 
 1. **Dil** — Türkçe veya İngilizce (ajanlar + rehber).
 2. **İsim** — ajanlar sana bu isimle hitap eder.
-3. **Evren kur** — proje klasörlerini içeren bir (veya birkaç) klasör seç. App Store sürümünde macOS klasör izni (bookmark) burada alınır.
+3. **Evren kur** — çalışma alanı klasörünü seç. Evren **boş** başlar; projeler uygulamada **＋ Ekle** ile eklenir. App Store sürümünde macOS klasör izni (bookmark) burada alınır.
 4. **Mürettebat** — 5 ajanın adı ve rolü; sonra da düzenlenir.
 5. **Bağlantılar** — Claude, GitHub, posta, DB, SSH, mikrofon. **Hepsi opsiyonel.** Kalkış için zorunlu değil.
 6. **Kalkış** — en az bir evren klasörü yeter.
@@ -129,7 +129,8 @@ Satırlar tıklanır: compose → Docker, kirli → Git, PR → tarayıcı, port
 - Çift tık / **İn** / **Enter**: gezegene iner
 - **j / k** ile listede gez
 - Satır: ad · dal · “2g önce”
-- Evren boşsa tek düğme: **Evren bağla**
+- Evren boşsa tek düğme: **Proje ekle** (evren yoksa **Çalışma alanı oluştur**)
+- Başlıktaki **＋ Ekle** / evren kartındaki ＋ → proje ekleme penceresi: satır başına bir yol (`~` olur, kök dışı da olur), **Klasör seç…** (çoklu), **Depoları bul** (3 seviyeye kadar git depoları; işaretle, **Ekle (N)**)
 
 **Harita**
 - İzometrik uzay: gezegenler elips yörüngede durur (CSS küreler; dönen 3D galaksi yok)
@@ -142,7 +143,7 @@ Satırlar tıklanır: compose → Docker, kirli → Git, PR → tarayıcı, port
 - Son evren silinemez
 - Üst breadcrumb’dan evren/gezegen arası tek tıkla ışınlanma
 
-**Kural (dürüst):** Rastgele klasör gezegen olmaz. `.git` yoksa listede yer yok — harita kirlenmez. `git init` yeter.
+**Kural (dürüst):** Kendiliğinden gezegen olmaz — yalnız eklediğin klasörler haritada. Kökün altına yeni depo açmak haritayı değiştirmez. Evrenden çıkarmak klasöre dokunmaz; tekrar eklersen not/plan geri gelir. Eski evrenler bir kez taşınır: o an görünenler üye kalır.
 
 ---
 
@@ -738,6 +739,33 @@ Ekranda kaybolma / baş ağrısı: aynı bilgi 2-3 yerde, açık overlay'ler pro
 - **Tek Git:** sol **Git** sekmesi tek kapı. Aktivite çubuğu, sağ bağlam, Kaptan komutu oraya gider. Kahraman kartındaki ve Git sekmesindeki **Git Merkezi** düğmeleri kalktı.
 - **Tek arama (ağaç):** “içerikte ara” + “dosya adına göre filtrele” birleşti. Yazınca ağaç süzülür; Enter içerikte arar. Global ⌘K paleti durur (komut, dosya değil).
 - **Tek kimlik:** sol rayda ad/yol + Klasör/Editör. Ortadaki kahraman kartı kısa: ad, cümle, kaldığın dosya. Üst kimlik şeridi yalnızca Dosya/Yörünge + README.
+
+## 35. Projeleri sen eklersin — otomatik keşif yok (2026-10-25)
+
+Eskiden evren kökünün altındaki her `.git` klasörü kendiliğinden gezegen oluyordu. Artık evren boş başlar; içine ne gireceğine kullanıcı karar verir.
+
+- **Üyelik:** yerel evren `members: [{id, path, bookmark?}]`, uzak kök `members: [uzakYol…]` tutar. Tarama yalnız üyeleri okur; kökün altına yeni depo açmak haritayı değiştirmez.
+- **Ekleme penceresi** (sol ray **＋ Ekle**, evren kartı ＋, boş durum düğmesi; yeni evren oluşturunca kendiliğinden açılır): satır başına bir yol (`~` olur), **Klasör seç…** (çoklu, macOS bookmark'lı), **Depoları bul** (verilen klasörün 3 seviye altına kadar git depoları; depo içine inilmez; en çok 300). Reddedilenler gerekçesiyle pencerede kalır: *tam yol gir · bulunamadı · klasör değil · zaten bu alanda*.
+- **Kural:** git şart değil; evren kökü dışındaki klasör de eklenebilir. Uzak evrende yalnız son taramanın bulduğu depolar eklenir.
+- **Kimlik:** kök altı proje `önek/göreli/yol` (eski kimlikle aynı → not, plan, durum korunur); kök dışı `önek/@klasörAdı`. Grup (yıldız sistemi) = kök altındaki ilk klasör.
+- **Çıkarma:** "Evrenden çıkar" üyeliği siler, klasöre ve proje verisine dokunmaz; tekrar eklenince aynı kimlikle geri gelir. Klasör geçici olarak yoksa listede görünmez ama üyelik silinmez.
+- **Taşıma:** `members` alanı olmayan eski evren ilk taramada bir kez eski algoritmayla doldurulur (gizlenenler hariç), `expandDirs` kalkar. Kullanıcı güncellemeden sonra aynı projeleri görür.
+- **IPC:** `galaxy:projectsAdd`, `galaxy:findRepos`, `galaxy:pickFolders`. Test: `test/universe-members.js` (`npm run test:integration` içinde, macOS + Windows CI) + smoke `addproj-*`.
+
+## 36. Proje hakimiyeti — veri katmanı + tam ekran akış şeması (2026-10-29)
+
+Gezegene inen kullanıcı projenin neye bağlı olduğunu ve içinde işin nasıl aktığını tek bakışta görür.
+
+- **Analiz (`lib/project-map.js`, worker'da):** kod çalıştırılmaz, okunur. Git deposunda `git ls-files` ile `.gitignore`'a saygılı liste kullanılır (build çıktısı, `node_modules` girmez); en çok 1500 kaynak dosya okunur. Testler grafiğe girmez, sayılır. Sonuç 20 sn önbellekte; ↻ ile zorla yenilenir.
+  - **Giriş:** `package.json` `main`/`bin`, `start`/`dev`/`serve` script'leri (build adımı atlanır; `electron .`, `next`, `vite`, `nest`, `uvicorn` tanınır), Python `__main__`, Go `func main`, `.listen(PORT)`, HTML `<script src>`.
+  - **Modül:** klasör grupları (`src/routes` gibi iki seviye, çok kalabalıksa tek). Kenarlar: JS/TS import/require (`tsconfig` `paths`, `@/` takma adı, `require(path.join(...))`), Python import, Go paket importu.
+  - **Çapraz kenar:** Electron `ipcRenderer.invoke` → `ipcMain.handle` sahibi, `window.X` → `contextBridge.exposeInMainWorld('X')` sahibi, ön yüz `fetch/axios('/api/…')` → eşleşen rota (önekle monte edilmiş router dahil).
+  - **Rota:** Express/Koa/Fastify/Hono, NestJS dekoratörleri, FastAPI/Flask, Django `urls.py`, Next.js `pages/api`, `app/**/route`, sayfalar.
+  - **Veri:** `.env` (`DATABASE_URL`, `DB_*`; şifre dışarı verilmez), compose imajları (postgres/mysql/mongo/redis/mssql), Prisma (`provider` + modeller ve alanlar), sürücü/ORM paketleri, `*.sqlite` dosyaları, migration `CREATE TABLE`. Koddan tablo: SQL (`FROM/JOIN/INTO/UPDATE`), `prisma.x.findMany`, knex, mongoose, SQLAlchemy `__tablename__`, Django modelleri. ORM'ler birincil motora bağlanır.
+  - **Dış servis:** SDK paketleri (Stripe, OpenAI, Anthropic, AWS, Firebase, Supabase, GitHub, Slack, Sentry, SMTP…) ve `fetch('https://host')` ile çağrılan hostlar.
+- **Gezegen ana ekranı:** **Veri katmanı** kartı (motor, durum: `● bağlı · N tablo` / `.env’de tanımlı · bağlı değil` / `koddan tespit`, bağlantı adresi, compose servisi, erişen dosya sayısı, tablo çipleri → DB sekmesinde tabloyu açar; **Bağla**, **Akışta göster**). Bağlı DB'nin canlı tabloları `dbTables` ile okunur. **Proje haritası** kartı: özet + Giriş/Modül/Veri/Dış servis sayıları + giriş noktaları + tam ekran düğmesi. Ayrıca kimlik şeridinde ve sağ bağlamda **⤢ Akış şeması**.
+- **Tam ekran şema:** katmanlı yerleşim (döngüler DFS ile kırılır, sütun içi barycenter); sütunlar GİRİŞ · KATMAN n · VERİ · DIŞ SERVİS. Renk = rol (arayüz, API/IPC, mantık, veri, yapılandırma), çizgi = tür (import düz, IPC kesikli mor, HTTP kesikli mavi, DB sarı, dış servis noktalı pembe), kalınlık = bağlantı sayısı. Tek tık seçer ve komşuları vurgular; çift tık modülün içine iner (dosya düzeyi şema + komşu modüller) ya da dosyayı açar. Sağ panel: dosyalar, rotalar (dosya:satır'a gider), IPC kanalları, tablolar, bağımlı olduğu / onu kullananlar, DB için bağlantı + canlı tablolar + Prisma modelleri. Arama (Enter: düğüm ya da dosya bulur), ⌘/pinch yakınlaştırma, sürükleyerek kaydırma, Sığdır, Esc katman katman çıkar.
+- **IPC:** `galaxy:projectMap` (uzak gezegende henüz yok). Test: `test/project-map.js` (Express + Prisma + React + Python worker fixture'ı, worker yolu dahil; `npm run test:integration` içinde) + smoke `flow-*`, `planet-db-card`. `GX_SHOTS=klasör npm test` ekran görüntüsü kaydeder.
 
 ---
 

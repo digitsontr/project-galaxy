@@ -393,7 +393,7 @@
   // ---------- AJAN CRUD ----------
   _formVal(e){ return (e&&e.target&&e.target.value!=null)?e.target.value:(typeof e==='string'?e:''); }
   openAgentAdd(){ this.setState({agentFormOpen:true,agentForm:{id:'',name:'',role:'',prompt:'',color:'#61dcff',p1:'Durum ver',p2:'Ne birikti?',p3:'Sıradaki iş'}}); }
-  openAgentEdit(){ const a=this.AGENTS.find(x=>x.id===(this.state.asstAgentId||this.state.agentId)); if(!a) return;
+  openAgentEdit(id){ const a=this.AGENTS.find(x=>x.id===(id||this.state.asstAgentId||this.state.agentId)); if(!a) return;
     const defs=this._agentPresetDefaults(a);
     const p=a.presets||[];
     this.setState({agentFormOpen:true,agentForm:{

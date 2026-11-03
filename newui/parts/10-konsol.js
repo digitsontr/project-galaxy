@@ -202,7 +202,7 @@
     else if(m.kind==='err'){ if(!this._cliNoise(m.text)) ag.msgs.push(['a','⚠ '+m.text]); if(this._loopRunId&&m.runId===this._loopRunId){ this._loopOut=(this._loopOut||'')+'\n⚠ '+m.text; this.setState({loopBody:this._loopOut}); } }
     else if(m.kind==='done'){ ag.lastRunAt=Date.now(); if(this.state.agentId!==aid) ag.badge=(ag.badge||0)+1; this.setState({_agentBusy:false}); this._agentRunId=null; delete this._runAgents[m.runId]; if(this._loopRunId&&m.runId===this._loopRunId) this._loopWorkDone(); }
     this.setState({_agv:(this.state._agv||0)+1});
-    this._scrollBottom('#ghud-agent-scroll');
+    this._scrollBottom('#gx-ws-feed');
   }
   _scrollBottom(sel){ try{ setTimeout(()=>{ const el=document.querySelector(sel); if(el) el.scrollTop=el.scrollHeight; },40); }catch(e){} }
   _focusConsole(){ this._scrollBottom('#ghud-console-scroll'); try{ setTimeout(()=>{ const i=document.querySelector('#ghud-console-input'); if(i) i.focus(); },70); }catch(e){} }
@@ -289,13 +289,19 @@
   }
   onConsoleResize(e){ this._startBarResize('term', e); }
   onHudResize(e){ this._startBarResize('hud', e); }
-  _setLeftTab(id){ this.setState({leftTab:id}); try{ localStorage.setItem('gxLeftTab',id); }catch(e){} if(id==='git'){ this.gitExtLoad(); this.ghLoad(); } if(id==='dev'){ this.langCheck(); this.gxLoad(); this.agentCfgLoad(); } }
+  _setLeftTab(id){ this.setState({leftTab:id}); try{ localStorage.setItem('gxLeftTab',id); }catch(e){} if(id==='git'||id==='dev') this._rememberSurface(id); if(id==='git'){ this.gitExtLoad(); this.ghLoad(); } if(id==='dev'){ this.langCheck(); this.gxLoad(); this.agentCfgLoad(); } }
   toggleReadme(){ const on=!this.state.readmeOpen; this.setState({readmeOpen:on}); try{ localStorage.setItem('gxReadmeOpen',on?'1':'0'); }catch(e){} }
   setOrbitView(on){ this.setState({orbitView:!!on}); try{ localStorage.setItem('gxOrbitView',on?'1':'0'); }catch(e){} }
   dismissSplash(){ clearTimeout(this._splashT); this.setState({splashOpen:false}); try{ localStorage.setItem('gxSplash','1'); }catch(e){} }
   // ---------- i18n (tr↔en) — render sonrası DOM cümle değişimi ----------
   _enMapObj(){ return {
     'GENEL BAKIŞ':'OVERVIEW','EVREN':'UNIVERSE','PANO':'BOARD','DOCKER':'DOCKER','ZAMANLAYICI':'SCHEDULER','SUNUCULAR':'SERVERS','DB':'DB',
+    'Ana Sayfa':'Home','Görevler':'Tasks','Ajanlar':'Agents','Otomasyonlar':'Automations','Servisler':'Services',
+    'Zamanlanmış işler':'Scheduled jobs','Proje taraması':'Project scan','E-posta':'Email','Veritabanları':'Databases','SSH sunucuları':'SSH servers',
+    'Dosyalar':'Files','Değişiklikler':'Changes','Notlar':'Notes','Tüm projeler':'All projects','Tüm projelerde ara':'Search all projects',
+    'Taramayı başlat':'Start scan','Ajan çalışır':'Agent runs','Onayla':'Approve','Haber ver':'Notify',
+    '+ Yeni iş':'+ New job','+ Sunucu ekle':'+ Add server','Posta ayarları':'Mail settings','Bildirimler':'Notifications',
+    'Kaptan — dijital ikizin':'Kaptan — your digital twin',
     'Özet':'Overview','Evren':'Universe','Pano':'Board','Daha':'More','Kadet':'Cadet','Komutan':'Commander','İn':'In','İstasyon':'Station','HUD':'HUD','Döngü':'Loop','Posta':'Mail','Döngü tuvali':'Loop canvas',
     'Asistan':'Assistant','Anladım':'Got it','Araçlar':'Tools',
     'Klasörleri yaşayan bir evrene dönüştür.':'Turn folders into a living universe.',
@@ -344,7 +350,7 @@
     '`gh auth login` — PAT yapıştırma. Üst şeritteki nokta bu oturumu okur.':'`gh auth login` — do not paste a PAT. The top-bar dot reads this session.',
     'Ayarlar → Posta: komut, GMAIL_CLIENT_ID / SECRET ortamı, Liste ve Oku adları.':'Settings → Mail: command, GMAIL_CLIENT_ID / SECRET env, List and Read names.',
     'Üst bar DB → + Bağlantı. Parola Mac anahtarlığında şifreli.':'Top bar DB → + Connection. Password is encrypted in the Mac keychain.',
-    'Parola yok. ~/.ssh anahtarı. Daha ▾ → SSH → + Sunucu.':'No password. A ~/.ssh key. More ▾ → SSH → + Server.',
+    'Parola yok. ~/.ssh anahtarı. Servisler → SSH sunucuları → + Sunucu ekle.':'No password. A ~/.ssh key. Services → SSH servers → + Add server.',
     '✕ gizler · Durdur keser · Voice On = mic (macOS izni)':'✕ hides · Stop kills · Voice On = mic (macOS permission)',
     '+ Bağlantı → Postgres, MySQL veya SQLite seç.':'+ Connection → pick Postgres, MySQL or SQLite.',
     'Host / port / veritabanı / kullanıcı / parola yaz. SQLite ise yalnızca dosya yolu.':'Fill host / port / database / user / password. SQLite is a file path only.',
@@ -400,6 +406,13 @@
     'AKTİF':'ACTIVE','BEKLEMEDE':'PENDING','TAMAMLANDI':'DONE','ARŞİV':'ARCHIVE','KEŞFEDİLMEMİŞ':'UNEXPLORED','SÜRÜKLE:GEZ':'DRAG:PAN',
     'Docker çalışıyor':'Docker running','konteyner':'containers','çalışıyor':'running','imaj':'images','Yenile':'Refresh','Başlat':'Start','LOG':'LOG','SİL':'DELETE','Docker motoru durdu — başlatmak için ▸ tıkla':'Docker engine stopped — click ▸ to start','Henüz veritabanı bağlantısı yok.':'No database connection yet.','Postgres':'Postgres','MySQL':'MySQL','SQLite':'SQLite',
     'Bir bash komutu yaz — bu projenin klasöründe çalışır.':'Type a bash command — runs in this project folder.','Claude\'a bir şey yaz — bu projenin klasöründe çalışır, dosya okur/yazar.':'Type to Claude — runs in this project folder, reads/writes files.','Yeni evren':'New universe','Henüz uzak sunucu yok.':'No remote server yet.',
+    'PROJE EKLE':'ADD PROJECTS','＋ Ekle':'＋ Add','Proje ekle':'Add projects','Çalışma alanı oluştur':'Create workspace','Bu çalışma alanında henüz proje yok.':'No projects in this workspace yet.','Projeler kendiliğinden eklenmez. Yolunu yazarak tek tek ekle ya da bir klasördeki depoları bulup toplu seç.':'Projects are never added automatically. Add them one by one by path, or find the repos in a folder and pick them in bulk.','Proje yolları · her satıra bir yol':'Project paths · one per line','📁 Klasörleri seç (birden çok seçilebilir)':'📁 Pick folders (multiple allowed)','Toplu ekle · bir klasördeki git depolarını bul':'Bulk add · find git repos in a folder','⌕ Depoları bul':'⌕ Find repos','Tümünü seç':'Select all','Hiçbirini seçme':'Select none','zaten ekli':'already added','Bu klasörde git deposu bulunamadı.':'No git repos found in this folder.','Uzak çalışma alanında son taramanın bulduğu depolar listelenir. Eklemek istediklerini işaretle.':'Repos found by the last scan of this remote workspace are listed. Tick the ones to add.','Ekle':'Add','Bu çalışma alanına proje ekle':'Add projects to this workspace','Çalışma alanı boş başlar; projelerini sonra yolunu girerek tek tek ya da toplu eklersin. 🔒 Parola Anahtar Zinciri\'yle şifreli.':'A workspace starts empty; you add projects afterwards by path, one by one or in bulk. 🔒 Passwords are encrypted in the Keychain.','Projelerini ekle':'Add your projects','Çalışma alanı oluştur':'Create workspace','İlk projeyi aç':'Open your first project',
+    'Veri katmanı':'Data layer','Proje haritası':'Project map','⤢ Akış şemasını tam ekran aç':'⤢ Open the flow chart full screen','⤢ Akış şeması':'⤢ Flow chart','Akış şeması':'Flow chart','analiz ediliyor…':'analyzing…','proje analiz ediliyor…':'analyzing project…',
+    'DB sekmesi':'DB tab','Akışta göster':'Show in flow','Bağla':'Connect','+ Bağlantı ekle':'+ Add connection','Bu projede veritabanı izi yok — .env, compose, Prisma şeması ya da sürücü paketi bulunamadı.':'No database trace in this project — no .env, compose, Prisma schema or driver package found.',
+    'Giriş':'Entry','Modül':'Module','Veri':'Data','Dış servis':'External service','Arayüz':'UI','API / IPC':'API / IPC','Mantık':'Logic','⤴ Mimari':'⤴ Architecture','Sığdır':'Fit','↻ Analiz':'↻ Analyze',
+    'Nasıl okunur':'How to read it','Soldan sağa akar:':'It flows left to right:','giriş':'entry','noktaları projeyi başlatır, oklar kimin kimi çağırdığını gösterir, en sağda':'points start the project, arrows show who calls whom, and on the far right sit the','veritabanı':'database','ve':'and','dış servisler':'external services','durur. Çizgi kalınlığı bağlantı sayısıdır.':'. Line thickness is the number of links.',
+    'Tek tık: düğümü seç, bağlantıları vurgula':'Click: select a node, highlight its links','Çift tık: modülün içine gir · dosyayı aç':'Double-click: drill into a module · open a file','Pinch / ⌘ + tekerlek: yakınlaştır · sürükle veya iki parmak: kaydır':'Pinch / ⌘ + wheel: zoom · drag or two fingers: pan','Ara + Enter: düğüm veya dosya bul (dosya ise modülüne iner)':'Search + Enter: find a node or file (drills into its module)','Esc: bir üst seviye / kapat':'Esc: up one level / close',
+    'Dosyayı aç':'Open file','DB sekmesinde aç':'Open in DB tab','.env’den bağla':'Connect from .env','Bağlantı':'Connection','Giriş noktası':'Entry point','Arayüz modülü':'UI module','API / IPC modülü':'API / IPC module','Veri modülü':'Data module','Yapılandırma':'Configuration',
     'Bu evrende henüz gezegen yok.':'No planets in this universe yet.','Evren bağla':'Bind universe','Bu klasör henüz git deposu değil.':'This folder is not a git repo yet.','git init':'git init',
     'Henüz madde yok. README’deki işaret kutularını çek veya ilk maddeyi yaz.':'No items yet. Pull checkboxes from the README or type the first one.','README’den çek':'Pull from README','ilk madde yaz… (Enter)':'first item… (Enter)',
     'Claude Code bulunamadı.':'Claude Code not found.','Konsol ve ajanlar CLI ister. Kur, sonra Ayarlar’dan yolu doğrula.':'Console and agents need the CLI. Install it, then confirm the path in Settings.',
@@ -511,12 +524,13 @@
   async sendAgent(){
     const text=String(this.state.agentInput||'').trim(); if(!text) return;
     const ag=this.AGENTS.find(a=>a.id===this.state.agentId); if(!ag) return;
+    if(ag.paused){ this.toast(ag.name+' duraklatıldı — önce devam ettir','err'); return; }
     ag.msgs.push(['u',text]); ag.msgs.push(['a','']);
     const runId='r'+(this._rc=(this._rc||0)+1)+'-'+ag.id;
     this._runAgents=this._runAgents||{}; this._runAgents[runId]=ag.id;
     this._agentSess=this._agentSess||{}; const cont=!!this._agentSess[ag.id]; this._agentSess[ag.id]=true;
     this._agentRunId=runId;
-    this.setState({agentInput:'',_agentBusy:true}); this._scrollBottom('#ghud-agent-scroll');
+    this.setState({agentInput:'',_agentBusy:true}); this._scrollBottom('#gx-ws-feed');
     const ctxProjectId=(this._inPlanet()&&this.sel&&this.sel.id)?this.sel.id:null;
     try{
       if(!(window.galaxy&&window.galaxy.agentRun)){ ag.msgs[ag.msgs.length-1][1]='(ajan çalıştırma bu ortamda yok)'; this.setState({_agentBusy:false}); }

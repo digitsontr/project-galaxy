@@ -9,13 +9,49 @@ const P = (id, name, branch, stale) => ({
   hasReadme: true, path: '/x/' + id, tech: ['node']
 });
 const projects = [P('alpha', 'AlphaAPI', 'main', 1), P('beta', 'BetaWeb', 'dev', 3), P('gamma', 'GammaBot', 'main', 40), P('delta', 'DeltaData', 'main', 9)];
-const universes = [{ id: 'u', name: 'Şirket', subtitle: '~/work', count: 4 }, { id: 'u2', name: 'Papilon', subtitle: '~/pap', count: 2 }];
+const universes = [{ id: 'u', name: 'Şirket', subtitle: '~/work', root: '/x', count: 4 }, { id: 'u2', name: 'Papilon', subtitle: '~/pap', root: '/pap', count: 2 }];
+const mockRepos = () => [{ path: '/x/alpha', name: 'alpha', rel: 'alpha', isGit: true }, { path: '/x/epsilon', name: 'epsilon', rel: 'epsilon', isGit: true }, { path: '/x/lab/zeta', name: 'zeta', rel: 'lab/zeta', isGit: true }]
+  .map(r => ({ ...r, already: projects.some(p => p.path === r.path) }));
+const mockMap = () => {
+  const F = (rel, group, extra) => Object.assign({ rel, group, lang: 'ts', lines: 60, imports: [], routes: [], ipc: [], db: [], ext: [], tables: [] }, extra || {});
+  const files = [
+    F('src/server.ts', 'mod:src', { imports: ['src/routes/orders.ts', 'src/routes/users.ts'] }),
+    F('src/routes/orders.ts', 'mod:src/routes', { imports: ['src/services/orders.ts'], routes: [{ method: 'GET', path: '/orders', line: 4, kind: 'http' }, { method: 'POST', path: '/orders/:id/pay', line: 5, kind: 'http' }] }),
+    F('src/routes/users.ts', 'mod:src/routes', { routes: [{ method: 'GET', path: '/users', line: 3, kind: 'http' }] }),
+    F('src/services/orders.ts', 'mod:src/services', { db: ['db:postgres'], ext: ['ext:stripe'], tables: ['orders'] }),
+    F('web/src/App.tsx', 'mod:web', { lang: 'ts' }),
+    F('web/src/main.tsx', 'mod:web', { imports: ['web/src/App.tsx'] })
+  ];
+  const nodes = [
+    { id: 'entry:0', kind: 'entry', label: 'npm run dev', sub: 'nodemon src/server.ts', cmds: ['nodemon src/server.ts'], file: 'src/server.ts' },
+    { id: 'mod:src', kind: 'module', label: 'src/', path: 'src', role: 'logic', files: ['src/server.ts'], lines: 60, routes: 0, ipc: 0, pages: 0, tables: [] },
+    { id: 'mod:src/routes', kind: 'module', label: 'src/routes/', path: 'src/routes', role: 'api', files: ['src/routes/orders.ts', 'src/routes/users.ts'], lines: 120, routes: 3, ipc: 0, pages: 0, tables: [] },
+    { id: 'mod:src/services', kind: 'module', label: 'src/services/', path: 'src/services', role: 'logic', files: ['src/services/orders.ts'], lines: 60, routes: 0, ipc: 0, pages: 0, tables: ['orders'] },
+    { id: 'mod:web', kind: 'module', label: 'web/', path: 'web', role: 'ui', files: ['web/src/App.tsx', 'web/src/main.tsx'], lines: 120, routes: 0, ipc: 0, pages: 0, tables: [] },
+    { id: 'db:postgres', kind: 'db', label: 'PostgreSQL', engine: 'postgres', sources: ['env', 'compose', 'prisma', 'kod', 'bağlantı'], env: { host: 'localhost', port: 5432, database: 'alpha', user: 'alpha' }, compose: { service: 'db', image: 'postgres:16', ports: [5432] }, prisma: { provider: 'postgresql', schema: 'prisma/schema.prisma' }, models: [{ name: 'User', fields: ['id', 'email'] }, { name: 'Order', fields: ['id', 'total'] }], tables: ['orders', 'users'], files: ['src/services/orders.ts'], bound: { id: 'db1', name: 'Alpha DB', type: 'postgres', host: 'localhost', port: 5432, database: 'alpha' } },
+    { id: 'ext:stripe', kind: 'ext', label: 'Stripe', files: ['src/services/orders.ts'] }
+  ];
+  const edges = [
+    { from: 'entry:0', to: 'mod:src', kind: 'run', n: 1 }, { from: 'mod:src', to: 'mod:src/routes', kind: 'import', n: 2 },
+    { from: 'mod:src/routes', to: 'mod:src/services', kind: 'import', n: 1 }, { from: 'mod:web', to: 'mod:src/routes', kind: 'http', n: 2 },
+    { from: 'mod:src/services', to: 'db:postgres', kind: 'db', n: 1 }, { from: 'mod:src/services', to: 'ext:stripe', kind: 'ext', n: 1 }
+  ];
+  const fileEdges = [{ from: 'src/server.ts', to: 'src/routes/orders.ts', kind: 'import', n: 1 }, { from: 'src/server.ts', to: 'src/routes/users.ts', kind: 'import', n: 1 },
+    { from: 'src/routes/orders.ts', to: 'src/services/orders.ts', kind: 'import', n: 1 }, { from: 'web/src/main.tsx', to: 'web/src/App.tsx', kind: 'import', n: 1 },
+    { from: 'web/src/App.tsx', to: 'src/routes/orders.ts', kind: 'http', n: 2 }];
+  return { ok: true, name: 'alpha', stats: { files: 8, source: 6, analyzed: 6, tests: 1, lines: 360, langs: { ts: 6 }, routes: 3, pages: 0, ipc: 0, ms: 12 }, truncated: false, nodes, edges, files, fileEdges, compose: [] };
+};
 let lastTerminal = '';
 let mockTodoSkip = new Set();
+const mockAgents = [
+  { id: 'git', kind: 'git', builtin: true, name: 'Git Yöneticisi', role: 'Dallar · commit · MR · stash', color: '#f78166', abilities: ['Yerel ve uzak dallar, commitler, stash’ler', 'Açık PR / MR listesi'], presets: [{ label: 'Dal grafiğini çiz', ask: 'Dal grafiğini çiz' }] },
+  { id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] },
+  { id: 'planner', kind: 'planner', builtin: true, name: 'Planlayıcı', role: 'Fikir → plan → prompt', color: '#ffa657', abilities: ['Fikrini sorgular'], presets: [{ label: 'Bir fikrim var', ask: 'Bir fikrim var' }], gone: true }
+];
 let claudeCb = null, shellCb = null, agentCb = null, agentEvCb = null;
 
 contextBridge.exposeInMainWorld('galaxy', {
-  load: async () => ({ universes, projects, agents: [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], alerts: [], settings: { lang: 'tr' }, ignored: [] }),
+  load: async () => ({ universes, projects, agents: mockAgents.filter(a => !a.gone), alerts: [], settings: { lang: 'tr' }, ignored: [] }),
   profileGet: async () => ({ lang: 'tr', name: 'Furkan', about: 'geliştirici, Galaxy kaptanı' }),
   settingsGet: async () => ({ settings: { lang: 'tr', focusMin: 25, uiTheme: 'apex' } }),
   gitLog: async () => ({ ok: true, branch: 'main', ahead: 1, behind: 0, commits: [{ h: 'a1b2c3d', an: 'Furkan', ad: '2s', s: 'fix' }], files: [{ path: 'src/index.js', label: 'Değişti', staged: false, unstaged: true }, { path: 'README.md', label: 'Değişti', staged: false, unstaged: true }], dirty: 2, dirtyFiles: [' M src/index.js', ' M README.md'], staged: 0, branches: ['main', 'dev'] }),
@@ -31,7 +67,8 @@ contextBridge.exposeInMainWorld('galaxy', {
   readme: async () => ({ name: 'README.md', content: '# AlphaAPI\n\nBackend.\n\n## Yapılacaklar\n\n- [ ] Görev bir\n' }),
   fileWrite: async () => ({ ok: true }),
   save: async () => true,
-  dbList: async () => [], dbTables: async () => ({ ok: true, tables: [] }),
+  dbList: async () => [], dbTables: async ({ id } = {}) => ({ ok: true, tables: id === 'db1' ? ['public.orders', 'public.users'] : [] }),
+  projectMap: async () => mockMap(),
   scheduleList: async () => [{ id: 's1', name: 'Nightly', agentId: 'a1', prompt: 'Durum raporu ver', type: 'daily', hour: 2, minute: 0, weekday: 1, enabled: true }],
   scheduleSave: async (s) => ({ ok: true, id: (s && s.id) || 's1' }),
   sshList: async () => [], sshKeys: async () => ({ ok: true, keys: ['id_ed25519'] }),
@@ -195,7 +232,25 @@ contextBridge.exposeInMainWorld('galaxy', {
   onPty: (cb) => { ptyCb = cb; }, onFsChange: () => {},
   onAgent: (cb) => { agentCb = cb; }, onScheduleDone: () => {}, onDockerLog: () => {},
   openSettings: () => {}, onSettingsPane: () => {}, onEsc: () => {}, onFullscreen: () => {}, toggleFullscreen: async () => ({ ok: true }), openClaude: () => {},
-  pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => [{ id: 'a1', name: 'ATLAS', role: 'CTO', color: '#61dcff', prompt: 'Sen ATLAS\'sın — kişisel CTO. Durumu net raporla.', presets: [{ label: 'Durum raporu ver', ask: 'Durum raporu ver' }, { label: 'Riskleri sırala', ask: 'Riskleri sırala' }, { label: 'Bu hafta neye odaklanayım', ask: 'Bu hafta neye odaklanayım' }] }], agentSave: async () => ({ ok: true, id: 'a1' }), backupList: async () => [],
+  pickFolder: async () => null, pickFiles: async () => [{ path: '/tmp/shot.png', name: 'shot.png' }], agentsFull: async () => mockAgents.filter(a => !a.gone), agentSave: async () => ({ ok: true, id: 'a1' }),
+  agentDelete: async (id) => { const a = mockAgents.find(x => x.id === id); if (a) a.gone = true; return { ok: true }; },
+  agentPause: async ({ id, paused }) => { const a = mockAgents.find(x => x.id === id); if (a) a.paused = !!paused; return { ok: true }; },
+  agentRestore: async (id) => { const a = mockAgents.find(x => x.id === id); if (a) a.gone = false; return { ok: true }; },
+  agentCatalog: async () => mockAgents.filter(a => a.builtin).map(a => ({ id: a.id, name: a.name, role: a.role, color: a.color, abilities: a.abilities, added: !a.gone })),
+  twinMemGet: async () => ({ ok: true, facts: [] }), twinMemAdd: async () => ({ ok: true }), twinMemDelete: async () => ({ ok: true }), backupList: async () => [],
+  findRepos: async () => ({ ok: true, root: '/x', repos: mockRepos() }),
+  pickFolders: async () => [],
+  projectsAdd: async ({ universeId, items } = {}) => {
+    const added = [], skipped = [];
+    for (const it of items || []) {
+      const p = typeof it === 'string' ? it : it.path;
+      if (projects.some(x => x.path === p)) { skipped.push({ path: p, reason: 'zaten bu alanda' }); continue; }
+      const id = p.split('/').pop();
+      projects.push({ ...P(id, id), universe: universeId || 'u', path: p });
+      added.push({ id, path: p, name: id });
+    }
+    return { ok: true, added, skipped };
+  },
   universeDelete: async (id) => { const i = universes.findIndex(u => u.id === id); if (universes.length <= 1) return { ok: false, error: 'Son evren silinemez' }; if (i < 0) return { ok: false, error: 'Evren bulunamadı' }; universes.splice(i, 1); return { ok: true }; },
   universeUpdate: async (opts) => { const u = universes.find(x => x.id === (opts && opts.id)); if (!u) return { ok: false, error: 'Evren bulunamadı' }; if (opts && opts.name) u.name = opts.name; if (opts && opts.root) u.subtitle = opts.root; return { ok: true }; }
 });

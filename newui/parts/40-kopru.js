@@ -12,14 +12,14 @@
       _notes:p.notes||'', _links:p.links||[], _path:p.path||'', _git:p.git||null, _stale:p.staleDays||0, _readme:!!p.hasReadme, _remote:!!p.remote };
   }
   _avatar(name,color){
-    const init=String(name||'?').trim().replace(/[^A-Za-zÇĞİÖŞÜçğıöşü0-9]/g,'').slice(0,2).toUpperCase()||'AI';
+    const init=String(name||'?').trim().replace(/[^A-Za-zÇĞİÖŞÜçğıöşü0-9]/g,'').charAt(0).toLocaleUpperCase('tr')||'?';
     // ÖNEMLİ: dc, style'ı `;` üzerinden böldüğü için data-URI'de `;` OLAMAZ (base64/utf8 çalışmaz).
     // Bu yüzden `;` içermeyen `data:image/svg+xml,` + percent-encode kullanılır. SVG çift tırnaklı,
     // gradient/paren yok → url('...') içinde tırnak/paren çakışması olmaz.
     const svg='<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96">'
       +'<rect width="96" height="96" fill="#0a0e1a"/>'
       +'<circle cx="48" cy="48" r="46" fill="'+color+'" opacity="0.20"/>'
-      +'<text x="48" y="61" font-family="JetBrains Mono,monospace" font-size="34" font-weight="700" fill="'+color+'" text-anchor="middle">'+init+'</text></svg>';
+      +'<text x="48" y="62" font-family="Space Grotesk,sans-serif" font-size="40" font-weight="700" fill="'+color+'" text-anchor="middle">'+init+'</text></svg>';
     return 'data:image/svg+xml,'+encodeURIComponent(svg);
   }
   _asText(v){
@@ -45,10 +45,11 @@
     return ['Durum ver','Ne birikti?','Sıradaki iş'];
   }
   _mapAgent(a){ const c=a.color||'#61dcff'; const av=(window.__resources&&window.__resources['av'+(a.id||'')])||this._avatar(a.name,c);
-    let presets=(a.presets||[]).map(p=>typeof p==='string'?{label:p,ask:p}:{label:p.label||p.ask||'',ask:p.ask||p.label||''}).filter(p=>p.ask).slice(0,3);
+    let presets=(a.presets||[]).map(p=>typeof p==='string'?{label:p,ask:p}:{label:p.label||p.ask||'',ask:p.ask||p.label||''}).filter(p=>p.ask).slice(0,4);
     if(!presets.length) presets=this._agentPresetDefaults(a).map(x=>({label:x,ask:x}));
     const sys=this._asText(a.sys||a.prompt);
-    return { id:a.id, name:a.name, role:a.role||'', color:c, avatar:av, prompt:(presets[0]&&presets[0].ask)||'Durum ver', presets, sys, write:!!a.write, badge:0, msgs:[] }; }
+    return { id:a.id, name:a.name, role:a.role||'', color:c, avatar:av, prompt:(presets[0]&&presets[0].ask)||'Durum ver', presets, sys, write:!!a.write, badge:0, msgs:[],
+      kind:a.kind||'', builtin:!!a.builtin, paused:!!a.paused, abilities:Array.isArray(a.abilities)?a.abilities.slice(0,6):[] }; }
   sendPreset(ask){ if(!ask) return; this._asstOpen(); this.setState({asstInput:ask, asstOpen:true}); setTimeout(()=>this.sendAsst(),30); }
   _hue(s){ let h=0; s=String(s||''); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))%360; return h; }
   _layout(list){
@@ -213,7 +214,42 @@
   async pickLocalUni(mode){ try{ if(window.galaxy&&window.galaxy.pickFolder){ const r=await window.galaxy.pickFolder(); if(r&&r.path){
     if(mode!=='add' && this.state.editUniId){ this._uniEditBookmark=r.bookmark||null; const name=String(this.state.uniName||'').trim()||(r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren');
       this.setState({uniEditRoot:r.path, uniName:name}); return; }
-    const name=r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren'; await window.galaxy.universeAdd({name,root:r.path,bookmark:r.bookmark||null}); this._closeUniModal(); this._loadReal(); } } }catch(e){ this.toast('✕ evren eklenemedi','err'); } }
+    const name=r.path.split(/[\\/]/).filter(Boolean).pop()||'Evren'; const res=await window.galaxy.universeAdd({name,root:r.path,bookmark:r.bookmark||null});
+    if(res&&res.ok===false){ this.toast('✕ '+(res.error||'evren eklenemedi'),'err'); return; }
+    this._closeUniModal(); await this._loadReal(); if(res&&res.id){ this.selectUni(res.id); this.openAddProj(res.id); } } } }catch(e){ this.toast('✕ evren eklenemedi','err'); } }
+  // --- Proje ekle: evrene tek tek ya da toplu, yol girerek (otomatik keşif yok) ---
+  openAddProj(uniId){ const id=uniId||this.state.uniId; const u=(this._unis||[]).find(x=>x.id===id);
+    if(!u){ this.toast('önce bir çalışma alanı seç','err'); return; }
+    this._projBookmarks={}; this.setState({addProj:id, projPaths:'', projRepos:null, projFindRoot:u.remote?'':(u.root||''), projBusy:false, projErr:''});
+    if(u.remote) this.findProjRepos(); }
+  _closeAddProj(){ this._projBookmarks={}; this.setState({addProj:null, projPaths:'', projRepos:null, projErr:'', projBusy:false}); }
+  _projPathList(){ return String(this.state.projPaths||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean); }
+  async pickProjFolders(){ try{ if(!(window.galaxy&&window.galaxy.pickFolders)) return; const r=await window.galaxy.pickFolders(); if(!r||!r.length) return;
+    const cur=this._projPathList(); this._projBookmarks=this._projBookmarks||{};
+    for(const it of r){ if(!it||!it.path) continue; if(it.bookmark) this._projBookmarks[it.path]=it.bookmark; if(!cur.includes(it.path)) cur.push(it.path); }
+    this.setState({projPaths:cur.join('\n'), projErr:''}); }catch(e){ this.toast('✕ klasör seçilemedi','err'); } }
+  async findProjRepos(){ const id=this.state.addProj; if(!id||!(window.galaxy&&window.galaxy.findRepos)) return;
+    this.setState({projBusy:true, projErr:''});
+    try{ const r=await window.galaxy.findRepos({universeId:id, root:String(this.state.projFindRoot||'').trim()});
+      if(!r||r.ok===false){ this.setState({projBusy:false, projRepos:null, projErr:(r&&r.error)||'depo aranamadı'}); return; }
+      this.setState({projBusy:false, projRepos:(r.repos||[]).map(x=>Object.assign({},x,{on:false})), projFindInfo:(r.repos||[]).length+' depo bulundu'+(r.truncated?' (ilk 300)':'')});
+    }catch(e){ this.setState({projBusy:false, projErr:'depo aranamadı'}); } }
+  _toggleProjRepo(i){ const list=(this.state.projRepos||[]).slice(); const x=list[i]; if(!x||x.already) return; list[i]=Object.assign({},x,{on:!x.on}); this.setState({projRepos:list}); }
+  _toggleAllProjRepos(){ const list=this.state.projRepos||[]; const free=list.filter(x=>!x.already); const all=free.length&&free.every(x=>x.on);
+    this.setState({projRepos:list.map(x=>x.already?x:Object.assign({},x,{on:!all}))}); }
+  async submitAddProj(){ const id=this.state.addProj; if(!id||!(window.galaxy&&window.galaxy.projectsAdd)) return;
+    const bm=this._projBookmarks||{}; const seen=new Set(); const items=[];
+    for(const p of this._projPathList().concat((this.state.projRepos||[]).filter(x=>x.on&&!x.already).map(x=>x.path))){ if(seen.has(p)) continue; seen.add(p); items.push({path:p, bookmark:bm[p]||null}); }
+    if(!items.length){ this.setState({projErr:'Eklenecek yol yok — yol yaz, klasör seç ya da depo işaretle.'}); return; }
+    this.setState({projBusy:true, projErr:''});
+    try{ const r=await window.galaxy.projectsAdd({universeId:id, items});
+      if(!r||r.ok===false){ this.setState({projBusy:false, projErr:(r&&r.error)||'eklenemedi'}); return; }
+      const added=(r.added||[]).length, skipped=r.skipped||[];
+      if(added){ this.toast('✓ '+added+' proje eklendi'); await this._loadReal(); this.selectUni(id); }
+      if(skipped.length){ this.setState({projBusy:false, projPaths:skipped.map(s=>s.path).join('\n'), projRepos:null,
+        projErr:skipped.length+' yol eklenmedi: '+skipped.slice(0,4).map(s=>s.path.split(/[\\/]/).filter(Boolean).pop()+' ('+s.reason+')').join(', ')+(skipped.length>4?' …':'')}); return; }
+      this._closeAddProj();
+    }catch(e){ this.setState({projBusy:false, projErr:'eklenemedi'}); } }
   // Modalın SSH dalı: seçili sunucuya uzak klasör ekle → o klasör evren olur
   async addRemoteRoot(){ const id=this.state._uniSrvSel; const p=String(this.state.uniRemotePath||'').trim(); if(!id||!p) return;
     const srv=(this.state._servers||[]).find(s=>s.id===id); if(!srv||!window.galaxy||!window.galaxy.sshSave) return;
@@ -263,29 +299,28 @@
   showSetup(){ try{ localStorage.removeItem('gxSetupDismiss'); }catch(e){} this._setupForce=true; this.setState({_setupTick:(this.state._setupTick||0)+1}); }
   _helpCopy(){
     const map={
-      genel:['Özet','Kaldığın işe dön, bekleyen değişiklikleri incele ve açık görevlerini gör.'],
+      genel:['Ana Sayfa','Kaldığın işe dön, bekleyen değişiklikleri incele ve açık görevlerini gör.'],
       evren:['Projeler','Bir projeyi tek tıkla aç. j/k ile listede gezebilir, Enter ile seçili projeyi açabilirsin.'],
       planet:['Proje','Üst şerit dal, değişiklik, DB, compose ve port durumunu gösterir. Uzak projeler salt okunur.'],
-      db:['Veritabanı','Varsayılan kapsam seçili projedir. Parolalar Mac Anahtar Zinciri’nde tutulur.'],
-      docker:['Docker','Varsayılan kapsam seçili projenin compose servisleridir. Başlat, durdur ve logları incele.'],
-      pano:['Pano','Kartlar projelere bağlıdır. README eşitlemesi yalnız sen açarsan devreye girer.'],
-      zaman:['Zamanlayıcı','Haftalık/günlük ajan görevi. Claude yolu Ayarlar → Araçlar’da olmalı.'],
-      dongu:['Döngü','Çalışma alanını tara, ajanı çalıştır, sonucu incele ve raporla.'],
-      servers:['Sunucular','Parola saklanmaz. ~/.ssh anahtarı veya SSH config kullanılır; uzak klasör çalışma alanına eklenir.'],
+      db:['Veritabanları','Varsayılan kapsam seçili projedir. Parolalar Mac Anahtar Zinciri’nde tutulur.'],
+      docker:['Konteynerler','Varsayılan kapsam seçili projenin compose servisleridir. Başlat, durdur ve logları incele.'],
+      pano:['Görevler','Kartlar projelere bağlıdır. README eşitlemesi yalnız sen açarsan devreye girer.'],
+      zaman:['Zamanlanmış işler','Haftalık/günlük ajan işi. Claude yolu Ayarlar → Araçlar’da olmalı.'],
+      dongu:['Proje taraması','Tüm projeleri tara, ajan raporu yazsın, sen onayla, rapor e-postayla gelsin.'],
+      servers:['SSH sunucuları','Parola saklanmaz. ~/.ssh anahtarı veya SSH config kullanılır; uzak klasör çalışma alanına eklenir.'],
     };
     return map[this._helpKey()]||null;
   }
   _guideData(){ return [
-    ['Çalışma Alanları ve Projeler',['Projeler klasörlerine göre çalışma alanlarında düzenlenir','Üst menü: Özet / Projeler / DB / Docker / Pano','Sol listede projeyi tek tıkla aç; j / k ve Enter da kullanılabilir']],
-    ['Veritabanı',['DB → Veritabanı bağla (Postgres · MySQL · SQLite)','Parola Mac Anahtar Zinciri’nde şifreli tutulur','Yazma işlemleri onay ister']],
+    ['Çalışma Alanları ve Projeler',['Projeler klasörlerine göre çalışma alanlarında düzenlenir','Üst menü: Ana Sayfa / Görevler / Ajanlar / Otomasyonlar / Servisler','Sol listede projeyi tek tıkla aç; j / k ve Enter da kullanılabilir']],
+    ['Veritabanları',['Servisler → Veritabanları → bağlantı ekle (Postgres · MySQL · SQLite)','Parola Mac Anahtar Zinciri’nde şifreli tutulur','Yazma işlemleri onay ister']],
     ['Git ve GitHub',['Önce farkı incele, dosyaları hazırla, sonra commit et','Push ve PR ayrı işlemlerdir','GitHub oturumu Terminal’de gh auth login ile açılır']],
     ['Docker',['Varsayılan kapsam seçili projenin compose servisleridir','Başlat, durdur ve log işlemleri compose.yaml üzerinden çalışır','Port dinlemiyorsa log görünümü açılır']],
     ['Posta',['Postalar Galaxy’de saklanmaz; MCP bağlantısı gerekir','Bağlantı Ayarlar → Posta bölümünden yapılandırılır']],
     ['Uzak Sunucular',['Parola saklanmaz; ~/.ssh anahtarı veya SSH config kullanılır','Uzak klasör çalışma alanı olarak eklenebilir']],
-    ['Kaptan',['Üst bardaki Kaptan düğmesinden açılır','Token Galaxy’ye yazılmaz; Claude kendi girişini kullanır','Bağlamsal komutlar tek tıkla çalıştırılabilir']],
-    ['Zamanlayıcı',['Haftalık veya günlük otomatik görev kur','Uygulama kapalıysa kaçırılan görev açılışta telafi edilir','Üretilen raporlar alt panelde görünür']],
-    ['Döngü',['Çalışma alanını tara → ajanı çalıştır → sonucu incele → raporla']],
-    ['Pano, Dosyalar ve Konsol',['Pano görevleri projelere bağlar','Dosyalar orta panelde açılır; yörünge görünümü isteğe bağlıdır','Bash ve Claude konsolları proje klasöründe çalışır']],
+    ['Kaptan — dijital ikizin',['Üst bardaki Kaptan düğmesinden açılır','Token Galaxy’ye yazılmaz; Claude kendi girişini kullanır','Bağlamsal komutlar tek tıkla çalıştırılabilir']],
+    ['Otomasyonlar',['Zamanlanmış işler: haftalık veya günlük otomatik iş kur','Uygulama kapalıysa kaçırılan iş açılışta telafi edilir','Proje taraması: tüm projeleri tara → ajan raporu yazar → sen onayla → e-postayla gelir']],
+    ['Görevler, Dosyalar ve Konsol',['Görevler projelere bağlıdır','Dosyalar orta panelde açılır; yörünge görünümü isteğe bağlıdır','Bash ve Claude konsolları proje klasöründe çalışır']],
     ['⌘ Kısayollar',['⌘K — komut paleti / arama (↑↓ seç, Enter çalıştır)','j / k — uzayda gezegen seç (Enter = in)','Kaptan düğmesi açıkken «Kaptan» de — dinler, komutu yapar','F1 — bu rehber','⌘\\ — README gizle/göster','Esc — katman katman geri','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
   ]; }
   // Global bildirim (toast) — başarı/hata; ~4sn sonra kaybolur. Kaptan açıksa kısa kanıt satırı.
@@ -315,8 +350,25 @@
   // ---------- DOCKER ----------
   // Kadet kaldırıldı — görünüm her zaman tam (eski Komutan)
   _setUiMode(){ this.setState({uiMode:'komutan', moreOpen:false}); }
+  _navGroups(){ return [
+    {id:'genel', label:'Ana Sayfa', hint:'Bugün ne bekliyor ve tüm projeler', sub:[['genel','Bugün'],['evren','Projeler']]},
+    {id:'pano', label:'Görevler', hint:'Tüm projelerin yapılacaklar panosu'},
+    {id:'pixel', label:'Ajanlar', hint:'Yapay zekâ ajanların'},
+    {id:'zaman', label:'Otomasyonlar', hint:'Zamanlanmış işler, proje taraması, e-posta', sub:[['zaman','Zamanlanmış işler'],['dongu','Proje taraması'],['posta','E-posta']]},
+    {id:'db', label:'Servisler', hint:'Veritabanları, konteynerler, SSH sunucuları', sub:[['db','Veritabanları'],['docker','Konteynerler'],['servers','SSH sunucuları']]},
+  ]; }
+  _navGroupOf(tab){ return this._navGroups().find(g=>g.id===tab||(g.sub||[]).some(s=>s[0]===tab))||null; }
+  _openNavGroup(gid){
+    const g=this._navGroups().find(x=>x.id===gid); if(!g) return;
+    const cur=this._navGroupOf(this.state.tab);
+    if(this.state.mode!=='planet'&&cur&&cur.id===gid) return;
+    let id=g.id;
+    try{ const last=localStorage.getItem('gxNavLast::'+gid); if(last&&(g.sub||[]).some(s=>s[0]===last)) id=last; }catch(e){}
+    this._openTab(id);
+  }
   // Üst sekme: sahneyi değiştir ama gezegen bağlamını (holdPlanet) silme
   _openTab(id){
+    try{ const g=this._navGroupOf(id); if(g&&g.sub) localStorage.setItem('gxNavLast::'+g.id, id); }catch(e){}
     if(id==='egitim') id='genel';
     const fromPlanet=this.state.mode==='planet';
     const ns={tab:id, agentId:null, moreOpen:false};
@@ -347,16 +399,16 @@
   }catch(e){} }
   _loopAgent(){ const st=this.state; return (this.AGENTS||[]).find(a=>a.id===st.loopAgentId)||(this.AGENTS||[])[0]||null; }
   _loopOrder(){ return ['tetik','tara','is','incele','bildir']; }
-  _loopTitles(){ return {tetik:'Tetik',tara:'Tara',is:'İş',incele:'İncele',bildir:'Bildir'}; }
+  _loopTitles(){ return {tetik:'Başlat',tara:'Tara',is:'Ajan çalışır',incele:'Onayla',bildir:'Haber ver'}; }
   _loopDesc(id){
     const ag=this._loopAgent();
     return ({
-      tetik:'Başlat. «Turu başlat» ya da Zamanlayıcı bu adımı tetikler.',
-      tara:'Bu evrendeki gezegenlere bakar: durgun gün, kirli git, açık plan.',
-      is:'Seçili ajanı ('+((ag&&ag.name)||'—')+') taramanın üstüne koşar.',
-      incele:'Tur durur. Notunu yaz, kaydet — bir sonraki tura taşınır.',
-      bildir:'Kısa toast + Kaptan posta taslağı. MCP bağlıysa gönderir.'
-    })[id]||'Döngü: bir tıkla evren taraması. Tetik → Tara → İş → İncele → Bildir.';
+      tetik:'«Taramayı başlat» düğmesi ya da bir zamanlanmış iş taramayı başlatır.',
+      tara:'Bu çalışma alanındaki projelere bakar: kaç gündür dokunulmadı, commit bekleyen değişiklik, açık plan.',
+      is:(((ag&&ag.name)||'Seçili ajan'))+' tarama sonucunu okuyup raporu yazar.',
+      incele:'Tarama burada durur. Notunu yaz ve kaydet; bir sonraki taramaya taşınır.',
+      bildir:'Kısa bir bildirim gösterir ve e-posta taslağı hazırlar. Posta bağlıysa gönderir.'
+    })[id]||'Proje taraması: Başlat → Tara → Ajan çalışır → Onayla → Haber ver.';
   }
   _loopRemember(id, text){ this._loopOutByStep=this._loopOutByStep||{}; this._loopOutByStep[id]=String(text||''); }
   _loopFocusId(){ const st=this.state||{}; return st.loopFocus||st.loopStep||null; }
@@ -390,8 +442,8 @@
     const order=this._loopOrder(); const cur=order.indexOf(st.loopStep);
     const focus=this._loopFocusId();
     const meta={
-      tetik:['Tetik','Turu başlatır'], tara:['Tara','Evreni tarar (stale / git / plan)'],
-      is:['İş','Seçili ajanı koşar · '+((ag&&ag.name)||'ajan')], incele:['İncele','Senin notun'], bildir:['Bildir','Toast + posta']
+      tetik:['Başlat','Taramayı başlatır'], tara:['Tara','Projelere bakar: sessiz, commit bekleyen, plan'],
+      is:['Ajan çalışır','Raporu '+((ag&&ag.name)||'ajan')+' yazar'], incele:['Onayla','Notunu ekle'], bildir:['Haber ver','Bildirim + e-posta']
     };
     const th=this._theme();
     const busy=!!st._agentBusy && st.loopStep==='is';
@@ -445,8 +497,8 @@
     if(id==='tetik'){
       const sch=(st._sched||[])[0];
       const body=sch
-        ? ('Tur tetiklendi.\nZamanlayıcı: '+(sch.name||sch.task||'görev')+' · '+(sch.when||sch.cron||''))
-        : 'Tur tetiklendi.\nElle «Turu başlat» — veya Zamanlayıcı’dan otomatik tur bağla.';
+        ? ('Tarama başladı.\nZamanlanmış iş: '+(sch.name||sch.task||'iş')+' · '+(sch.when||sch.cron||''))
+        : 'Tarama başladı.\nElle başlattın. Düzenli çalışsın istersen «Zamanlanmış işler»den saat ekle.';
       this._loopRemember('tetik', body);
       this.setState({loopStep:'tetik', loopFocus:'tetik', loopBody:body});
       return;
