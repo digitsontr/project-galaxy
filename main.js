@@ -189,8 +189,11 @@ async function checkForUpdate(manual) {
     const tag = String(rel.tag_name || '').replace(/^v/i, '');
     const cur = app.getVersion();
     if (tag && verGt(tag, cur)) {
-      const zip = (rel.assets || []).find(a => /\.zip$/i.test(a.name || ''));
-      send('update:available', { version: tag, url: (zip && zip.browser_download_url) || rel.html_url, notes: (rel.name || rel.tag_name || '') });
+      const assets = rel.assets || [];
+      const pick = process.platform === 'win32'
+        ? (assets.find(a => /Setup-.*\.exe$/i.test(a.name || '')) || assets.find(a => /\.exe$/i.test(a.name || '')))
+        : assets.find(a => /\.zip$/i.test(a.name || ''));
+      send('update:available', { version: tag, url: (pick && pick.browser_download_url) || rel.html_url, notes: (rel.name || rel.tag_name || '') });
     } else if (manual) { send('update:none', { version: cur }); }
   } catch (e) { if (manual) send('update:error', { error: e.message }); }
 }

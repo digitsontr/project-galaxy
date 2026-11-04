@@ -2,9 +2,13 @@
 
 ## Kurulum
 
-1. [Git for Windows](https://gitforwindows.org) (gömülü terminal için bash).
+En kolayı: [son sürüm](https://github.com/digitsontr/project-galaxy/releases/latest) sayfasından **`Project-Galaxy-Setup-….exe`** indir → çalıştır → sihirbaz. Masaüstü ve Başlat menüsü kısayolu oluşur.
+
+Kurulum istemezsen **`Project-Galaxy-Portable-….exe`** yeter; çift tıkla açılır.
+
+1. [Git for Windows](https://gitforwindows.org) (gömülü terminal için bash, önerilir).
 2. İsteğe bağlı: [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI.
-3. GitHub Releases’ten `Project-Galaxy-Setup-….exe` **veya** kaynakta:
+3. Ya da kaynakta:
 
 ```bash
 npm ci

@@ -60,15 +60,15 @@ jobs:
             İmzalı + Apple notarize'lı — Gatekeeper uyarısı çıkmaz, direkt açılır. ✅
 
             ### 🪟 Windows (x64)
-            `Project-Galaxy-Setup-*.exe`'yi indir, çalıştır, kurulum sihirbazını izle.
+            **Kurulum:** `Project-Galaxy-Setup-*.exe` → sihirbazı izle (masaüstü + başlat menüsü kısayolu).
+            **Kurulumsuz:** `Project-Galaxy-Portable-*.exe` → indir, çift tıkla.
             İlk açılışta Windows **"korudu"** derse → **Daha fazla bilgi → Yine de çalıştır** (imzasız derleme, tek seferlik).
-            Gömülü terminal için **Git for Windows** (bash) ve AI için **Claude Code** kurulu olmalı.
+            Gömülü terminal için **Git for Windows** (bash) önerilir; AI için **Claude Code** isteğe bağlı.
 
-            > Uygulama içi otomatik güncelleme macOS'ta `.zip`'i kullanır.
+            > Uygulama içi güncelleme: macOS `.zip`, Windows Setup `.exe`.
 
   build-windows:
     runs-on: windows-latest
-    needs: build-macos
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,7 +78,9 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Arayüzü derle
         run: node newui/build.js
-      - name: Windows .exe installer (electron-builder)
+      - name: Windows .exe (NSIS + portable)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx --yes electron-builder --win --publish never
       - name: Release'e .exe ekle
         uses: softprops/action-gh-release@v2

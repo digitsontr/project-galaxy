@@ -1,7 +1,7 @@
 {
   "name": "project-galaxy",
   "productName": "Project Galaxy",
-  "version": "2.3.13",
+  "version": "2.4.0",
   "updateRepo": "digitsontr/project-galaxy",
   "description": "Projelerini bir evren olarak gezdiğin, AI ajanlarıyla yönettiğin masaüstü uygulaması",
   "main": "main.js",
@@ -102,18 +102,34 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png",
-      "artifactName": "Project-Galaxy-Setup-${version}.${ext}"
+      "artifactName": "Project-Galaxy-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "portable": {
+      "artifactName": "Project-Galaxy-Portable-${version}.exe"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Project Galaxy"
+      "shortcutName": "Project Galaxy",
+      "uninstallDisplayName": "Project Galaxy",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.png",
+      "uninstallerIcon": "build/icon.png"
     }
   },
   "dependencies": {
