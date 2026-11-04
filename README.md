@@ -4,7 +4,7 @@
 
 <h1 align="center">Project Galaxy</h1>
 <p align="center"><b>Bilgisayarındaki projeleri bir evren olarak gez, yapay zekâ ajanlarınla yönet, tek pencereden geliştir.</b><br>
-macOS · Windows · Electron · Claude Code · v2.4.0</p>
+macOS · Windows · Electron · Claude Code · v2.4.1</p>
 
 ---
 
@@ -497,7 +497,8 @@ Dağıtım detayı: `PRODUCTIZATION.md`.
 
 ## Sürüm notları — bu sürümde neler değişti
 
-**v2.4.0** — Liquid Glass v2, Tahta stüdyosu, kod inceleme, TR/EN; Windows NSIS + portable `.exe` (GitHub Releases).
+**v2.4.1** — Windows Setup + portable `.exe` (gerçek `.ico`; NSIS PNG ikon hatası giderildi).
+**v2.4.0** — Liquid Glass v2, Tahta stüdyosu, kod inceleme, TR/EN.
 **v2.3.13 / 2.3.12** — Windows NSIS kurucu; `build.py` UTF-8 (cp1252 kırılması).
 **v2.3.11** — v2 tasarım (Space Grotesk, yuvarlak köşeler); Kadet / Komutan yoğunluk anahtarı.
 **v2.3.10** — Developer ID imza + Apple notarization.
