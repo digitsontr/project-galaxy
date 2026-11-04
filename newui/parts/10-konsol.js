@@ -54,7 +54,7 @@
   onConsoleInput(e){ this._histIdx=null; this.setState({consoleInput:(e&&e.target&&e.target.value)||''}); }
   onConsoleKey(e){
     if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.sendConsole(); return; }
-    if(e.key==='Tab'){ e.preventDefault&&e.preventDefault(); this._complete(); return; }
+    if(e.key==='Tab'){ e.preventDefault&&e.preventDefault(); e.stopPropagation&&e.stopPropagation(); return; }
     if(e.key==='ArrowUp'){ e.preventDefault&&e.preventDefault(); this._histNav(-1); return; }
     if(e.key==='ArrowDown'){ e.preventDefault&&e.preventDefault(); this._histNav(1); return; }
   }
@@ -66,16 +66,17 @@
     this.setState({consoleInput:val}); }
   _commonPrefix(arr){ if(!arr.length) return ''; let p=arr[0]; for(const s of arr){ let i=0; while(i<p.length&&i<s.length&&p[i]===s[i]) i++; p=p.slice(0,i); } return p; }
   // Tab tamamlama (bash) — son token'ı dosya/klasör adıyla tamamla
-  async _complete(){ if(this.state.consoleTab!=='bash') return; const p=this.sel; const text=String(this.state.consoleInput||''); const cwd=p&&p._path;
+  async _complete(field){ if(field!=='split'&&this.state.consoleTab!=='bash') return; const p=this.sel; const key=field==='split'?'splitBash':'consoleInput'; const text=String(this.state[key]||''); const cwd=p&&p._path;
     if(!cwd||!window.galaxy||!window.galaxy.shellComplete) return;
     const m=text.match(/(\S*)$/); const token=m?m[1]:''; const before=text.slice(0,text.length-token.length);
     const sid='sh-'+(p&&p.id||'');
     try{ const r=await window.galaxy.shellComplete({shellId:sid,cwd,token}); const matches=(r&&r.matches)||[]; const dirPart=(r&&r.dirPart)||'';
       if(!matches.length) return;
-      if(matches.length===1){ this.setState({consoleInput:before+dirPart+matches[0]}); }
+      const next={}; next[key]=before+dirPart+(matches.length===1?matches[0]:'');
+      if(matches.length===1){ this.setState(next); }
       else { const common=this._commonPrefix(matches);
-        if(common && (dirPart+common).length>token.length) this.setState({consoleInput:before+dirPart+common});
-        this._con(p&&p.id).bout.push({t:'o',x:matches.join('   ')}); this.setState({_cov:(this.state._cov||0)+1}); this._scrollBottom('#ghud-console-scroll'); }
+        if(common && (dirPart+common).length>token.length){ next[key]=before+dirPart+common; this.setState(next); }
+        this._con(p&&p.id).bout.push({t:'o',x:matches.join('   ')}); this.setState({_cov:(this.state._cov||0)+1}); this._scrollBottom(field==='split'?'#ghud-split-scroll':'#ghud-console-scroll'); }
     }catch(e){} }
   _ipcErr(r,fb){ return String((r&&(r.error||r.err||r.message))||fb||'işlem başarısız'); }
   _isBlocked(r){ return /MAS|App Store|sandbox|bu sürümde kullanılamıyor|gömülü terminal App Store/i.test(this._ipcErr(r,'')); }
@@ -121,6 +122,7 @@
       {label:'Docker’ı aç', ask:'Docker’ı aç'},
       {label:'DB’yi aç', ask:'veritabanını aç'},
       {label:'Kirli git', ask:'kirli git’i göster'},
+      {label:'Kod incele', ask:'değişikliklerimi incele'},
       {label:'Özet’e dön', ask:'özeti aç'},
       {label:'Compose up', ask:'compose up'},
       {label:'Posta', ask:'postayı aç'},
@@ -157,7 +159,8 @@
     const p=this.sel, cwd=p&&p._path; const con=this._con(p&&p.id);
     const hk=this.state.consoleTab==='bash'?'bhist':'chist'; if(con[hk][con[hk].length-1]!==text) con[hk].push(text); con[hk]=con[hk].slice(-100); this._histIdx=null;
     this.setState({consoleInput:'',_conBusy:true});
-    if(this.state.consoleTab==='ajan'){
+    if(this.state.consoleTab==='ajan'||this.state.consoleTab==='claude'){
+      if(this.state.consoleTab==='claude') this.setState({consoleTab:'ajan'});
       await this.agentSendText(text);
       this.setState({_cov:(this.state._cov||0)+1});
       this._scrollBottom('#ghud-console-scroll');
@@ -291,7 +294,7 @@
   onHudResize(e){ this._startBarResize('hud', e); }
   _setLeftTab(id){ this.setState({leftTab:id}); try{ localStorage.setItem('gxLeftTab',id); }catch(e){} if(id==='git'||id==='dev') this._rememberSurface(id); if(id==='git'){ this.gitExtLoad(); this.ghLoad(); } if(id==='dev'){ this.langCheck(); this.gxLoad(); this.agentCfgLoad(); } }
   toggleReadme(){ const on=!this.state.readmeOpen; this.setState({readmeOpen:on}); try{ localStorage.setItem('gxReadmeOpen',on?'1':'0'); }catch(e){} }
-  setOrbitView(on){ this.setState({orbitView:!!on}); try{ localStorage.setItem('gxOrbitView',on?'1':'0'); }catch(e){} }
+  setOrbitView(){ this.setState({orbitView:false}); try{ localStorage.setItem('gxOrbitView','0'); }catch(e){} }
   dismissSplash(){ clearTimeout(this._splashT); this.setState({splashOpen:false}); try{ localStorage.setItem('gxSplash','1'); }catch(e){} }
   // ---------- i18n (tr↔en) — render sonrası DOM cümle değişimi ----------
   _enMapObj(){ return {
@@ -373,6 +376,15 @@
     'Kendi materyalini ekle, oku, quiz çöz.':'Add your own material, read it, take a quiz.',
     'PROJELER':'PROJECTS','İSTASYON':'STATION','Evrenini seç':'Choose your universe','Bugün':'Today','Evrenler':'Universes',
     'Kaldığın yerden devam':'Continue where you left off','Kaldığın işe dön, kirli git’i gör, evrenini seç.':'Pick up the work, see dirty git, choose a universe.',
+    'Günaydın':'Good morning','İyi günler':'Good afternoon','İyi akşamlar':'Good evening','İyi geceler':'Good night',
+    'yeni görev':'new task','proje haritası':'project map','tümünü gör':'see all','daha az':'less',
+    'Bugün ne bekliyor ve tüm projeler':'What is waiting today, and every project','Tüm projelerin yapılacaklar panosu':'The to-do board across projects','Yapay zekâ ajanların':'Your AI agents','Zamanlanmış işler, proje taraması':'Scheduled jobs and project scans','Veritabanları, konteynerler, SSH sunucuları':'Databases, containers, SSH servers',
+    'Başlık — # ile proje etiketle':'Title — tag a project with #','Ayrıntı (isteğe bağlı)':'Details (optional)','+ Görev aç':'+ Open task',
+    'Henüz görev yok. Başlık yaz, # ile bir proje seç, aç.':'No tasks yet. Write a title, pick a project with #, then open it.',
+    'Devam et':'Continue','Commit et':'Commit','İncele':'Review','tümünü gör':'see all','daha az':'less',
+    'Proje akışı yok':'No project flow','Akışı üret':'Generate flow',
+    'Modülleri, alt akışları ve veri çizgilerini çıkarır. Dosya ağacı değil — işlev haritası.':'Extracts modules, subflows and data lines. Not a file tree — a function map.',
+    'Geri al (⌘Z)':'Undo (⌘Z)','İleri al (⇧⌘Z)':'Redo (⇧⌘Z)',
     'Bugün masası':'Today desk','↵ çalıştır':'↵ run','esc kapat':'esc close','↑↓ gez':'↑↓ move',
     'Önce commit bekleyenler':'Commit the dirty ones first','İhmal edilenlere bak':'Look at neglected planets','Sakin bir gün. Evren seç veya yeni gezegen ekle.':'A quiet day. Pick a universe or add a planet.',
     'kirli git':'dirty git','ihmal':'neglected','açık todo':'open todos','Commit bekleyen':'Waiting to commit','Uzun süredir sessiz':'Quiet for a while',
@@ -408,6 +420,7 @@
     'Bir bash komutu yaz — bu projenin klasöründe çalışır.':'Type a bash command — runs in this project folder.','Claude\'a bir şey yaz — bu projenin klasöründe çalışır, dosya okur/yazar.':'Type to Claude — runs in this project folder, reads/writes files.','Yeni evren':'New universe','Henüz uzak sunucu yok.':'No remote server yet.',
     'PROJE EKLE':'ADD PROJECTS','＋ Ekle':'＋ Add','Proje ekle':'Add projects','Çalışma alanı oluştur':'Create workspace','Bu çalışma alanında henüz proje yok.':'No projects in this workspace yet.','Projeler kendiliğinden eklenmez. Yolunu yazarak tek tek ekle ya da bir klasördeki depoları bulup toplu seç.':'Projects are never added automatically. Add them one by one by path, or find the repos in a folder and pick them in bulk.','Proje yolları · her satıra bir yol':'Project paths · one per line','📁 Klasörleri seç (birden çok seçilebilir)':'📁 Pick folders (multiple allowed)','Toplu ekle · bir klasördeki git depolarını bul':'Bulk add · find git repos in a folder','⌕ Depoları bul':'⌕ Find repos','Tümünü seç':'Select all','Hiçbirini seçme':'Select none','zaten ekli':'already added','Bu klasörde git deposu bulunamadı.':'No git repos found in this folder.','Uzak çalışma alanında son taramanın bulduğu depolar listelenir. Eklemek istediklerini işaretle.':'Repos found by the last scan of this remote workspace are listed. Tick the ones to add.','Ekle':'Add','Bu çalışma alanına proje ekle':'Add projects to this workspace','Çalışma alanı boş başlar; projelerini sonra yolunu girerek tek tek ya da toplu eklersin. 🔒 Parola Anahtar Zinciri\'yle şifreli.':'A workspace starts empty; you add projects afterwards by path, one by one or in bulk. 🔒 Passwords are encrypted in the Keychain.','Projelerini ekle':'Add your projects','Çalışma alanı oluştur':'Create workspace','İlk projeyi aç':'Open your first project',
     'Veri katmanı':'Data layer','Proje haritası':'Project map','⤢ Akış şemasını tam ekran aç':'⤢ Open the flow chart full screen','⤢ Akış şeması':'⤢ Flow chart','Akış şeması':'Flow chart','analiz ediliyor…':'analyzing…','proje analiz ediliyor…':'analyzing project…',
+    'Tahta':'Board','✎ Tahta':'✎ Board','Kart ekle':'Add card','yazılıyor…':'saving…','kayıtlı':'saved','Boş tahta':'Empty board','Tahtadaki kartlar':'Cards on the board','hızlı not… (Enter)':'quick note… (Enter)','yaz…':'write…','ne düşünüyorsun…':'what’s on your mind…','Seç':'Select','Yazı':'Text','Ok':'Arrow','Çiz':'Draw','Not':'Sticky','Kutu':'Box','Elips':'Ellipse','Karar':'Decision','Çerçeve':'Frame','İşaret':'Highlight','Kaydır':'Pan','Sığdır':'Fit','Izgara':'Grid','SVG':'SVG','JSON':'JSON','Çoğalt':'Duplicate','Öne al':'Bring forward','Alta al':'Send back','Kilitle':'Lock','Kilidi aç':'Unlock','Akış':'Flow','Fırtına':'Brainstorm','Kanban':'Kanban','Retro':'Retro','Yolculuk':'Journey','Seçim':'Selection','Şablonlar':'Templates','ok yazısı…':'arrow label…','kart ara…':'search cards…',
     'DB sekmesi':'DB tab','Akışta göster':'Show in flow','Bağla':'Connect','+ Bağlantı ekle':'+ Add connection','Bu projede veritabanı izi yok — .env, compose, Prisma şeması ya da sürücü paketi bulunamadı.':'No database trace in this project — no .env, compose, Prisma schema or driver package found.',
     'Giriş':'Entry','Modül':'Module','Veri':'Data','Dış servis':'External service','Arayüz':'UI','API / IPC':'API / IPC','Mantık':'Logic','⤴ Mimari':'⤴ Architecture','Sığdır':'Fit','↻ Analiz':'↻ Analyze',
     'Nasıl okunur':'How to read it','Soldan sağa akar:':'It flows left to right:','giriş':'entry','noktaları projeyi başlatır, oklar kimin kimi çağırdığını gösterir, en sağda':'points start the project, arrows show who calls whom, and on the far right sit the','veritabanı':'database','ve':'and','dış servisler':'external services','durur. Çizgi kalınlığı bağlantı sayısıdır.':'. Line thickness is the number of links.',
@@ -460,26 +473,82 @@
     'j / k — uzayda gezegen seç (Enter = in)':'j / k — select a planet in space (Enter = land)',
     'Esc — katman katman geri':'Esc — back layer by layer'
   }; }
-  _applyLang(){
-    try{ document.documentElement.lang=this._lang==='en'?'en':'tr'; }catch(e){}
-    if(this._langObs){ try{ this._langObs.disconnect(); }catch(e){} this._langObs=null; }
-    if(this._lang!=='en') return;
+  _tx(tr, en){ return this._lang==='en'?(en||tr):tr; }
+  _isEn(){ return this._lang==='en'; }
+  _setLang(lang, from){
+    const l=lang==='en'?'en':'tr';
+    const changed=this._lang!==l;
+    this._lang=l;
+    if(from==='user') this._langUserSet=true;
+    try{ localStorage.setItem('gxLang',l); localStorage.setItem('gxAsstLang',l); }catch(e){}
+    try{ document.documentElement.lang=l; }catch(e){}
+    if(from==='user'){
+      try{ if(window.galaxy&&window.galaxy.settingsSave) window.galaxy.settingsSave({lang:l}); }catch(e){}
+    }
+    if(changed||from==='user') this._applyLang();
+    else this._i18nSchedule(true);
+  }
+  _i18nDicts(){
     const src=this._enMap||(this._enMap=this._enMapObj());
-    const low=this._lowEn||(this._lowEn=(()=>{const o={}; for(const k in src){ const key=String(k).trim(); if(key.length<12) continue; if(/[=<>{}]|KEY=|GMAIL_|npm |gh /.test(key)) continue; o[key.toLowerCase()]=src[k]; } return o;})());
-    const tr=(s)=>{ if(!s) return null; const t=s.trim(); if(t.length<12) return null; if(/[=<>{}]|KEY=|GMAIL_|npm |gh /.test(t)) return null; if(/\n/.test(s)) return null; const r=low[t.toLowerCase()]; return (r!=null&&r.toLowerCase()!==t.toLowerCase())?r:null; };
+    if(!this._trMap){
+      const o={}, lf={}, lr={};
+      for(const k in src){
+        o[src[k]]=k;
+        if(k.length>=8) lf[k.toLowerCase()]=src[k];
+        if(String(src[k]).length>=8) lr[String(src[k]).toLowerCase()]=k;
+      }
+      this._trMap=o; this._lowFwd=lf; this._lowRev=lr;
+    }
+    return { fwd:src, rev:this._trMap, lowFwd:this._lowFwd, lowRev:this._lowRev };
+  }
+  _i18nLookup(s){
+    if(!s) return null;
+    const t=String(s).trim(); if(!t) return null;
+    if(/[=<>{}]|KEY=|GMAIL_|npm |gh /.test(t)) return null;
+    if(/\n/.test(s)) return null;
+    const d=this._i18nDicts();
+    const en=this._lang==='en';
+    const dict=en?d.fwd:d.rev;
+    if(dict[t]!=null && dict[t]!==t) return dict[t];
+    if(t.length>=8){
+      const hit=(en?d.lowFwd:d.lowRev)[t.toLowerCase()];
+      if(hit!=null && hit!==t) return hit;
+    }
+    return null;
+  }
+  _i18nPaint(){
+    const tr=s=>this._i18nLookup(s);
     const walk=(n)=>{ if(!n) return;
       if(n.nodeType===3){ const v=n.nodeValue, k=v&&v.trim(); const rep=tr(k); if(rep!=null) n.nodeValue=v.replace(k,rep); }
       else if(n.nodeType===1){
         const tag=n.tagName;
-        if(tag==='SCRIPT'||tag==='STYLE'||tag==='CANVAS'||tag==='TEXTAREA'||tag==='INPUT'||tag==='SELECT'||tag==='CODE'||tag==='PRE') return;
+        if(tag==='SCRIPT'||tag==='STYLE'||tag==='CANVAS'||tag==='CODE'||tag==='PRE') return;
         if(n.hasAttribute&&(n.hasAttribute('data-noi18n')||n.hasAttribute('contenteditable'))) return;
         if(n.classList&&(n.classList.contains('mono-in')||n.classList.contains('cli-box'))) return;
-        try{ const pr=tr(n.placeholder); if(pr!=null) n.placeholder=pr; }catch(e){}
+        if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'){
+          try{ const pr=tr(n.placeholder); if(pr!=null) n.placeholder=pr; }catch(e){}
+          try{ const ti=tr(n.title); if(ti!=null) n.title=ti; }catch(e){}
+          try{ const al=n.getAttribute&&n.getAttribute('aria-label'); const ar=tr(al); if(ar!=null) n.setAttribute('aria-label',ar); }catch(e){}
+          return;
+        }
         try{ const ti=tr(n.title); if(ti!=null) n.title=ti; }catch(e){}
-        for(const c of n.childNodes) walk(c); } };
+        try{ const al=n.getAttribute&&n.getAttribute('aria-label'); const ar=tr(al); if(ar!=null) n.setAttribute('aria-label',ar); }catch(e){}
+        for(const c of n.childNodes) walk(c);
+      }
+    };
     try{ walk(document.body); }catch(e){}
-    this._langObs=new MutationObserver(()=>{ clearTimeout(this._langT); this._langT=setTimeout(()=>{ if(this._lang==='en') this._applyLang(); },160); });
-    try{ this._langObs.observe(document.body,{childList:true,subtree:true}); }catch(e){}
+  }
+  _i18nSchedule(now){
+    clearTimeout(this._i18nT);
+    this._i18nT=setTimeout(()=>this._i18nPaint(), now?0:50);
+  }
+  _applyLang(){
+    try{ document.documentElement.lang=this._lang==='en'?'en':'tr'; }catch(e){}
+    if(this._langObs){ try{ this._langObs.disconnect(); }catch(e){} this._langObs=null; }
+    this.setState({_langTick:(this.state._langTick||0)+1});
+    this._i18nSchedule(true);
+    this._langObs=new MutationObserver(()=>{ this._i18nSchedule(false); });
+    try{ this._langObs.observe(document.body,{childList:true,subtree:true,characterData:false}); }catch(e){}
   }
   // ---------- MARKDOWN-LITE (ajan çıktısı + README güzel görünsün) ----------
   _mdSegs(s){ const out=[]; const re=/(\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\((https?:[^)\s]+)\)|(https?:\/\/[^\s)<]+))/g; let last=0,m;
@@ -493,20 +562,20 @@
     if(!out.length) out.push({t:s||' ',style:'color:inherit'}); return out; }
   _mdLines(text, mode){ const doc=mode==='doc';
     const st=(t)=>({
-      h1: doc?'font-size:26px;font-weight:700;color:#f4f7ff;margin:6px 0 14px;line-height:1.25;letter-spacing:-.02em':'font-size:15px;font-weight:700;color:#dbe4ff;margin:12px 0 6px',
-      h2: doc?'font-size:18px;font-weight:600;color:#e8eeff;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid rgba(190,205,255,.14)':'font-size:14px;font-weight:600;color:#dbe4ff;margin:12px 0 5px;border-bottom:1px solid rgba(190,205,255,.12);padding-bottom:4px',
-      h3: doc?'font-size:15px;font-weight:600;color:#8ae7ff;margin:16px 0 8px':'font-size:13px;font-weight:600;color:#8ae7ff;margin:10px 0 4px',
+      h1: doc?'font-size:26px;font-weight:700;color:#f4f7ff;margin:6px 0 14px;line-height:1.25;letter-spacing:-.02em':'font-size:15px;font-weight:700;color:var(--gx-ink);margin:12px 0 6px',
+      h2: doc?'font-size:18px;font-weight:600;color:var(--gx-ink);margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb, var(--gx-ink) 14%, transparent)':'font-size:14px;font-weight:600;color:var(--gx-ink);margin:12px 0 5px;border-bottom:1px solid color-mix(in srgb, var(--gx-ink) 12%, transparent);padding-bottom:4px',
+      h3: doc?'font-size:15px;font-weight:600;color:var(--gx-accent);margin:16px 0 8px':'font-size:13px;font-weight:600;color:var(--gx-accent);margin:10px 0 4px',
       li: doc?'padding-left:18px;margin:6px 0;line-height:1.55':'padding-left:16px;position:relative;margin:3px 0',
-      task: doc?'margin:6px 0;color:#c5cde8;line-height:1.5':'margin:3px 0;color:#9aa3c2',
+      task: doc?'margin:6px 0;color:#c5cde8;line-height:1.5':'margin:3px 0;color:var(--gx-dim)',
       p: doc?'margin:8px 0;line-height:1.7;color:#cfd6ee;font-size:15px':'margin:5px 0',
       blank: doc?'height:10px':'height:6px',
-      hr:'height:1px;background:rgba(190,205,255,.16);margin:18px 0',
-      code:'font-family:JetBrains Mono,monospace;font-size:12px;color:#c9e7ff;background:rgba(8,12,24,.65);padding:1px 0;white-space:pre-wrap;line-height:1.55'
+      hr:'height:1px;background:color-mix(in srgb, var(--gx-ink) 16%, transparent);margin:18px 0',
+      code:'font-family:JetBrains Mono,monospace;font-size:12px;color:var(--gx-ink);background:rgba(8,12,24,.65);padding:1px 0;white-space:pre-wrap;line-height:1.55'
     }[t]||(doc?'margin:8px 0;line-height:1.7':'margin:5px 0'));
     const lines=String(text||'').split('\n'); const out=[]; let inCode=false;
     for(const ln of lines){
       if(/^```/.test(ln)){ inCode=!inCode; continue; }
-      if(inCode){ out.push({type:'code',lineStyle:st('code'),bullet:'',segs:[{t:ln||' ',style:'font-family:JetBrains Mono,monospace;color:#c9e7ff'}]}); continue; }
+      if(inCode){ out.push({type:'code',lineStyle:st('code'),bullet:'',segs:[{t:ln||' ',style:'font-family:JetBrains Mono,monospace;color:var(--gx-ink)'}]}); continue; }
       if(!ln.trim()){ out.push({type:'blank',lineStyle:st('blank'),bullet:'',segs:[{t:'',style:''}]}); continue; }
       if(/^---+$/.test(ln.trim())||/^\*\*\*+$/.test(ln.trim())){ out.push({type:'hr',lineStyle:st('hr'),bullet:'',segs:[{t:'',style:''}]}); continue; }
       let type='p',content=ln,bullet='';

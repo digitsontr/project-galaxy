@@ -198,8 +198,8 @@ function assistantPersona(ctx) {
     `Kullanıcı hakkında yeni ve kalıcı bir şey öğrenirsen (tercih, karar, alışkanlık, çalıştığı iş, sevmediği şey) cevabına [[MEM tek cümlelik gerçek]] ekle. Geçici şeyleri kaydetme. Bu etiket görünmez.`,
     `Uygulama işi varsa cevabında MUTLAKA [[ACT ad|arg]] olmalı. Tarif etme. "yapamam / sen tıkla" deme. Komut görünmez; yanında doğal bir cümle yaz.`,
     `"X tarafına/gezegenine/evrenine gir/aç/git" = evren ise [[ACT open_universe|ad]], proje ise [[ACT open_project|ad]]. Sekme isteği = [[ACT open_tab|id]].`,
-    `Komutlar: [[ACT open_universe|ad]] · [[ACT open_project|ad]] · [[ACT open_tab|id]] (genel=Ana Sayfa, evren=Projeler, pano=Görevler, pixel=Ajanlar/Toplantı Salonu, zaman=Zamanlanmış işler, dongu=Proje taraması, posta=E-posta, db=Veritabanları, docker=Konteynerler, servers=SSH sunucuları) · [[ACT open_agent|id|görev]] · [[ACT meeting|konu]] · [[ACT open_git]] · [[ACT back]] · [[ACT git_push]] · [[ACT git_pull]] · [[ACT git_commit|mesaj]] · [[ACT git_pr]] · [[ACT run|komut]] · [[ACT open_folder]] · [[ACT open_terminal]] · [[ACT open_settings]] · [[ACT mail_brief]] · [[ACT open_db]] · [[ACT compose_up]] · [[ACT compose_down]] · [[ACT open_port|port]] · [[ACT run_script|ad]] · [[ACT bind_db]]`,
-    `Örnek: "papilon tarafına gir" → "[[ACT open_universe|Papilon]] Papilon'a geçiyorum."  "dallarımı göster" → "[[ACT open_agent|git|Dal grafiğini çiz ve açıkla]] Git Yöneticisi'ni açıyorum."`,
+    `Komutlar: [[ACT open_universe|ad]] · [[ACT open_project|ad]] · [[ACT open_tab|id]] (genel=Ana Sayfa, evren=Projeler, pano=Görevler, pixel=Ajanlar/Toplantı Salonu, zaman=Zamanlanmış işler, dongu=Proje taraması, posta=E-posta, db=Veritabanları, docker=Konteynerler, servers=SSH sunucuları) · [[ACT open_agent|id|görev]] · [[ACT meeting|konu]] · [[ACT review]] · [[ACT flow]] · [[ACT flow|walk]] · [[ACT flow|drawio]] · [[ACT tahta]] · [[ACT open_git]] · [[ACT back]] · [[ACT git_push]] · [[ACT git_pull]] · [[ACT git_commit|mesaj]] · [[ACT git_pr]] · [[ACT run|komut]] · [[ACT open_folder]] · [[ACT open_terminal]] · [[ACT open_settings]] · [[ACT mail_brief]] · [[ACT open_db]] · [[ACT compose_up]] · [[ACT compose_down]] · [[ACT open_port|port]] · [[ACT run_script|ad]] · [[ACT bind_db]]`,
+    `Örnek: "papilon tarafına gir" → "[[ACT open_universe|Papilon]] Papilon'a geçiyorum."  "dallarımı göster" → "[[ACT open_agent|git|Dal grafiğini çiz ve açıkla]] Git Yöneticisi'ni açıyorum."  "değişikliklerimi incele / review al" → "[[ACT review]] Kod Kalitesi'ni açıyorum."  "akışı çiz / drawio" → "[[ACT flow]] Akış şemasını açıyorum."  "tahtayı aç / karala" → "[[ACT tahta]] Tahtayı açıyorum."`,
     `Kodlama aracı değilsin: hava, sohbet, tavsiye — her konuda cevap ver. Web arama ve getirme açık; güncel bilgiyi ara. "iznim yok / erişemiyorum" deme.`,
     unis ? `Evrenler: ${unis}.` : '',
     projs ? `Projeler: ${projs}.` : '',
@@ -543,7 +543,7 @@ function ensureShell(shellId, cwd) {
 // Yerel ensureShell ile aynı SHELL_SENTINEL mantığı ve aynı shell:out kanalı.
 function ensureSshShell(shellId, serverId) {
   const existing = shells.get(shellId);
-  if (existing && !existing.child.killed && existing.child.exitCode === null) return existing;
+  if (existing && existing.child && !existing.child.killed && existing.child.exitCode === null) return existing;
   const srv = getServer(serverId);
   if (!srv) throw new Error('Sunucu bulunamadı');
   // 'bash -l' = LOGIN kabuk: /etc/profile + ~/.bash_profile/.profile yüklenir, böylece
@@ -579,6 +579,21 @@ function ensureSshShell(shellId, serverId) {
 ipcMain.handle('galaxy:sshShellStart', (e, { shellId, serverId } = {}) => {
   if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };
   try { ensureSshShell(shellId, serverId); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('galaxy:sshShellComplete', async (e, { serverId, token } = {}) => {
+  try {
+    const srv = getServer(serverId);
+    if (!srv) return { ok: false, matches: [] };
+    let dirPart = '', namePart = String(token || '');
+    const slash = namePart.lastIndexOf('/');
+    if (slash >= 0) { dirPart = namePart.slice(0, slash + 1); namePart = namePart.slice(slash + 1); }
+    const remote = dirPart
+      ? `cd ${JSON.stringify(dirPart)} 2>/dev/null; compgen -f -- ${JSON.stringify(namePart)}`
+      : `compgen -f -- ${JSON.stringify(namePart)}`;
+    const r = await sshExec(srv, remote, 8000);
+    const matches = String((r && r.out) || '').split('\n').map(s => s.trim()).filter(Boolean).slice(0, 60);
+    return { ok: true, dirPart, matches };
+  } catch (err) { return { ok: false, matches: [] }; }
 });
 ipcMain.handle('galaxy:sshShellInput', (e, { shellId, serverId, cmd } = {}) => {
   if (IS_MAS) return { ok: false, error: 'Gömülü terminal App Store sürümünde devre dışı.' };

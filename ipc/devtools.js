@@ -281,44 +281,6 @@ module.exports = function register(g) {
     return { ok: restored > 0, restored };
   });
 
-  // ---------- R4) Test Gezgini: keşif + koş ----------
-  g.ipcMain.handle('galaxy:testDiscover', async (e, { root } = {}) => {
-    if (!root || !knownPaths.has(root)) return { ok: false, tests: [] };
-    const r = await runScan('testDiscover', { root }, 15000);
-    return r && r.ok ? r : { ok: false, tests: [], error: (r && r.error) || 'keşif yapılamadı' };
-  });
-  const runCmd = (root, cmd, timeout) => new Promise(res => {
-    const child = spawn(cmd, { cwd: root, shell: true, env: { ...ENV, CI: '1', FORCE_COLOR: '0' }, detached: process.platform !== 'win32' });
-    let out = ''; const started = Date.now();
-    const to = setTimeout(() => { try { if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, 'SIGKILL'); else child.kill('SIGKILL'); } catch (e) { try { child.kill('SIGKILL'); } catch (e2) {} } }, timeout || 180000);
-    child.stdout.on('data', d => { out += d; if (out.length > 512 * 1024) out = out.slice(-512 * 1024); });
-    child.stderr.on('data', d => { out += d; });
-    child.on('error', err => { clearTimeout(to); res({ ok: false, out: out + String(err.message || ''), code: -1, ms: Date.now() - started }); });
-    child.on('close', code => { clearTimeout(to); res({ ok: code === 0, out, code, ms: Date.now() - started }); });
-  });
-  function parseProblems(root, out) {
-    const probs = [];
-    for (const line of String(out || '').split('\n')) {
-      const m = line.match(/([\w@./-]+\.[A-Za-z]{1,8}):(\d+)(?::(\d+))?/) || line.match(/([\w@./-]+\.[A-Za-z]{1,8})\((\d+),(\d+)\)/);
-      if (m && !/node_modules/.test(m[1]) && /fail|error|✕|×|FAIL|Error/i.test(line)) probs.push({ file: m[1], line: +m[2], col: m[3] ? +m[3] : 0, severity: 'error', text: line.trim().slice(0, 200), source: 'test' });
-      if (probs.length >= 80) break;
-    }
-    return probs;
-  }
-  g.ipcMain.handle('galaxy:testRun', async (e, { root, file, name, runner } = {}) => {
-    if (!root || !knownPaths.has(root)) return { ok: false, error: 'Geçersiz kök' };
-    let pkg = null; try { pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')); } catch (err) {}
-    const r = runner || (pkg && /vitest/.test(JSON.stringify(pkg)) ? 'vitest' : pkg && /jest/.test(JSON.stringify(pkg)) ? 'jest' : 'pytest');
-    let cmd;
-    const q = s => '"' + String(s).replace(/"/g, '') + '"';
-    if (r === 'vitest') cmd = 'npx vitest run ' + (file ? q(file) : '') + (name ? ' -t ' + q(name) : '');
-    else if (r === 'jest') cmd = 'npx jest ' + (file ? q(file) : '') + (name ? ' -t ' + q(name) : '') + ' --ci';
-    else if (r === 'npm') cmd = 'npm test';
-    else cmd = 'python3 -m pytest ' + (file ? q(file) : '') + (name ? ' -k ' + q(name) : '') + ' -q';
-    const res = await runCmd(root, cmd, 240000);
-    return { ok: true, passed: res.ok, code: res.code, ms: res.ms, cmd, out: String(res.out || '').slice(-24000), problems: parseProblems(root, res.out) };
-  });
-
   // ---------- R5) Dosya geçmişi / blame / eski sürüm ----------
   g.ipcMain.handle('galaxy:gitFileHistory', async (e, { projectId, file } = {}) => {
     const gr = await gitOk(projectId); if (gr.error) return { ok: false, error: gr.error };

@@ -169,6 +169,7 @@ Ekran 3 kolondur: sol (ağaç / git), orta (iş), sağ **bağlam** (nerede kald�
   - **Veri katmanı** kartı projenin veritabanlarını gösterir. Kaynaklar: `.env`, compose, Prisma şeması, sürücü paketleri, koddaki SQL/ORM kullanımı.
   - Bağlı bir bağlantı varsa canlı durumu ve tablolarını da gösterir; tabloya tıklayınca DB sekmesinde açılır. Bağlı değilse **Bağla** ile `.env`'den kurulur.
   - **Proje haritası** kartı dosya, satır, modül, rota ve IPC özetini verir.
+- **✎ Tahta (tam ekran):** gezegen başına sonsuz tuval — yapışkan not, şekil, çerçeve, akıllı ok, çizim, şablon (akış · fırtına · kanban · karar · retro · yolculuk), kilit, minimap, SVG/JSON. Sağda notlar; kayıt `.galaxy/tahta.json`.
 - **⤢ Akış şeması (tam ekran):** proje kodu çalıştırılmadan okunur ve soldan sağa akan bir şema çizilir. Sıra: giriş noktaları (`npm` script'leri, `main`, `__main__`, HTML `<script>`), klasör modülleri, veritabanları ve dış servisler (Stripe, OpenAI, fetch edilen hostlar…).
   - **Oklar:** import, Electron IPC / `contextBridge`, ön yüzden API rotasına giden HTTP çağrısı, DB erişimi.
   - **Düğüme tıklayınca:** dosyalar, rotalar (dosya:satır), IPC kanalları, dokunduğu tablolar, bağımlı olduğu ve onu kullanan modüller görünür.
@@ -278,9 +279,9 @@ Yerleşik ekip (ilk kurulumda "Ekibini seç" adımında listelenir, sonra **Ajan
 | Ajan | Ne yapar | Yetki |
 |------|----------|-------|
 | **Git Yöneticisi** | Yerel + uzak dallar, commit, stash, PR/MR; dal grafiğini çizer, adım adım anlatır | `git`, `gh`, `glab`; geri alınamaz işlemden önce onay ister |
-| **Kod Kalitesi** | Dili/framework'ü tanır, code review + SonarQube kategorileriyle `dosya:satır` bulgular, kalite kapısı kararı | Sadece okur |
+| **Kod Kalitesi** | Commitlenmemiş diff’i tarar: kolektör + Claude yargıcı, skor / kalite kapısı, `dosya:satır` bulgular (Git **Kod incele**, Diff incele, Kaptan **review al**) | Sadece okur |
 | **Dokümantasyon** | md, pdf, xlsx/csv, görsel/SVG dokümanları bulur, üretir, iyileştirir | Dosya yazar; üzerine yazmadan sorar |
-| **Akış Analisti** | Her akışı aşamalarıyla çıkarır; sorunları ve git geçmişinden nasıl çözüldüklerini gösterir | Sadece okur |
+| **Akış Analisti** | Fonksiyon / çağrı şeması, adım adım yürüyüş, `.galaxy/flow.drawio` | Şema + draw.io |
 | **Planlayıcı** | Fikri sorgular, MVP ve riskleri çıkarır, 3-4 alternatif plan + uzun proje promptu yazar | Sadece okur |
 
 **Toplantı Salonu** (Ajanlar sekmesi): ekip kartları; **Konuş** ile ajan tam ekran çalışma alanında açılır (solda yetenekler ve hızlı işler, ortada sohbet). **Toplantı masası**na bir konu yazıp katılımcıları seçersen ajanlar sırayla, birbirini görerek konuşur; sonunda Kaptan kararları ve yapılacakları özetler. Geçmiş toplantılar saklanır. Ajanlar uzaydayken tüm projelere, bir projeye girdiğinde yalnız o projeye bakar. Eski ATLAS/NAVIGATOR/… ekibi ilk açılışta `backups/agents-v1.json`'a yedeklenir; kendi oluşturduğun ajanlar korunur.
@@ -390,7 +391,8 @@ ProjectGalaxy/                       (kod)
 │   ├── project-map.js               #   proje haritası: giriş → modül → rota/IPC → veri → dış servis (akış şeması)
 │   ├── cli.js                       #   platformdan bağımsız CLI çağrısı (Windows .cmd → gömülü Node)
 │   ├── mcp-client.js                #   MCP stdio istemcisi (posta vb.)
-│   └── trainings.js                 #   Eğitimlerim: docx/pptx/ipynb okuma
+│   ├── trainings.js                 #   Eğitimlerim: docx/pptx/ipynb okuma
+│   └── review.js                    #   kod inceleme: kolektör, skor, reviews/ saklama
 ├── ipc/                             # Arayüzün çağırdığı IPC kanalları
 │   ├── core.js                      #   evren/proje, dosya ağacı ve dosya CRUD, todo, README, Ayarlar
 │   ├── db-git.js                    #   Postgres/MySQL/SQLite/SQL Server + git işlemleri
@@ -399,6 +401,7 @@ ProjectGalaxy/                       (kod)
 │   ├── planet-work.js               #   gezegen bağlamı, PR/CI/issue (gh), evren trafiği/grep
 │   ├── devtools.js                  #   gerçek PTY terminal, dosya izleme, tanılama, LSP, debug, işler
 │   ├── agent-engine.js              #   yerleşik ajan motoru (CLI ya da API anahtarı)
+│   ├── review.js                    #   galaxy:reviewRun — dirty diff incelemesi
 │   ├── pty-host.py                  #   PTY köprüsü (python pty.spawn) — terminal sekmesi
 │   ├── lang-worker.js, scan-worker.js  # worker thread'ler: TypeScript dil servisi, toplu arama, proje haritası
 ├── newui/                           # Uygulamanın yüklediği arayüz
@@ -514,7 +517,8 @@ Dağıtım detayı: `PRODUCTIZATION.md`.
 - **Docker** — sekme açılınca otomatik tazelenir, durmuş konteynerler de listelenir, boş-durum mesajı.
 - **Zamanlayıcı** — görev çıktısı artık arayüzde görünür + bildirim.
 - **Uzak SSH** — login kabuk (doğru PATH), evren ekleme akışı sadeleşti.
-- **UX/erişilebilirlik** — segmentli navigasyon, HUD kırpılması giderildi, ikincil metin `#9aa3c2`, `j/k` gezegen seçimi, `prefers-reduced-motion`.
+- **UX/erişilebilirlik** — segmentli navigasyon, HUD kırpılması giderildi, ikincil metin `--gx-dim`, `j/k` gezegen seçimi, `prefers-reduced-motion`.
+- **v2 Liquid Glass** — koyu doğal zemin + buzlu cam yüzeyler; palet ve ışık kuralları `docs/DESIGN.md`.
 
 ## Sürüm çıkarma (otomatik — CI/CD)
 

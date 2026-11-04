@@ -22,7 +22,7 @@
     const canvas=()=>{ this._asstBind(); return A.canvas; };
     const N=96; const P=[];
     for(let i=0;i<N;i++){ P.push({a:Math.random()*Math.PI*2, r:26+Math.random()*66, sp:0.003+Math.random()*0.012, sz:0.7+Math.random()*2.4, ph:Math.random()*Math.PI*2, rr:0.85+Math.random()*0.3}); }
-    const COL={ idle:[97,220,255], listening:[85,232,139], working:[70,132,246], speaking:[138,231,255] };
+    const COL={ idle:[124,196,255], listening:[111,211,160], working:[124,196,255], speaking:[95,227,192] };
     let tk=0;
     const draw=()=>{ A._raf=requestAnimationFrame(draw);
       const reduce=this._reduced(); if(!reduce) tk++;
@@ -133,11 +133,11 @@
   _onUpdate(kind,p){ if(kind==='available'){ this._showUpdateBanner(p); } else if(kind==='none'){ this.toast((p&&p.noRepo)?'Güncelleme deposu ayarlı değil':'Zaten en güncel sürümdesin ✓'); } else if(kind==='error'){ this.toast('Güncelleme denetlenemedi (bağlantı?)','err'); } }
   _showUpdateBanner(p){ try{ if(!p||!p.version) return; const old=document.getElementById('gx-update'); if(old) old.remove();
     const el=document.createElement('div'); el.id='gx-update';
-    el.style.cssText='position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,rgba(97,220,255,.18),rgba(199,123,255,.18));border:1px solid rgba(97,220,255,.42);border-radius:12px;padding:10px 12px 10px 16px;backdrop-filter:blur(14px);box-shadow:0 12px 44px rgba(0,0,0,.5);font-family:Inter,system-ui,-apple-system,sans-serif;animation:fadeUp .3s ease both';
-    el.innerHTML='<span style="font-size:16px">🚀</span><span style="font-size:13px;color:#dbe4ff">Yeni sürüm <b>v'+String(p.version).replace(/[<>]/g,'')+'</b> hazır</span>';
-    const dl=document.createElement('button'); dl.textContent='İndir'; dl.style.cssText='border:1px solid #61dcff;background:rgba(97,220,255,.16);color:#61dcff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;font-family:inherit';
+    el.style.cssText='position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:14px;background:var(--lg-3-fill);border:1px solid var(--gx-line);border-radius:var(--r-md);padding:10px 12px 10px 16px;box-shadow:var(--lg-drop);font-family:var(--gx-font)';
+    el.innerHTML='<span style="font-size:16px">🚀</span><span style="font-size:13px;color:var(--gx-ink)">Yeni sürüm <b>v'+String(p.version).replace(/[<>]/g,'')+'</b> hazır</span>';
+    const dl=document.createElement('button'); dl.textContent='İndir'; dl.style.cssText='border:1px solid var(--gx-accent);background:color-mix(in srgb, var(--gx-accent) 16%, transparent);color:var(--gx-accent);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;font-family:inherit';
     dl.onclick=()=>{ try{ window.galaxy&&window.galaxy.openUpdate&&window.galaxy.openUpdate(p.url); }catch(e){} el.remove(); };
-    const x=document.createElement('span'); x.textContent='✕'; x.title='Kapat'; x.style.cssText='color:#9aa3c2;cursor:pointer;font-size:14px;padding:0 4px'; x.onclick=()=>el.remove();
+    const x=document.createElement('span'); x.textContent='✕'; x.title='Kapat'; x.style.cssText='color:var(--gx-dim);cursor:pointer;font-size:14px;padding:0 4px'; x.onclick=()=>el.remove();
     el.appendChild(dl); el.appendChild(x); document.body.appendChild(el);
   }catch(e){} }
   // Konuşma metnini temizle: gizli aksiyon komutları, emoji, markdown → sesli okumaya uygun düz metin
@@ -278,13 +278,14 @@
     this._asstSay('assistant','Seni dinliyorum, konuş. Bitince “dur” ya da “çekil” de, kapatırım.',{speak:false}); }
   _asstMicBtn(on){ const A=this._asst; if(!A||!A.micBtn) return; try{ A.micBtn.classList.toggle('on', !!on); A.micBtn.setAttribute('aria-pressed', on?'true':'false'); }catch(e){} A.micBtn.title=on?'Dinlemeyi durdur':'Voice On'; this._asstSyncChrome(); }
   _asstChatMode(){ const A=this._asst; if(!A) return; this._asstSilence(); this.setState({_asstTick:(this.state._asstTick||0)+1}); }
-  _asstSetLang(lang){ const l=lang==='en'?'en':'tr'; this._lang=l; this._langUserSet=true;
-    try{ localStorage.setItem('gxLang',l); localStorage.setItem('gxAsstLang',l); }catch(e){}
-    this._asstVoice=this._asstPickVoice(); this._applyLang();
-    const A=this._asst; if(A&&A.rec){ try{ A.rec.lang=l==='en'?'en-US':'tr-TR'; }catch(e){} }
+  _asstSetLang(lang){
+    this._setLang(lang,'user');
+    this._asstVoice=this._asstPickVoice();
+    const A=this._asst; const l=this._lang;
+    if(A&&A.rec){ try{ A.rec.lang=l==='en'?'en-US':'tr-TR'; }catch(e){} }
     if(A&&A.native&&(A.sttMode==='command'||A.sttMode==='wake'||A._sttRunning)){ this._asstSttStop(); this._asstSttStart(); }
     this.setState({_asstTick:(this.state._asstTick||0)+1});
-    try{ if(window.galaxy&&window.galaxy.settingsGet&&window.galaxy.settingsSave){ window.galaxy.settingsGet().then(r=>{ const s=(r&&r.settings)||{}; window.galaxy.settingsSave(Object.assign({}, s, {lang:l})); }); } }catch(e){} }
+  }
   _asstStartRec(){ const A=this._asst; if(!A||!A.convo) return; const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return;
     try{ const rec=new SR(); A.rec=rec; rec.lang=(this._lang==='en')?'en-US':'tr-TR'; rec.interimResults=true; rec.continuous=true; rec.maxAlternatives=3;
       rec.onstart=()=>{ if(A.state!=='speaking'&&A.state!=='working') this._asstSetState('listening'); };
@@ -435,7 +436,7 @@
     if(/(posta|gmail|e-?posta|(^| )mail( |$))/.test(a)) return 'posta';
     if(/(sunucu|ssh|servers?)/.test(a)) return 'servers';
     return ''; }
-  _asstTabLabel(id){ return {genel:'Ana Sayfa',evren:'Projeler',pano:'Görevler',pixel:'Ajanlar',db:'Veritabanları',docker:'Konteynerler',zaman:'Zamanlanmış işler',dongu:'Proje taraması',posta:'E-posta',servers:'SSH sunucuları'}[id]||id; }
+  _asstTabLabel(id){ return this._surfaceLabel(id)||id; }
   _asstCtx(){
     const pw=this.state._pw||{};
     const bits=[];
@@ -483,6 +484,9 @@
       case 'run_script':{ const scripts=(this.state._pw&&this.state._pw.scripts)||[]; const hit=scripts.find(s=>String(s.name).toLowerCase()===String(arg||'').toLowerCase())||scripts[0]; if(!hit) return 'Bu gezegende script yok.'; this._runPlanetScript(hit); return hit.name+' çalışıyor.'; }
       case 'git_pr': this._planetPrCreate(); return 'PR açıyorum.';
       case 'open_agent':{ const i=arg.indexOf('|'); const q=(i>=0?arg.slice(0,i):arg).trim(); const task=i>=0?arg.slice(i+1).trim():''; const ag=this._findAgent(q); if(!ag) return q?('“'+q+'” diye bir ajan bulamadım.'):null; this._agentWsOpen(ag.id, task); return ag.name+' açıldı.'; }
+      case 'review':{ if(!this.sel||!this.sel.id) return 'İnceleme için önce bir projeye girmem gerek.'; this._crStart(); return 'Kod Kalitesi değişiklikleri inceliyor.'; }
+      case 'flow':{ if(!this.sel||!this.sel.id) return 'Akış için önce bir projeye girmem gerek.'; this._flowAgentGo(arg||'çiz'); return /drawio|kaydet/i.test(arg||'')?'Akışı çizip draw.io olarak kaydediyorum.':/adım|walk/i.test(arg||'')?'Akışı adım adım açıyorum.':'Akış şemasını açtım.'; }
+      case 'tahta':{ if(!this.sel||!this.sel.id) return 'Tahta için önce bir projeye girmem gerek.'; this.openTahta(); return 'Tahtayı açtım.'; }
       case 'meeting': this._openTab('pixel'); this._salonStart(arg); return 'Toplantıyı açtım.';
     }
     return null; }
@@ -515,6 +519,9 @@
     if((/\bgit\b/.test(n) && /\b(pull|çek|cek)\b/.test(n)) || /\bpull et\b/.test(n)){ return this._asstReply(this._asstDoAction('git_pull')); }
     if(/\bcommit\b/.test(n)){ const msg=text.replace(/.*commit\s*(et|le|leyelim)?\s*:?/i,'').trim(); return this._asstReply(this._asstDoAction('git_commit',msg)); }
     if(/\bgit\b/.test(n) && /(durum|status|ne durumda)/.test(n) && this._inPlanet()){ this._setLeftTab('git'); const g=this.state._git; return this._asstReply(((g&&g.branch)||'?')+' dalındasın, '+((g&&g.dirty)||0)+' bekleyen değişiklik var.'); }
+    if(/(code review|kod incele|review al|kalite taram|değişiklik.*incele|diff incele)/.test(n)){ return this._asstReply(this._asstDoAction('review')); }
+    if(/(akış|akis|flow).*(çiz|şema|sema|aç|ac|draw)|drawio|draw\.io|adım adım/.test(n)){ return this._asstReply(this._asstDoAction('flow', /drawio|kaydet/.test(n)?'drawio':/adım/.test(n)?'walk':'çiz')); }
+    if(/(tahta|karalama|çalışma alanı|calisma alani|whiteboard|serbest alan)/.test(n)){ return this._asstReply(this._asstDoAction('tahta')); }
     // 5) klasör / terminal / ayarlar
     if(/(klasör|finder).*(aç|göster)|(aç|göster).*(klasör|finder)/.test(n)&&this._inPlanet()){ return this._asstReply(this._asstDoAction('open_folder')); }
     if(/(gerçek |sistem )?terminal.*(aç)|(aç).*terminal/.test(n)&&this._inPlanet()){ return this._asstReply(this._asstDoAction('open_terminal')); }
@@ -579,38 +586,4 @@
     else if(m.kind==='tool'||m.kind==='info'||m.kind==='raw'){ /* sessiz */ }
     else if(m.kind==='err'){ const t=String(m.text||'').trim(); if(t){ this._asstSetState('idle'); this._asstReply('Şununla takıldım: '+t.slice(0,180)); A._clRaw=''; A._clRow=null; } }
     else if(m.kind==='done'){ if(String(A._clRun||'').indexOf('asst-brief-')===0){ try{ if(this._briefPendingDate) localStorage.setItem('gxBriefDate',this._briefPendingDate); }catch(e){} this._briefPendingDate=null; } const disp=this._asstActDisplay(A._clRaw||'').trim(); A._clRaw=''; A._clRow=null; this._asstSetState('idle'); this._stampAgentPulse(false); if(disp) this._asstPersist('assistant',disp); if(disp && A.speak) this._asstSpeak(disp); else this._asstResumeListen(); } }
-
-  _waitThree(t){ if((this._uiTheme||'apex')==='apex'){ this._initBg(); return; } if(window.THREE){ this._initBg(); return; } if(t>80) return; setTimeout(()=>this._waitThree(t+1),60); }
-  _initBg(){
-    const canvas=document.getElementById('bgGalaxy'); if(!canvas) return;
-    // Apex / Özet: Three.js spiral yok — #bgApex ızgarası. Canvas gizle, RAF başlatma.
-    if((this._uiTheme||'apex')==='apex'){
-      try{ canvas.style.visibility='hidden'; }catch(e){}
-      if(this._raf){ try{ cancelAnimationFrame(this._raf); }catch(e){} this._raf=null; }
-      return;
-    }
-    const THREE=window.THREE;
-    const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-    const scene=new THREE.Scene();
-    const camera=new THREE.PerspectiveCamera(60,1,0.1,100); camera.position.set(0,3,7); camera.lookAt(0,0,0);
-    const group=new THREE.Group(); scene.add(group);
-    const COUNT=12000,ARMS=4,R=6.4;
-    const pos=new Float32Array(COUNT*3),col=new Float32Array(COUNT*3);
-    const cIn=new THREE.Color('#fffce8'),cMid=new THREE.Color('#4fe0ff'),cOut=new THREE.Color('#c77bff');
-    for(let i=0;i<COUNT;i++){const r=Math.pow(Math.random(),0.7)*R;const arm=(i%ARMS)/ARMS*Math.PI*2;const a=arm+r*0.8;const sp=(Math.random()-0.5)*(0.4+r*0.12);
-      pos[i*3]=Math.cos(a)*r+sp;pos[i*3+1]=(Math.random()-0.5)*(0.22+(R-r)*0.04);pos[i*3+2]=Math.sin(a)*r+sp;
-      const tt=r/R;const c=tt<0.5?cIn.clone().lerp(cMid,tt*2):cMid.clone().lerp(cOut,(tt-0.5)*2);col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;}
-    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
-    group.add(new THREE.Points(g,new THREE.PointsMaterial({size:0.09,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:0.88,blending:THREE.AdditiveBlending,depthWrite:false})));
-    const sc2=2800,sp2=new Float32Array(sc2*3);for(let i=0;i<sc2;i++){sp2[i*3]=(Math.random()-0.5)*80;sp2[i*3+1]=(Math.random()-0.5)*80;sp2[i*3+2]=(Math.random()-0.5)*80;}
-    const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(sp2,3));
-    scene.add(new THREE.Points(sg,new THREE.PointsMaterial({size:0.14,color:'#e8f4ff',transparent:true,opacity:0.72,depthWrite:false})));
-    const sun=new THREE.Mesh(new THREE.SphereGeometry(0.28,28,28), new THREE.MeshBasicMaterial({color:'#ffc14a'}));
-    sun.position.set(0,0,0); scene.add(sun);
-    group.rotation.x=0.78;
-    const resize=()=>{const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
-    this._onResize=resize;window.addEventListener('resize',resize);resize();
-    const loop=()=>{this._raf=requestAnimationFrame(loop); if(this._reduced()) return; group.rotation.y+=0.00018; renderer.render(scene,camera);};loop();
-  }
 

@@ -76,7 +76,7 @@
         onTalk:()=>this._agentWsOpen(a.id), pauseLabel:a.paused?'Devam ettir':'Duraklat', onTogglePause:()=>this._agentSetPaused(a.id,!a.paused),
         onDelete:()=>this.askConfirm('“'+a.name+'” ekipten çıkarılsın mı?',()=>this._agentDelete(a.id),{title:'Ajanı sil',okLabel:'Sil',kind:'danger'}),
         hasBadge:(a.badge||0)>0, badge:a.badge||0 }; });
-    const missing=(this._salonCatalog||[]).filter(c=>!c.added&&!agents.some(a=>a.id===c.id)).map(c=>({ name:c.name, role:c.role||'', initial:String(c.name||'?').charAt(0), avatarStyle:avatar(c.color||'#61dcff'), abilities:(c.abilities||[]).slice(0,2).map(t=>({t})), onAdd:()=>this._salonRestore(c.id) }));
+    const missing=(this._salonCatalog||[]).filter(c=>!c.added&&!agents.some(a=>a.id===c.id)).map(c=>({ name:c.name, role:c.role||'', initial:String(c.name||'?').charAt(0), avatarStyle:avatar(c.color||'var(--gx-accent)'), abilities:(c.abilities||[]).slice(0,2).map(t=>({t})), onAdd:()=>this._salonRestore(c.id) }));
     return {
       salonCards:cards, salonHasMissing:missing.length>0, salonMissing:missing,
       salonAddAgent:()=>this.openAgentAdd(),
@@ -92,7 +92,7 @@
       salonViewing:!!view, salonViewTitle:view?(view.topic+' · '+new Date(view.ts).toLocaleString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'',
       salonBackLive:()=>{ S.viewId=null; this._salonTick(); },
       salonHasFeed:(turns||[]).length>0, salonNoFeed:!(turns||[]).length,
-      salonTurns:(turns||[]).map(t=>({ name:t.name, initial:String(t.name||'?').charAt(0), avatarStyle:avatar(t.color||'#61dcff'),
+      salonTurns:(turns||[]).map(t=>({ name:t.name, initial:String(t.name||'?').charAt(0), avatarStyle:avatar(t.color||'var(--gx-accent)'),
         stateLabel:stLabel[t.status]||'', isRun:t.status==='run', lines:this._mdLines(t.text||'',''), hasText:!!String(t.text||'').trim(), noText:!String(t.text||'').trim() })),
       salonHasSummary:!!summary, salonSumRun:!!(summary&&summary.status==='run'&&!String(summary.text||'').trim()),
       salonSumLines:summary?this._mdLines(summary.text||'',''):[],

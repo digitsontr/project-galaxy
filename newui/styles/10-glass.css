@@ -1,0 +1,34 @@
+/* Üç cam kademesi — bütçeden muaf malzeme. Başka yerde backdrop-filter yazılmaz. */
+.lg-1,.gx-chrome,.gx-actbar,header.gx-chrome,aside.gx-chrome,footer.gx-hud,.gx-term{
+  background:var(--lg-1-fill);
+  backdrop-filter:var(--lg-1-blur);
+  -webkit-backdrop-filter:var(--lg-1-blur);
+  border-color:var(--lg-edge);
+  box-shadow:var(--lg-hi),var(--lg-drop)}
+.lg-2,.gx-uni-card,.gx-stat,.gx-brief,.gx-first60,.gx-setup,.gx-howto,.gx-loop-panel,.gx-kanban-col,.gx-empty-state,.gx-project-tile,.gx-salon-card,.gx-resume-p,.gx-mail-list,.gx-mail-read,.gx-git-col,.gx-ct-row,.gx-sch-row,.gx-srv-row,.gx-form-card,.gx-help,.gx-desk-tool,.gx-eng,.gx-db-pane,.gx-input,textarea.gx-input,.ga-compose input{
+  background:var(--lg-2-fill);
+  backdrop-filter:var(--lg-2-blur);
+  -webkit-backdrop-filter:var(--lg-2-blur);
+  border:1px solid var(--lg-edge);
+  box-shadow:var(--lg-hi),var(--lg-drop);
+  border-radius:var(--r-md)}
+.gx-splash,.gx-ws-head,.gx-ws-compose,.ga-livechip{background:var(--lg-3-fill);backdrop-filter:var(--lg-3-blur);-webkit-backdrop-filter:var(--lg-3-blur)}
+.lg-3,.ga-panel,.gx-git-shell,.gx-splash-card,.gx-menu-pop,.gx-help,.gx-ws,.gx-confirm,details.gx-menu[open]>.gx-menu-pop{
+  background:var(--lg-3-fill);
+  backdrop-filter:var(--lg-3-blur);
+  -webkit-backdrop-filter:var(--lg-3-blur);
+  border:1px solid var(--lg-edge);
+  box-shadow:var(--lg-hi),var(--lg-drop);
+  border-radius:var(--r-lg)}
+.lg-rim,.gx-project-tile,.gx-uni-card,.gx-kanban-col,.gx-srv-row,.gx-stat,.gx-sch-row,.gx-ct-row,.gx-salon-card,.gx-brief{
+  position:relative;overflow:hidden}
+.gx-form-card{position:relative}
+.lg-rim::after,.gx-project-tile::after,.gx-uni-card::after,.gx-kanban-col::after,.gx-srv-row::after,.gx-stat::after,.gx-sch-row::after,.gx-ct-row::after,.gx-form-card::after,.gx-salon-card::after,.gx-brief::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:1px;
+  background:linear-gradient(135deg,rgba(255,255,255,.62),rgba(124,196,255,.28) 42%,rgba(180,166,240,.18) 72%,rgba(255,255,255,.12));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude}
+.gx-tabs>button.on{position:relative;overflow:hidden}
+.gx-tabs>button.on::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -8px 16px rgba(95,227,192,.10);
+  background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.03))}

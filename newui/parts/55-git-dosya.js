@@ -10,11 +10,13 @@
   gitStageAll(){ const p=this.sel; if(p&&p.id) return this._gitDo(window.galaxy.gitStage({projectId:p.id})); return Promise.resolve({ok:false}); }
   async gitCommit(){ const p=this.sel; const g=this.state._git||{}; const hasStaged=(g.staged>0||(g.files||[]).some(f=>f.staged)); const msg=String(this.state.gitMsg||'').trim()||this._suggestCommitMsg(); if(!p||!p.id||!msg){ this.toast('commit mesajı yaz','err'); return; }
     if(!hasStaged){ this.toast('Önce commit edilecek dosyaları seç','err'); return; }
+    const run=this.state._cr; const gateFail=run&&run.gate==='fail';
+    const dirtyHint=(this.state._git&&this.state._git.dirty)?(this.state._git.dirty+' dosya kaydedilecek.'):'Sahnedeki değişiklikler commit olur. Push ayrıdır.';
     this.askConfirm('Commit: '+msg, async ()=>{
       this.setState({gitMsg:msg});
       const r=await this._gitDo(window.galaxy.gitCommit({projectId:p.id,message:msg}),'✓ commit yapıldı');
       if(r&&r.ok){ this.setState({gitMsg:''}); this._logActivity('CREATE_COMMIT', (p.name||'proje')+': '+msg); this._loadPlanetWork(); }
-    }, {title:'Commit', detail:(this.state._git&&this.state._git.dirty)?(this.state._git.dirty+' dosya kaydedilecek.'):'Sahnedeki değişiklikler commit olur. Push ayrıdır.', okLabel:'Commit', kind:'warn'}); }
+    }, {title:'Commit', detail:gateFail?('Son kod incelemesi KALDI · '+run.score+'. Yine de commit? '+dirtyHint):dirtyHint, okLabel:'Commit', kind:gateFail?'danger':'warn'}); }
   _suggestCommitMsg(){
     const g=this.state._git||{}; const files=(g.files||g.changed||[]).map(f=>f.path||f.file||f).filter(Boolean);
     const names=files.map(f=>String(f).split('/').pop()).slice(0,4);
@@ -56,9 +58,9 @@
     try{ const r=await window.galaxy.gitDiff({projectId:p.id,file,staged}); this.setState({_gitDiff:{file,content:(r&&r.ok)?(r.out||'(değişiklik yok)'):('hata: '+((r&&r.error)||''))}}); }
     catch(e){ this.setState({_gitDiff:{file,content:'okunamadı'}}); } }
   closeGitDiff(){ this.setState({_gitDiff:null}); }
-  _diffLines(text){ return String(text||'').split('\n').slice(0,2000).map(l=>{ let c='#9aa3c2';
-    if(/^\+\+\+|^---/.test(l)) c='#9aa3c2'; else if(l[0]==='+') c='#55e88b'; else if(l[0]==='-') c='#ff6b7a'; else if(/^@@/.test(l)) c='#61dcff'; else if(/^diff |^index /.test(l)) c='#9aa3c2';
-    return {t:l||' ',style:`color:${c};white-space:pre;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5`}; }); }
+  _diffLines(text){ return String(text||'').split('\n').slice(0,2000).map(l=>{ let c='var(--gx-dim)';
+    if(/^\+\+\+|^---/.test(l)) c='var(--gx-dim)'; else if(l[0]==='+') c='var(--gx-ok)'; else if(l[0]==='-') c='var(--gx-err)'; else if(/^@@/.test(l)) c='var(--gx-accent)'; else if(/^diff |^index /.test(l)) c='var(--gx-dim)';
+    return {t:l||' ',style:`color:${c};white-space:pre;font-family:var(--gx-font);font-size:12px;line-height:1.5`}; }); }
   async _loadGit(){
     const p=this.sel; if(!p) return;
     // Seçili projenin git durumu + gerçek dosya ağacı (gezegen detayındaki yörünge)
@@ -67,6 +69,7 @@
     try{ if(window.galaxy&&window.galaxy.readme&&p._path){ const r=await window.galaxy.readme(p._path); this.setState({_readme:(r&&r.content)?r:null}); } else this.setState({_readme:null}); }catch(e){ this.setState({_readme:null}); }
     if(this._readmeSyncOn()) this._autoPlanFromReadme();
     this._loadPlanetWork();
+    try{ this._crLoad(); }catch(e){}
   }
   _ctxPlanet(){
     const st=this.state||{};
@@ -236,7 +239,7 @@
       if(/\.(json|ya?ml|toml|env|lock|cfg|ini)$/.test(l)) return 'cfg';
       return 'other';
     };
-    const col=k=>({dir:'#7aa2ff',doc:'#ffc861',code:'#4fe0ff',img:'#ff8ec8',cfg:'#55e88b',other:'#c77bff'}[k]||'#c77bff');
+    const col=k=>({dir:'#7aa2ff',doc:'var(--gx-warn)',code:'var(--gx-accent)',img:'#ff8ec8',cfg:'var(--gx-ok)',other:'var(--gx-violet)'}[k]||'var(--gx-violet)');
     const cwd=this.state._fsCwd||''; const nodes=this._childrenAt(cwd);
     const top=nodes.slice(0,14), N=top.length||1; const base=(this.sel&&this.sel._path)||'';
     const iso=this._isoSplit(N); const CX=50, CY=50;
@@ -363,7 +366,7 @@
         push(rest.charAt(0),''); rest=rest.slice(1);
       }
       if(!segs.length) segs.push({t:' ', cls:''});
-      return {n:String(i+1), segs, changed:_changed, lineStyle:_changed?'background:rgba(83,201,139,.09);box-shadow:inset 2px 0 0 #53c98b':''};
+      return {n:String(i+1), segs, changed:_changed, lineStyle:_changed?'background:rgba(83,201,139,.09);box-shadow:inset 2px 0 0 var(--gx-ok)':''};
     });
   }
   _codeLineNos(text){ return String(text||'').split('\n').slice(0,2000).map((_,i)=>({n:String(i+1)})); }
@@ -425,7 +428,7 @@
     if(!hits.length){ this.toast('Eşleşme yok','err'); return; }
     this._pvFindIdx=((this._pvFindIdx==null?-1:this._pvFindIdx)+1)%hits.length;
     const ln=hits[this._pvFindIdx];
-    try{ const el=document.querySelector('[data-pv-line="'+ln+'"]'); if(el){ el.scrollIntoView({block:'center'}); el.style.background='rgba(106,167,255,.18)'; setTimeout(()=>{ el.style.background=''; },900); } }catch(e){}
+    try{ const el=document.querySelector('[data-pv-line="'+ln+'"]'); if(el){ el.scrollIntoView({block:'center'}); el.style.background='color-mix(in srgb, var(--gx-accent) 18%, transparent)'; setTimeout(()=>{ el.style.background=''; },900); } }catch(e){}
     this.toast('Satır '+ln+' · '+(this._pvFindIdx+1)+'/'+hits.length);
   }
   pvFindKey(e){ if(e&&e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.pvFindNext(); } }
@@ -487,10 +490,21 @@
   get sel(){ return this.PROJECTS.find(p=>p.id===this.state.selId) || this.PROJECTS[0] || this._emptyProj(); }
   _emptyProj(){ return { id:'', name:'—', group:'', status:'active', stage:'', desc:'', prog:0, branch:'', plan:[], notes:'', _notes:'', links:[], _links:[], _path:'', _git:null, _readme:false, _stale:0, warn:false, orbit:false, x:50, y:50, size:60 }; }
   planetBg(c){
-    const dark=this.DARK[c]||'#071018';
-    return `radial-gradient(circle at 32% 28%,#f7fbff 0 7%,#d4ecff 16%,${c} 42%,${dark} 78%,#02060c 100%)`;
+    const dark=this.DARK[c]||'#0a1620';
+    return `radial-gradient(circle at 34% 30%, color-mix(in srgb, ${c} 70%, #fff) 0 22%, ${c} 52%, ${dark} 100%)`;
   }
-  rgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+  rgba(c,a){
+    const s=String(c||'');
+    if(!/^#[0-9a-f]{3,8}$/i.test(s)) return `color-mix(in srgb, ${s||'var(--gx-accent)'} ${Math.round(Number(a)*100)}%, transparent)`;
+    const h=s.length===4?('#'+s[1]+s[1]+s[2]+s[2]+s[3]+s[3]):s;
+    const n=parseInt(h.slice(1,7),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  }
+  _cssColor(c){
+    const s=String(c||'').trim();
+    const m=/^var\((--[\w-]+)\)/.exec(s);
+    if(!m) return s||'#7cc4ff';
+    try{ return getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim()||'#7cc4ff'; }catch(e){ return '#7cc4ff'; }
+  }
 
   select(id){ this._planAuto=null; const doSel=()=>{ this._cmDestroy(); if(this._pty&&this._pty.pid!==id) this._ptyDispose(); this.setState({selId:id, _fsCwd:'', _preview:null, _treeOpen:{}, fileTabs:[], _editSavedAt:'', filePalOpen:false, _history:null, _blame:null, _histShow:null, histBusy:false}); this._loadGit(); if(this.state.mode==='planet') this._watchStartFor(); }; if(id!==this.state.selId) this._guardDirty(doSel); else doSel(); }
   enter(){

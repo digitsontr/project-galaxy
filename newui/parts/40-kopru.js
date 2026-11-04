@@ -12,6 +12,7 @@
       _notes:p.notes||'', _links:p.links||[], _path:p.path||'', _git:p.git||null, _stale:p.staleDays||0, _readme:!!p.hasReadme, _remote:!!p.remote };
   }
   _avatar(name,color){
+    color=this._cssColor(color);
     const init=String(name||'?').trim().replace(/[^A-Za-zÇĞİÖŞÜçğıöşü0-9]/g,'').charAt(0).toLocaleUpperCase('tr')||'?';
     // ÖNEMLİ: dc, style'ı `;` üzerinden böldüğü için data-URI'de `;` OLAMAZ (base64/utf8 çalışmaz).
     // Bu yüzden `;` içermeyen `data:image/svg+xml,` + percent-encode kullanılır. SVG çift tırnaklı,
@@ -44,7 +45,7 @@
     if(/design|ux/.test(k)) return ['Bu ekranı değerlendir','Tema tutarlılığı','UX sorunlarını listele'];
     return ['Durum ver','Ne birikti?','Sıradaki iş'];
   }
-  _mapAgent(a){ const c=a.color||'#61dcff'; const av=(window.__resources&&window.__resources['av'+(a.id||'')])||this._avatar(a.name,c);
+  _mapAgent(a){ const c=a.color||'var(--gx-accent)'; const av=(window.__resources&&window.__resources['av'+(a.id||'')])||this._avatar(a.name,c);
     let presets=(a.presets||[]).map(p=>typeof p==='string'?{label:p,ask:p}:{label:p.label||p.ask||'',ask:p.ask||p.label||''}).filter(p=>p.ask).slice(0,4);
     if(!presets.length) presets=this._agentPresetDefaults(a).map(x=>({label:x,ask:x}));
     const sys=this._asText(a.sys||a.prompt);
@@ -193,8 +194,22 @@
     roots.push({ path:p, name:(p.replace(/\/+$/,'').split('/').filter(Boolean).pop())||p });
     this.setState({srvForm:Object.assign({},this.state.srvForm,{roots}), srvRootInput:''}); }
   removeSrvRoot(i){ const roots=((this.state.srvForm&&this.state.srvForm.roots)||[]).slice(); roots.splice(i,1); this.setState({srvForm:Object.assign({},this.state.srvForm,{roots})}); }
-  async srvDelete(id){ try{ await window.galaxy.sshDelete(id); this.toast('✓ sunucu kaldırıldı'); this._loadServers(); this._loadReal(); }catch(e){ this.toast('✕ sunucu kaldırılamadı','err'); } }
-  async srvScan(id){ try{ await window.galaxy.sshScan(id); this._loadServers(); this._loadReal(); }catch(e){ this.toast('✕ tarama başarısız','err'); } }
+  async srvDelete(id){ try{ if(!(window.galaxy&&window.galaxy.sshDelete)){ this.toast('✕ sunucu kaldırılamadı','err'); return; } await window.galaxy.sshDelete(id); this.toast('✓ sunucu kaldırıldı'); this._loadServers(); this._loadReal(); }catch(e){ this.toast('✕ sunucu kaldırılamadı','err'); } }
+  async srvScan(id){
+    if(!id) return;
+    if(this.state._srvScanId) return;
+    if(!(window.galaxy&&window.galaxy.sshScan)){ this.toast('✕ tarama yok','err'); return; }
+    this.setState({_srvScanId:id});
+    this.toast('Sunucu taranıyor…');
+    try{
+      const r=await window.galaxy.sshScan(id);
+      if(!(r&&r.ok)){ this.toast('✕ '+((r&&r.error)||'tarama başarısız'),'err'); return; }
+      const n=r.count!=null?r.count:(r.projects&&r.projects.length)||0;
+      this.toast('✓ '+n+' proje bulundu');
+      this._loadServers(); this._loadReal();
+    }catch(e){ this.toast('✕ tarama başarısız','err'); }
+    finally{ this.setState({_srvScanId:''}); }
+  }
   _uniAct(e, fn){ if(e){ if(e.stopPropagation) e.stopPropagation(); if(e.preventDefault) e.preventDefault(); } if(fn) fn(); }
   _closeUniModal(){ this._uniEditBookmark=null; this.setState({addUni:false, editUniId:null, uniName:'', uniEditRoot:'', uniRemotePath:'', _uniSrvSel:null}); }
   openEditUni(u){ if(!u||!u.id) return;
@@ -256,17 +271,56 @@
     const roots=(srv.roots||[]).slice(); if(!roots.some(r=>r.path===p)) roots.push({ path:p, name:(p.replace(/\/+$/,'').split('/').filter(Boolean).pop())||p });
     try{ await window.galaxy.sshSave(Object.assign({},srv,{roots})); if(window.galaxy.sshScan) await window.galaxy.sshScan(id); await this._loadServers(); this._closeUniModal(); this._loadReal(); }catch(e){ this.toast('✕ uzak evren eklenemedi','err'); } }
   // --- Uzak terminal ---
-  openSrvTerm(s){ if(!s||!s.id||!window.galaxy||!window.galaxy.sshShellStart) return; const sid='srvterm-'+s.id;
-    // temiz oturum: her açılışta çıktı sıfırlanır (birikme olmaz)
+  async openSrvTerm(s){ if(!s||!s.id||!window.galaxy||!window.galaxy.sshShellStart) return; const sid='srvterm-'+s.id;
+    clearTimeout(this._srvWait);
+    this._srvOpening=s.id;
     this._sbout=[{t:'in',x:'⟳ '+(s.name||'')+' bağlanıyor… (anahtar: '+((s.key&&s.key.split('/').pop())||'agent/varsayılan')+')'}];
-    this.setState({_srvTerm:{id:s.id,name:s.name||s.host||'sunucu'},srvTermInput:'',_cov:(this.state._cov||0)+1});
-    try{ window.galaxy.sshShellStart({shellId:sid,serverId:s.id}); }catch(e){}
-    setTimeout(()=>this._focusEl('#ghud-srvterm-input'),120); }
-  closeSrvTerm(){ const t=this.state._srvTerm; if(t&&window.galaxy&&window.galaxy.shellStop){ try{ window.galaxy.shellStop('srvterm-'+t.id); }catch(e){} } this.setState({_srvTerm:null}); }
+    this.setState({_srvTerm:{id:s.id,name:s.name||s.host||'sunucu',ready:false,status:'connecting'},srvTermInput:'',_cov:(this.state._cov||0)+1});
+    setTimeout(()=>this._focusEl('#ghud-srvterm-input'),120);
+    let r=null;
+    try{ r=await window.galaxy.sshShellStart({shellId:sid,serverId:s.id}); }catch(e){ r={ok:false,error:(e&&e.message)||'ssh başlatılamadı'}; }
+    if(this._srvOpening!==s.id) return;
+    if(!r||r.ok===false){ this._srvMarkReady({kind:'err', text:this._failIpc(r,'bağlanılamadı')}); return; }
+    try{ if(window.galaxy.sshShellInput) window.galaxy.sshShellInput({shellId:sid,serverId:s.id,cmd:'true'}); }catch(e){}
+    this._srvWait=setTimeout(()=>{
+      const t=this.state._srvTerm; if(!t||t.ready||t.id!==s.id) return;
+      this._sbout=this._sbout||[]; this._sbout.push({t:'err',x:'Hâlâ yanıt yok. Anahtar, host key veya ağ takılı olabilir. Komut yazmayı dene — bağlandıysa çıkar.'});
+      this.setState({_cov:(this.state._cov||0)+1});
+    },10000); }
+  _srvMarkReady(m){
+    clearTimeout(this._srvWait);
+    const t=this.state._srvTerm||(this._srvOpening?{id:this._srvOpening,name:'',ready:false,status:'connecting'}:null);
+    if(!t||t.ready) return;
+    const err=!!(m&&(m.kind==='err'||m.kind==='exit'));
+    const text=err?String((m&&m.text)||'bağlantı koptu'):('✓ '+(t.name||'')+' bağlandı — komut yaz');
+    if(this._sbout&&this._sbout[0]&&/bağlanıyor/.test(this._sbout[0].x)) this._sbout[0]={t:err?'err':'in',x:text};
+    else { this._sbout=this._sbout||[]; this._sbout.unshift({t:err?'err':'in',x:text}); }
+    this.setState({_srvTerm:Object.assign({},t,{ready:true,status:err?'err':'ok'}),_cov:(this.state._cov||0)+1});
+  }
+  closeSrvTerm(){ const t=this.state._srvTerm; this._srvOpening=null; clearTimeout(this._srvWait); if(t&&window.galaxy&&window.galaxy.shellStop){ try{ window.galaxy.shellStop('srvterm-'+t.id); }catch(e){} } this.setState({_srvTerm:null}); }
   onSrvTermInput(e){ this._sthist_i=null; this.setState({srvTermInput:(e&&e.target&&e.target.value)||''}); }
   onSrvTermKey(e){ if(e.key==='Enter'){ e.preventDefault&&e.preventDefault(); this.sendSrvTerm(); }
+    else if(e.key==='Tab'){ e.preventDefault&&e.preventDefault(); e.stopPropagation&&e.stopPropagation(); }
     else if(e.key==='ArrowUp'){ e.preventDefault&&e.preventDefault(); this._srvHistNav(-1); }
     else if(e.key==='ArrowDown'){ e.preventDefault&&e.preventDefault(); this._srvHistNav(1); } }
+  async _srvComplete(){
+    const t=this.state._srvTerm; const text=String(this.state.srvTermInput||''); if(!t) return;
+    const m=text.match(/(\S*)$/); const token=m?m[1]:''; const before=text.slice(0,text.length-token.length);
+    let r=null;
+    try{
+      if(window.galaxy&&window.galaxy.sshShellComplete) r=await window.galaxy.sshShellComplete({serverId:t.id, token});
+    }catch(e){}
+    const matches=(r&&r.matches)||[]; const dirPart=(r&&r.dirPart)||'';
+    if(!matches.length){ setTimeout(()=>this._focusEl('#ghud-srvterm-input'),0); return; }
+    if(matches.length===1) this.setState({srvTermInput:before+dirPart+matches[0]});
+    else {
+      const common=this._commonPrefix(matches);
+      if(common && (dirPart+common).length>token.length) this.setState({srvTermInput:before+dirPart+common});
+      this._sbout=this._sbout||[]; this._sbout.push({t:'o',x:matches.join('   ')}); this.setState({_cov:(this.state._cov||0)+1});
+      this._scrollBottom('#ghud-srvterm-scroll');
+    }
+    setTimeout(()=>this._focusEl('#ghud-srvterm-input'),0);
+  }
   _srvHistNav(dir){ const h=this._sthist||[]; if(!h.length) return; if(this._sthist_i==null) this._sthist_i=h.length; this._sthist_i=Math.max(0,Math.min(h.length,this._sthist_i+dir)); this.setState({srvTermInput:this._sthist_i>=h.length?'':h[this._sthist_i]}); }
   sendSrvTerm(){ const t=this.state._srvTerm; const text=String(this.state.srvTermInput||'').trim(); if(!t||!text) return;
     this._sthist=this._sthist||[]; if(this._sthist[this._sthist.length-1]!==text) this._sthist.push(text); this._sthist=this._sthist.slice(-100); this._sthist_i=null;
@@ -292,16 +346,16 @@
   closeGuide(){ this.setState({_guideOpen:false}); }
   _helpKey(){ const st=this.state||{}; return st.mode==='planet'?'planet':(st.tab||'genel'); }
   _helpDismissed(){ try{ return JSON.parse(localStorage.getItem('gxHelpDismissed')||'{}'); }catch(e){ return {}; } }
-  _helpDismiss(){ const k=this._helpKey(); const m=this._helpDismissed(); m[k]=1; try{ localStorage.setItem('gxHelpDismissed',JSON.stringify(m)); }catch(e){} this.setState({_helpTick:(this.state._helpTick||0)+1}); }
-  _helpShow(){ const k=this._helpKey(); const m=this._helpDismissed(); delete m[k]; try{ localStorage.setItem('gxHelpDismissed',JSON.stringify(m)); }catch(e){} this.setState({_helpTick:(this.state._helpTick||0)+1}); }
+  _helpDismiss(){ const k=this._helpKey(); const m=this._helpDismissed(); m[k]=1; try{ localStorage.setItem('gxHelpDismissed',JSON.stringify(m)); }catch(e){} this._helpForce=false; this.setState({_helpTick:(this.state._helpTick||0)+1}); }
+  _helpShow(){ const k=this._helpKey(); const m=this._helpDismissed(); delete m[k]; try{ localStorage.setItem('gxHelpDismissed',JSON.stringify(m)); }catch(e){} this._helpForce=true; this.setState({_helpTick:(this.state._helpTick||0)+1}); }
   _setupHidden(){ try{ return localStorage.getItem('gxSetupDismiss')==='1'; }catch(e){ return false; } }
   dismissSetup(){ try{ localStorage.setItem('gxSetupDismiss','1'); }catch(e){} this._setupForce=false; this.setState({_setupTick:(this.state._setupTick||0)+1}); }
   showSetup(){ try{ localStorage.removeItem('gxSetupDismiss'); }catch(e){} this._setupForce=true; this.setState({_setupTick:(this.state._setupTick||0)+1}); }
   _helpCopy(){
     const map={
-      genel:['Ana Sayfa','Kaldığın işe dön, bekleyen değişiklikleri incele ve açık görevlerini gör.'],
-      evren:['Projeler','Bir projeyi tek tıkla aç. j/k ile listede gezebilir, Enter ile seçili projeyi açabilirsin.'],
-      planet:['Proje','Üst şerit dal, değişiklik, DB, compose ve port durumunu gösterir. Uzak projeler salt okunur.'],
+      genel:['Ana Sayfa','Bekleyen commit’e tek düğmeyle gir. Kirli proje, sessiz proje ve açık görevler burada.'],
+      evren:['Projeler','Listede tek tık seçer. Çift tık veya Enter projeye iner. Özet’teki düğme doğrudan Git’e götürür.'],
+      planet:['Proje','Üst şerit dal, değişiklik, DB, compose ve port durumunu gösterir. Tahta: yaz, çiz, sağda notların durur.'],
       db:['Veritabanları','Varsayılan kapsam seçili projedir. Parolalar Mac Anahtar Zinciri’nde tutulur.'],
       docker:['Konteynerler','Varsayılan kapsam seçili projenin compose servisleridir. Başlat, durdur ve logları incele.'],
       pano:['Görevler','Kartlar projelere bağlıdır. README eşitlemesi yalnız sen açarsan devreye girer.'],
@@ -312,15 +366,15 @@
     return map[this._helpKey()]||null;
   }
   _guideData(){ return [
-    ['Çalışma Alanları ve Projeler',['Projeler klasörlerine göre çalışma alanlarında düzenlenir','Üst menü: Ana Sayfa / Görevler / Ajanlar / Otomasyonlar / Servisler','Sol listede projeyi tek tıkla aç; j / k ve Enter da kullanılabilir']],
+    ['Çalışma Alanları ve Projeler',['Projeler klasörlerine göre çalışma alanlarında düzenlenir','Üst menü: Ana Sayfa / Görevler / Ajanlar / Otomasyonlar / Servisler','Listede tek tık seçer, çift tık veya Enter iner; Özet’ten commit bekleyen projeye girersin']],
     ['Veritabanları',['Servisler → Veritabanları → bağlantı ekle (Postgres · MySQL · SQLite)','Parola Mac Anahtar Zinciri’nde şifreli tutulur','Yazma işlemleri onay ister']],
-    ['Git ve GitHub',['Önce farkı incele, dosyaları hazırla, sonra commit et','Push ve PR ayrı işlemlerdir','GitHub oturumu Terminal’de gh auth login ile açılır']],
+    ['Git ve GitHub',['Dosyaları hazırla = sahneye al + commit. Kod incele = kalite skoru.','Push ve PR ayrı işlemlerdir','GitHub oturumu Terminal’de gh auth login ile açılır']],
     ['Docker',['Varsayılan kapsam seçili projenin compose servisleridir','Başlat, durdur ve log işlemleri compose.yaml üzerinden çalışır','Port dinlemiyorsa log görünümü açılır']],
-    ['Posta',['Postalar Galaxy’de saklanmaz; MCP bağlantısı gerekir','Bağlantı Ayarlar → Posta bölümünden yapılandırılır']],
+    ['Posta',['Yazma Kaptan’dan açılır; postalar Galaxy’de saklanmaz','Bağlantı Ayarlar → Posta bölümünden yapılandırılır']],
     ['Uzak Sunucular',['Parola saklanmaz; ~/.ssh anahtarı veya SSH config kullanılır','Uzak klasör çalışma alanı olarak eklenebilir']],
     ['Kaptan — dijital ikizin',['Üst bardaki Kaptan düğmesinden açılır','Token Galaxy’ye yazılmaz; Claude kendi girişini kullanır','Bağlamsal komutlar tek tıkla çalıştırılabilir']],
     ['Otomasyonlar',['Zamanlanmış işler: haftalık veya günlük otomatik iş kur','Uygulama kapalıysa kaçırılan iş açılışta telafi edilir','Proje taraması: tüm projeleri tara → ajan raporu yazar → sen onayla → e-postayla gelir']],
-    ['Görevler, Dosyalar ve Konsol',['Görevler projelere bağlıdır','Dosyalar orta panelde açılır; yörünge görünümü isteğe bağlıdır','Bash ve Claude konsolları proje klasöründe çalışır']],
+    ['Görevler, Dosyalar ve Konsol',['Görevler projelere bağlıdır','Dosyalar orta panelde açılır','Konsol sekmeleri: Ajan, Bash, Terminal','Tahta: gezegen başına serbest yazı / çizim; notlar sağda']],
     ['⌘ Kısayollar',['⌘K — komut paleti / arama (↑↓ seç, Enter çalıştır)','j / k — uzayda gezegen seç (Enter = in)','Kaptan düğmesi açıkken «Kaptan» de — dinler, komutu yapar','F1 — bu rehber','⌘\\ — README gizle/göster','Esc — katman katman geri','🚀 (alt bar) — HUD paneli + raporlar','Plan maddesine tık → tamam/beklemede']],
   ]; }
   // Global bildirim (toast) — başarı/hata; ~4sn sonra kaybolur. Kaptan açıksa kısa kanıt satırı.
@@ -350,12 +404,12 @@
   // ---------- DOCKER ----------
   // Kadet kaldırıldı — görünüm her zaman tam (eski Komutan)
   _setUiMode(){ this.setState({uiMode:'komutan', moreOpen:false}); }
-  _navGroups(){ return [
-    {id:'genel', label:'Ana Sayfa', hint:'Bugün ne bekliyor ve tüm projeler', sub:[['genel','Bugün'],['evren','Projeler']]},
-    {id:'pano', label:'Görevler', hint:'Tüm projelerin yapılacaklar panosu'},
-    {id:'pixel', label:'Ajanlar', hint:'Yapay zekâ ajanların'},
-    {id:'zaman', label:'Otomasyonlar', hint:'Zamanlanmış işler, proje taraması, e-posta', sub:[['zaman','Zamanlanmış işler'],['dongu','Proje taraması'],['posta','E-posta']]},
-    {id:'db', label:'Servisler', hint:'Veritabanları, konteynerler, SSH sunucuları', sub:[['db','Veritabanları'],['docker','Konteynerler'],['servers','SSH sunucuları']]},
+  _navGroups(){ const x=(tr,en)=>this._tx(tr,en); return [
+    {id:'genel', label:x('Ana Sayfa','Home'), hint:x('Bugün ne bekliyor ve tüm projeler','What is waiting today, and every project'), sub:[['genel',x('Bugün','Today')],['evren',x('Projeler','Projects')]]},
+    {id:'pano', label:x('Görevler','Tasks'), hint:x('Tüm projelerin yapılacaklar panosu','The to-do board across projects')},
+    {id:'pixel', label:x('Ajanlar','Agents'), hint:x('Yapay zekâ ajanların','Your AI agents')},
+    {id:'zaman', label:x('Otomasyonlar','Automations'), hint:x('Zamanlanmış işler, proje taraması','Scheduled jobs and project scans'), sub:[['zaman',x('Zamanlanmış işler','Scheduled jobs')],['dongu',x('Proje taraması','Project scan')]]},
+    {id:'db', label:x('Servisler','Services'), hint:x('Veritabanları, konteynerler, SSH sunucuları','Databases, containers, SSH servers'), sub:[['db',x('Veritabanları','Databases')],['docker',x('Konteynerler','Containers')],['servers',x('SSH sunucuları','SSH servers')]]},
   ]; }
   _navGroupOf(tab){ return this._navGroups().find(g=>g.id===tab||(g.sub||[]).some(s=>s[0]===tab))||null; }
   _openNavGroup(gid){
@@ -452,19 +506,19 @@
       const on=st.loopStep===id; const done=cur>i; const sel=focus===id;
       const [label,hint]=meta[id];
       let status='hazır', sc=th.dim;
-      if(done){ status='bitti'; sc='#55e88b'; }
+      if(done){ status='bitti'; sc='var(--gx-ok)'; }
       if(on&&busy){ status='çalışıyor'; sc=th.acc; }
-      else if(on&&id==='incele'&&touring){ status='sende'; sc='#ffc861'; }
+      else if(on&&id==='incele'&&touring){ status='sende'; sc='var(--gx-warn)'; }
       else if(on){ status='şimdi'; sc=th.acc; }
       else if(sel){ status='seçili'; sc=th.acc; }
-      const border=on?(id==='incele'&&touring&&!busy?'#ffc861':th.acc):(sel?th.acc:(done?'rgba(85,232,139,.55)':'var(--gx-line)'));
+      const border=on?(id==='incele'&&touring&&!busy?'var(--gx-warn)':th.acc):(sel?th.acc:(done?'color-mix(in srgb, var(--gx-ok) 55%, transparent)':'var(--gx-line)'));
       const bg=on||sel?th.panel:th.panel2;
       const pulse=busy&&on&&!this._reduced();
       return {
         id, label, hint, status, hasNext:i<order.length-1, idx:String(i+1).padStart(2,'0'),
         onClick:()=>this._loopInspect(id),
         style:`border:1px solid ${border};background:${bg};color:${th.ink};box-shadow:none${pulse?';animation:gxlooprun 1.1s ease-in-out infinite':''}`,
-        stStyle:`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.04em;color:${sc};margin-top:8px;display:flex;align-items:center;gap:6px`
+        stStyle:`font-family:var(--gx-font);font-size:10px;letter-spacing:.04em;color:${sc};margin-top:8px;display:flex;align-items:center;gap:6px`
       };
     });
   }

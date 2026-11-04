@@ -299,14 +299,29 @@ ipcMain.handle('galaxy:todoList', (e, universe) => {
   const data = loadData();
   return (data.todos || []).filter(td => !universe || td.universe === universe).slice(0, 100);
 });
-ipcMain.handle('galaxy:todoAdd', (e, { universe, text, status, projectId, branch }) => {
-  if (!text || !text.trim()) return false;
+ipcMain.handle('galaxy:todoAdd', (e, { universe, text, title, detail, status, projectId, branch, code } = {}) => {
+  const head = String(title || text || '').trim();
+  if (!head) return { ok: false };
   const data = loadData();
   data.todos = data.todos || [];
-  data.todos.unshift({ id: String(Date.now()), universe, text: text.trim(), done: status === 'done', status: status || 'todo', ts: new Date().toISOString(), projectId: projectId || '', branch: branch || '' });
+  data.todoSeq = (data.todoSeq || 1000) + 1;
+  const task = {
+    id: String(Date.now()),
+    code: String(code || ('GX-' + data.todoSeq)),
+    universe,
+    text: head,
+    title: head,
+    detail: String(detail || '').trim(),
+    done: status === 'done',
+    status: status || 'todo',
+    ts: new Date().toISOString(),
+    projectId: projectId || '',
+    branch: branch || ''
+  };
+  data.todos.unshift(task);
   data.todos = data.todos.slice(0, 300);
   saveData(data);
-  return true;
+  return { ok: true, id: task.id, code: task.code };
 });
 ipcMain.handle('galaxy:todoSetStatus', (e, { id, status }) => {
   const data = loadData();
@@ -779,6 +794,7 @@ ipcMain.handle('galaxy:settingsSave', (e, p) => {
   d.profile = d.profile || { onboarded: true };
   if (p.name !== undefined) d.profile.name = String(p.name).trim().slice(0, 60);
   if (p.lang !== undefined) d.profile.lang = p.lang === 'en' ? 'en' : 'tr';
+  const langNow = (d.profile && d.profile.lang) === 'en' ? 'en' : 'tr';
   const cur = getSettings(d);
   d.settings = {
     staleDays: cur.staleDays,
@@ -797,6 +813,11 @@ ipcMain.handle('galaxy:settingsSave', (e, p) => {
     uiTheme: 'apex'
   };
   saveData(d);
+  if (p.lang !== undefined) {
+    for (const w of BrowserWindow.getAllWindows()) {
+      try { if (!w.isDestroyed()) w.webContents.send('galaxy:lang', langNow); } catch (e) {}
+    }
+  }
   return { ok: true, settings: getSettings(d) };
 });
 

@@ -53,7 +53,7 @@
   _gotoLine(line){
     if(!line) return;
     if(this._cm){ try{ this._cm.scrollIntoView({line:line-1, ch:0}, 120); this._cm.setCursor({line:line-1, ch:0}); this._cm.focus(); return; }catch(e){} }
-    try{ const el=document.querySelector('[data-pv-line="'+line+'"]'); if(el){ el.scrollIntoView({block:'center'}); el.style.background='rgba(106,167,255,.18)'; setTimeout(()=>{ el.style.background=''; },1100); } }catch(e){}
+    try{ const el=document.querySelector('[data-pv-line="'+line+'"]'); if(el){ el.scrollIntoView({block:'center'}); el.style.background='color-mix(in srgb, var(--gx-accent) 18%, transparent)'; setTimeout(()=>{ el.style.background=''; },1100); } }catch(e){}
   }
   async gotoDefinition(word){
     const w=String(word||'').trim(); if(!w||w.length<2) return;
@@ -97,26 +97,6 @@
       'Cmd-.':()=>this.langQuickFix(), 'Ctrl-.':()=>this.langQuickFix(),
       'Cmd-D':(cm)=>this._selectNextOccurrence(cm), 'Ctrl-D':(cm)=>this._selectNextOccurrence(cm)
     };
-  }
-  // --- R4) Test Gezgini ---
-  async testsDiscover(){
-    const root=this.sel&&this.sel._path; if(!root||!(window.galaxy&&window.galaxy.testDiscover)) return;
-    this.setState({testsBusy:true});
-    try{ const r=await window.galaxy.testDiscover({root}); this.setState({testsBusy:false, _tests:r}); if(r&&r.tests&&!r.tests.length) this.toast('Test bulunamadı'); }
-    catch(e){ this.setState({testsBusy:false}); }
-  }
-  async testRunOne(t){
-    const root=this.sel&&this.sel._path; if(!root||!(window.galaxy&&window.galaxy.testRun)) return;
-    this.setState({_testRunning:t.file+':'+t.line});
-    try{
-      const r=await window.galaxy.testRun({root, file:t.file, name:t.name, runner:(this.state._tests||{}).runner});
-      this.setState({_testRunning:''});
-      if(r){ this._appendOut(this._con(this.sel&&this.sel.id).bout, {kind:'out', text:'$ '+r.cmd+'\n'+String(r.out||'').slice(-6000)}); this._flushProblems();
-        if(r.problems&&r.problems.length) this.setState({_problems:[...(this.state._problems||[]), ...r.problems].slice(-120), problemsOpen:true});
-        this._notify(r.passed?'✓ Test geçti':'✕ Test başarısız', (t.name||t.file)+' · '+Math.round((r.ms||0))+'ms', r.passed?'ok':'err');
-        this.toast(r.passed?'✓ Test geçti ('+Math.round(r.ms||0)+'ms)':'✕ Test başarısız — çıktı Bash terminalinde', r.passed?'ok':'err');
-      }
-    }catch(e){ this.setState({_testRunning:''}); }
   }
   // --- R5) Dosya geçmişi + blame ---
   async loadHistory(){
@@ -501,7 +481,7 @@
   _bpSave(rel){ try{ localStorage.setItem(this._bpKey(rel), JSON.stringify([...this._bpSet(rel)])); }catch(e){} }
   _bpMarker(){
     const d=document.createElement('div');
-    d.textContent='●'; d.style.cssText='color:#ef6b7b;font-size:11px;line-height:1;text-align:center;cursor:pointer;text-shadow:0 0 6px rgba(239,107,123,.7)';
+    d.textContent='●'; d.style.cssText='color:var(--gx-err);font-size:11px;line-height:1;text-align:center;cursor:pointer;text-shadow:none';
     return d;
   }
   _cmBpRefresh(){
@@ -590,16 +570,8 @@
 
   // --- R6) AI bağlam yardımcıları ---
   _aiSendToClaude(text){
-    this.setState({consoleTab:'claude', consoleCollapsed:false}, ()=>{
-      const p=this.sel; const con=this._con(p&&p.id);
-      con.cout.push({t:'in', x:'> '+String(text).slice(0,300)});
-      this.setState({consoleInput:''});
-      try{ this._snapshotDirty(); }catch(e){}
-      if(window.galaxy&&window.galaxy.claudeRun&&p&&p._path){
-        const runId='c'+((this._cc=(this._cc||0)+1))+'-'+p.id; this._claudeRunId=runId;
-        window.galaxy.claudeRun({runId, cwd:p._path, prompt:String(text), continueSession:!!this._claudeSessMap()[p.id], sessionKey:p.id});
-      }
-      this.setState({_cov:(this.state._cov||0)+1});
+    this.setState({consoleTab:'ajan', consoleCollapsed:false}, ()=>{
+      this.agentSendText(String(text||''));
     });
   }
   aiExplainSelection(){
@@ -619,13 +591,10 @@
     this._aiSendToClaude((p?p.rel+' dosyası':'Açık dosya')+' için birim testleri yaz. Mevcut test desenini izle, dosyayı oluşturmadan önce planı söyle.');
   }
   async aiReviewDiff(){
-    const p=this.sel; if(!p||!(window.galaxy&&window.galaxy.gitDiff)) return;
-    const files=((this.state._git&&this.state._git.dirtyFiles)||[]).slice(0,5);
+    const p=this.sel; if(!p||!p.id){ this.toast('Önce bir projeye gir','err'); return; }
+    const files=((this.state._git&&this.state._git.dirtyFiles)||[]);
     if(!files.length){ this.toast('İncelenecek değişiklik yok'); return; }
-    let combined='';
-    for(const l of files){ const rel=String(l).trim().split(/\s+/).slice(1).join(' '); try{ const r=await window.galaxy.gitDiff({projectId:p.id, file:rel, staged:false}); if(r&&r.ok) combined+='\n--- '+rel+' ---\n'+String(r.out||'').slice(0,5000); }catch(e){} }
-    if(!combined.trim()){ this.toast('Diff okunamadı','err'); return; }
-    this._aiSendToClaude('Şu değişiklikleri kod incelemesi gibi değerlendir; risk, hata ve eksik testleri madde madde söyle:\n'+combined.slice(0,14000));
+    this._crStart();
   }
   // --- R7) Dev server önizlemesi ---
   devSrvOpenUrl(url){
